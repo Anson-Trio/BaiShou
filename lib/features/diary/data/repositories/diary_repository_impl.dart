@@ -17,33 +17,26 @@ class DiaryRepositoryImpl implements DiaryRepository {
   Stream<List<Diary>> watchAllDiaries() {
     return (_db.select(_db.diaries)..orderBy([
           (t) => OrderingTerm(expression: t.date, mode: OrderingMode.desc),
+          (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
         ]))
         .watch()
         .map((rows) => rows.map(_mapToEntity).toList());
   }
 
   @override
-  Future<Diary?> getDiaryByDate(DateTime date) async {
-    // 忽略时间部分，只比较日期
-    final startOfDay = DateTime(date.year, date.month, date.day);
-    final endOfDay = startOfDay.add(const Duration(days: 1));
-
-    final query = _db.select(_db.diaries)
-      ..where((t) => t.date.isBetweenValues(startOfDay, endOfDay));
-
+  Future<Diary?> getDiaryById(int id) async {
+    final query = _db.select(_db.diaries)..where((t) => t.id.equals(id));
     final row = await query.getSingleOrNull();
     return row != null ? _mapToEntity(row) : null;
   }
 
   @override
   Future<void> saveDiary({
+    int? id,
     required DateTime date,
     required String content,
     List<String> tags = const [],
   }) async {
-    // 尝试查找当天日记
-    final existing = await getDiaryByDate(date);
-
     final companion = db.DiariesCompanion(
       date: Value(date),
       content: Value(content),
@@ -52,13 +45,13 @@ class DiaryRepositoryImpl implements DiaryRepository {
     );
 
     try {
-      if (existing != null) {
-        // 更新
+      if (id != null) {
+        // Update existing
         await (_db.update(
           _db.diaries,
-        )..where((t) => t.id.equals(existing.id))).write(companion);
+        )..where((t) => t.id.equals(id))).write(companion);
       } else {
-        // 新增
+        // Create new
         await _db.into(_db.diaries).insert(companion);
       }
     } catch (e) {
@@ -78,7 +71,7 @@ class DiaryRepositoryImpl implements DiaryRepository {
       id: row.id,
       date: row.date,
       content: row.content,
-      tags: row.tags?.split(',') ?? [], // 简单处理
+      tags: row.tags?.split(',').where((s) => s.trim().isNotEmpty).map((s) => s.trim()).toList() ?? [],
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     );

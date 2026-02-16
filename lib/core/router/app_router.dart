@@ -1,5 +1,8 @@
 import 'package:baishou/features/diary/presentation/pages/diary_editor_page.dart';
 import 'package:baishou/features/diary/presentation/pages/diary_list_page.dart';
+import 'package:baishou/features/home/presentation/pages/main_scaffold.dart';
+import 'package:baishou/features/settings/presentation/pages/settings_page.dart';
+import 'package:baishou/features/summary/presentation/pages/summary_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -36,28 +39,57 @@ class PlaceholderHomePage extends StatelessWidget {
 
 @riverpod
 GoRouter goRouter(Ref ref) {
+  final rootNavigatorKey = GlobalKey<NavigatorState>();
+
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/',
     debugLogDiagnostics: true,
     routes: [
-      GoRoute(
-        path: '/',
-        builder: (context, state) => const DiaryListPage(),
-        routes: [
-          GoRoute(
-            path: 'diary/edit',
-            builder: (context, state) {
-              // 从 query params 获取日期，默认为今天
-              final dateStr = state.uri.queryParameters['date'];
-              final date = dateStr != null
-                  ? DateTime.parse(dateStr)
-                  : DateTime.now();
-              // TODO: 如果需要传递 initialDiary 对象，可以通过 extra 传递，
-              // 但为了保持深层链接能力，建议只传 ID 或日期，并在页面内重新获取
-              return DiaryEditorPage(date: date);
-            },
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return MainScaffold(navigationShell: navigationShell);
+        },
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/',
+                builder: (context, state) => const DiaryListPage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/summary',
+                builder: (context, state) => const SummaryPage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/settings',
+                builder: (context, state) => const SettingsPage(),
+              ),
+            ],
           ),
         ],
+      ),
+      // Fullscreen routes (outside shell)
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: '/diary/edit',
+        builder: (context, state) {
+          final dateStr = state.uri.queryParameters['date'];
+          final idStr = state.uri.queryParameters['id'];
+
+          final date = dateStr != null ? DateTime.tryParse(dateStr) : null;
+          final id = idStr != null ? int.tryParse(idStr) : null;
+
+          return DiaryEditorPage(diaryId: id, initialDate: date);
+        },
       ),
     ],
   );

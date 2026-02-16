@@ -18,7 +18,21 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration {
+    return MigrationStrategy(
+      onUpgrade: (m, from, to) async {
+        if (from < 2) {
+          // Recreate diaries table to remove unique constraint on date
+          // Warning: This deletes existing diaries!
+          await m.deleteTable('diaries');
+          await m.createTable(diaries);
+        }
+      },
+    );
+  }
 }
 
 /// 打开数据库连接

@@ -6,8 +6,8 @@ class Diaries extends Table {
   /// 主键 ID (自增)
   IntColumn get id => integer().autoIncrement()();
 
-  /// 日记日期 (每天一篇，建立索引方便查询)
-  DateTimeColumn get date => dateTime().unique()();
+  /// 日记日期 (建立索引方便查询)
+  DateTimeColumn get date => dateTime()();
 
   /// 日记内容 (Markdown格式)
   TextColumn get content => text()();

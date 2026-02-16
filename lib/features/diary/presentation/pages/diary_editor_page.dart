@@ -1,158 +1,681 @@
 import 'package:baishou/core/theme/app_theme.dart';
+import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:baishou/features/diary/data/repositories/diary_repository_impl.dart';
-import 'package:baishou/features/diary/domain/entities/diary.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 class DiaryEditorPage extends ConsumerStatefulWidget {
-  final DateTime date;
-  final Diary? initialDiary;
+  final int? diaryId;
+  final DateTime? initialDate;
 
-  const DiaryEditorPage({super.key, required this.date, this.initialDiary});
+  const DiaryEditorPage({super.key, this.diaryId, this.initialDate});
 
   @override
   ConsumerState<DiaryEditorPage> createState() => _DiaryEditorPageState();
 }
 
 class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
+  late DateTime _selectedDate;
+  late TimeOfDay _selectedTime;
+  late TextEditingController _titleController;
   late TextEditingController _contentController;
-  late TextEditingController _tagsController;
+
+  // Tag management
+  final List<String> _tags = [];
+  late TextEditingController _tagInputController;
+  final FocusNode _tagFocusNode = FocusNode();
+
   bool _isDirty = false;
+  bool _isLoading = false;
+  bool _isPreview = false;
 
   @override
   void initState() {
     super.initState();
-    _contentController = TextEditingController(
-      text: widget.initialDiary?.content ?? '',
-    );
-    _tagsController = TextEditingController(
-      text: widget.initialDiary?.tags.join(', ') ?? '',
-    );
+    final now = widget.initialDate ?? DateTime.now();
+    _selectedDate = now;
+    _selectedTime = TimeOfDay.fromDateTime(now);
+    _titleController = TextEditingController();
+    _contentController = TextEditingController();
+    _tagInputController = TextEditingController();
 
-    _contentController.addListener(_onTextChanged);
-    _tagsController.addListener(_onTextChanged);
+    _titleController.addListener(_markDirty);
+    _contentController.addListener(_markDirty);
+
+    if (widget.diaryId != null) {
+      _loadDiary(widget.diaryId!);
+    }
   }
 
-  void _onTextChanged() {
-    if (!_isDirty) {
-      setState(() {
-        _isDirty = true;
-      });
+  void _markDirty() {
+    if (!_isDirty && !_isLoading) setState(() => _isDirty = true);
+  }
+
+  Future<void> _loadDiary(int id) async {
+    setState(() => _isLoading = true);
+    try {
+      final diary = await ref.read(diaryRepositoryProvider).getDiaryById(id);
+      if (diary != null && mounted) {
+        setState(() {
+          _selectedDate = diary.date;
+          _selectedTime = TimeOfDay.fromDateTime(diary.date);
+        });
+        _populateControllers(diary.content, diary.tags);
+      }
+    } catch (e) {
+      debugPrint('Err load diary: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _populateControllers(String fullContent, List<String> tags) {
+    final splitIndex = fullContent.indexOf('\n');
+    String title = '';
+    String body = '';
+
+    if (splitIndex != -1) {
+      title = fullContent.substring(0, splitIndex);
+      body = fullContent.substring(splitIndex + 1);
+    } else {
+      title = fullContent;
+    }
+
+    _titleController.text = title;
+    _contentController.text = body;
+    _tags.clear();
+    _tags.addAll(tags.where((t) => t.trim().isNotEmpty));
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _isDirty = false);
+    });
   }
 
   @override
   void dispose() {
+    _titleController.dispose();
     _contentController.dispose();
-    _tagsController.dispose();
+    _tagInputController.dispose();
+    _tagFocusNode.dispose();
     super.dispose();
   }
 
-  Future<void> _save() async {
-    final content = _contentController.text.trim();
-    if (content.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('日记内容不能为空哦')));
+  // ─── Tag Management ─────────────────────────────────
+  void _addTag(String text) {
+    final tag = text.trim();
+    if (tag.isNotEmpty && !_tags.contains(tag)) {
+      setState(() {
+        _tags.add(tag);
+        _isDirty = true;
+      });
+    }
+    _tagInputController.clear();
+  }
+
+  void _removeTag(String tag) {
+    setState(() {
+      _tags.remove(tag);
+      _isDirty = true;
+    });
+  }
+
+  // ─── Toolbar Actions ────────────────────────────────
+  void _insertText(String prefix, [String suffix = '']) {
+    final text = _contentController.text;
+    final selection = _contentController.selection;
+
+    if (selection.start == -1 || selection.end == -1) {
+      final newText = '$text\n$prefix$suffix';
+      _contentController.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(
+          offset: newText.length - suffix.length,
+        ),
+      );
       return;
     }
 
-    final tags = _tagsController.text
-        .split(RegExp(r'[,，]')) // 支持中英文逗号
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
+    final selectedText = text.substring(selection.start, selection.end);
+    final newText = text.replaceRange(
+      selection.start,
+      selection.end,
+      '$prefix$selectedText$suffix',
+    );
+
+    _contentController.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(
+        offset: selection.start + prefix.length + selectedText.length,
+      ),
+    );
+  }
+
+  // ─── Date & Time Pickers ────────────────────────────
+  Future<void> _showDateTimePicker() async {
+    await showModalBottomSheet(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => _DateTimePickerSheet(
+        initialDate: _selectedDate,
+        initialTime: _selectedTime,
+        onDateChanged: (d) => setState(() {
+          _selectedDate = d;
+          _isDirty = true;
+        }),
+        onTimeChanged: (t) => setState(() {
+          _selectedTime = t;
+          _isDirty = true;
+        }),
+      ),
+    );
+  }
+
+  DateTime get _combinedDateTime => DateTime(
+    _selectedDate.year,
+    _selectedDate.month,
+    _selectedDate.day,
+    _selectedTime.hour,
+    _selectedTime.minute,
+  );
+
+  // ─── Save ───────────────────────────────────────────
+  Future<void> _save() async {
+    final title = _titleController.text.trim();
+    final body = _contentController.text.trim();
+    final combinedContent = '$title\n$body'.trim();
+
+    if (combinedContent.isEmpty) {
+      AppToast.show(context, '写点什么吧...', icon: Icons.edit_outlined);
+      return;
+    }
 
     try {
       await ref
           .read(diaryRepositoryProvider)
-          .saveDiary(date: widget.date, content: content, tags: tags);
+          .saveDiary(
+            id: widget.diaryId,
+            date: _combinedDateTime,
+            content: combinedContent,
+            tags: _tags,
+          );
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('日记保存成功！✨')));
+        setState(() => _isDirty = false);
+        AppToast.show(context, '已保存 ✨');
         context.pop();
       }
-    } catch (e, stackTrace) {
-      debugPrint('Error saving diary: $e');
-      debugPrint(stackTrace.toString());
+    } catch (e) {
+      debugPrint('Error saving: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
+        AppToast.show(
           context,
-        ).showSnackBar(SnackBar(content: Text('保存失败: $e')));
+          '保存失败',
+          icon: Icons.error_outline,
+          backgroundColor: Colors.red[900],
+        );
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final dateStr = DateFormat('yyyy年MM月dd日').format(widget.date);
+    final dateStr = DateFormat('yyyy年MM月dd日').format(_selectedDate);
+    final timeStr = _selectedTime.format(context);
+    final weekDay = DateFormat('EEEE', 'zh_CN').format(_selectedDate);
 
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text(dateStr),
+        centerTitle: true,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new),
+          onPressed: () => context.pop(),
+        ),
+        title: GestureDetector(
+          onTap: _showDateTimePicker,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '$weekDay / $timeStr',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                dateStr,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+        ),
         actions: [
           IconButton(
-            onPressed: _save,
-            icon: const Icon(Icons.check),
-            tooltip: '保存',
+            icon: const Icon(Icons.auto_awesome),
+            onPressed: () {
+              AppToast.show(context, 'AI 功能开发中...', icon: Icons.construction);
+            },
+            color: AppTheme.primary,
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 8, right: 16),
+            child: FilledButton(
+              onPressed: _save,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                shape: const StadiumBorder(),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+              ),
+              child: const Text('保存'),
+            ),
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            // 标签输入
-            TextField(
-              controller: _tagsController,
-              decoration: InputDecoration(
-                hintText: '添加标签（用逗号分隔，如：开心, 骑车）',
-                prefixIcon: const Icon(Icons.tag, color: AppTheme.sakuraPink),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 16,
+                    ),
+                    children: [
+                      // Title
+                      TextField(
+                        controller: _titleController,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          height: 1.2,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: '标题',
+                          hintStyle: TextStyle(color: Colors.grey[400]),
+                          border: InputBorder.none,
+                        ),
+                        textInputAction: TextInputAction.next,
+                      ),
+
+                      // Tags (chip-based)
+                      const SizedBox(height: 8),
+                      _buildTagInput(),
+
+                      const SizedBox(height: 16),
+
+                      // Content: toggle between editor and preview
+                      if (_isPreview)
+                        _contentController.text.trim().isEmpty
+                            ? Padding(
+                                padding: const EdgeInsets.only(top: 24),
+                                child: Center(
+                                  child: Text(
+                                    '还没有内容可以预览',
+                                    style: TextStyle(
+                                      color: Colors.grey[400],
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : MarkdownBody(
+                                data: _contentController.text,
+                                selectable: true,
+                                styleSheet: MarkdownStyleSheet(
+                                  p: TextStyle(
+                                    fontSize: 16,
+                                    height: 1.6,
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.bodyLarge?.color,
+                                  ),
+                                  h1: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.bodyLarge?.color,
+                                  ),
+                                  h2: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.bodyLarge?.color,
+                                  ),
+                                  h3: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.bodyLarge?.color,
+                                  ),
+                                  code: TextStyle(
+                                    fontSize: 14,
+                                    backgroundColor: Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceContainerHighest,
+                                    color: AppTheme.primary,
+                                  ),
+                                  codeblockDecoration: BoxDecoration(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  blockquoteDecoration: BoxDecoration(
+                                    border: Border(
+                                      left: BorderSide(
+                                        color: AppTheme.primary.withOpacity(
+                                          0.5,
+                                        ),
+                                        width: 3,
+                                      ),
+                                    ),
+                                  ),
+                                  listBullet: TextStyle(
+                                    fontSize: 16,
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.bodyLarge?.color,
+                                  ),
+                                  checkbox: TextStyle(color: AppTheme.primary),
+                                ),
+                              )
+                      else
+                        TextField(
+                          controller: _contentController,
+                          maxLines: null,
+                          minLines: 10,
+                          style: TextStyle(
+                            fontSize: 16,
+                            height: 1.6,
+                            color: Theme.of(context).textTheme.bodyLarge?.color,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: '今天发生了什么？...',
+                            hintStyle: TextStyle(color: Colors.grey[400]),
+                            border: InputBorder.none,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-                filled: true,
-                fillColor: AppTheme.sakuraPink.withOpacity(0.1),
-                contentPadding: const EdgeInsets.symmetric(vertical: 8),
-              ),
-              style: const TextStyle(fontSize: 14),
+                _buildToolbar(context),
+              ],
             ),
-            const SizedBox(height: 16),
-            // 内容输入 (Markdown 风格)
+    );
+  }
+
+  // ─── Tag Input Widget ───────────────────────────────
+  Widget _buildTagInput() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        // Existing tags as chips
+        ..._tags.map(
+          (tag) => Chip(
+            label: Text(
+              '#$tag',
+              style: const TextStyle(fontSize: 12, color: AppTheme.primary),
+            ),
+            deleteIcon: const Icon(Icons.close, size: 14),
+            deleteIconColor: AppTheme.primary.withOpacity(0.6),
+            onDeleted: () => _removeTag(tag),
+            backgroundColor: AppTheme.primary.withOpacity(0.08),
+            side: BorderSide(color: AppTheme.primary.withOpacity(0.2)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+          ),
+        ),
+        // Input for new tag
+        SizedBox(
+          width: 120,
+          child: TextField(
+            controller: _tagInputController,
+            focusNode: _tagFocusNode,
+            style: const TextStyle(fontSize: 13, color: AppTheme.primary),
+            decoration: InputDecoration(
+              hintText: '添加标签...',
+              hintStyle: TextStyle(fontSize: 13, color: Colors.grey[400]),
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(vertical: 8),
+            ),
+            onSubmitted: (value) {
+              // Split by comma to support multiple tags at once
+              final parts = value.split(RegExp(r'[,，]'));
+              for (final part in parts) {
+                _addTag(part);
+              }
+              _tagFocusNode.requestFocus();
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ─── Toolbar ────────────────────────────────────────
+  Widget _buildToolbar(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.1))),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
             Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _ToolBtn(
+                      icon: Icons.format_bold,
+                      onPressed: () => _insertText('**', '**'),
+                    ),
+                    _ToolBtn(
+                      icon: Icons.format_italic,
+                      onPressed: () => _insertText('*', '*'),
+                    ),
+                    _ToolBtn(
+                      icon: Icons.title,
+                      onPressed: () => _insertText('## '),
+                    ),
+                    _divider(),
+                    _ToolBtn(
+                      icon: Icons.format_list_bulleted,
+                      onPressed: () => _insertText('- '),
+                    ),
+                    _ToolBtn(
+                      icon: Icons.check_box_outlined,
+                      onPressed: () => _insertText('- [ ] '),
+                    ),
+                    _divider(),
+                    _ToolBtn(
+                      icon: Icons.link,
+                      onPressed: () => _insertText('[', '](url)'),
+                    ),
+                    _ToolBtn(
+                      icon: Icons.image,
+                      onPressed: () => _insertText('![', '](image_url)'),
                     ),
                   ],
                 ),
-                child: TextField(
-                  controller: _contentController,
-                  maxLines: null,
-                  expands: true,
-                  textAlignVertical: TextAlignVertical.top,
-                  decoration: const InputDecoration(
-                    hintText: '今天发生了什么？写下来吧...',
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.all(16),
-                  ),
-                  style: const TextStyle(fontSize: 16, height: 1.6),
+              ),
+            ),
+            // Preview toggle
+            Container(
+              decoration: BoxDecoration(
+                border: Border(
+                  left: BorderSide(color: Colors.grey.withOpacity(0.1)),
                 ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      _isPreview ? Icons.edit : Icons.menu_book_rounded,
+                      color: _isPreview ? AppTheme.primary : Colors.grey,
+                    ),
+                    onPressed: () {
+                      setState(() => _isPreview = !_isPreview);
+                      if (_isPreview) FocusScope.of(context).unfocus();
+                    },
+                    tooltip: _isPreview ? '编辑' : '预览',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.keyboard_hide),
+                    onPressed: () => FocusScope.of(context).unfocus(),
+                    color: Colors.grey,
+                  ),
+                ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _divider() => Container(
+    margin: const EdgeInsets.symmetric(horizontal: 8),
+    width: 1,
+    height: 20,
+    color: Colors.grey[300],
+  );
+}
+
+class _ToolBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  const _ToolBtn({required this.icon, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: Icon(icon),
+      onPressed: onPressed,
+      color: Colors.grey[600],
+      iconSize: 22,
+      splashRadius: 20,
+      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+    );
+  }
+}
+
+class _DateTimePickerSheet extends StatefulWidget {
+  final DateTime initialDate;
+  final TimeOfDay initialTime;
+  final ValueChanged<DateTime> onDateChanged;
+  final ValueChanged<TimeOfDay> onTimeChanged;
+
+  const _DateTimePickerSheet({
+    required this.initialDate,
+    required this.initialTime,
+    required this.onDateChanged,
+    required this.onTimeChanged,
+  });
+
+  @override
+  State<_DateTimePickerSheet> createState() => _DateTimePickerSheetState();
+}
+
+class _DateTimePickerSheetState extends State<_DateTimePickerSheet>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 400,
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Column(
+        children: [
+          TabBar(
+            controller: _tabController,
+            indicatorColor: AppTheme.primary,
+            labelColor: AppTheme.primary,
+            unselectedLabelColor: Colors.grey,
+            tabs: const [
+              Tab(text: '日期'),
+              Tab(text: '时间'),
+            ],
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                // Date Tab
+                CalendarDatePicker(
+                  initialDate: widget.initialDate,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                  onDateChanged: (date) {
+                    widget.onDateChanged(date);
+                  },
+                ),
+                // Time Tab
+                CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.time,
+                  initialDateTime: DateTime(
+                    2020,
+                    1,
+                    1,
+                    widget.initialTime.hour,
+                    widget.initialTime.minute,
+                  ),
+                  use24hFormat: false,
+                  onDateTimeChanged: (dt) {
+                    widget.onTimeChanged(TimeOfDay.fromDateTime(dt));
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

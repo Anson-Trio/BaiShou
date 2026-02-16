@@ -1,86 +1,191 @@
 import 'package:baishou/core/theme/app_theme.dart';
 import 'package:baishou/features/diary/domain/entities/diary.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 class DiaryCard extends StatelessWidget {
   final Diary diary;
+  final VoidCallback? onDelete;
 
-  const DiaryCard({super.key, required this.diary});
+  const DiaryCard({super.key, required this.diary, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
-    // 格式化日期
-    final dateStr = DateFormat('MM月dd日').format(diary.date);
-    final weekDay = DateFormat(
-      'EEEE',
-      'zh_CN',
-    ).format(diary.date); // 需要配置 locale，暂时用英文或数字
+    // Extract title (first line) and content (rest)
+    final lines = diary.content.split('\n');
+    final String title = lines.isNotEmpty ? lines.first : '无标题';
+    final String body = lines.length > 1
+        ? lines
+              .sublist(1)
+              .take(3)
+              .join('\n')
+              .trim() // Take max 3 lines for preview
+        : '';
+
+    final timeStr = DateFormat('jm').format(diary.date); // e.g. 5:08 PM
 
     return Card(
       elevation: 0,
-      color: Colors.white,
+      color: Theme.of(context).cardTheme.color,
+      margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: AppTheme.sakuraPink.withOpacity(0.3), width: 1),
+        side: BorderSide.none,
       ),
       child: InkWell(
         onTap: () {
-          // 跳转到编辑页，带上日记日期
-          context.push('/diary/edit?date=${diary.date.toIso8601String()}');
+          // Pass ID so editor fetches specific entry
+          context.push('/diary/edit?id=${diary.id}');
         },
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20), // p-5 in Tailwind ~ 20px
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Header: Time + Menu
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.sakuraPink.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      dateStr,
-                      style: const TextStyle(
-                        color: AppTheme.sakuraDeep,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  Text(
+                    timeStr,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme
+                          .textSecondaryLight, // Use explicit colors or theme logic
+                      fontFamily: 'Monospace',
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    weekDay, // 暂时显示英文，后续添加 intl 初始化
-                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                  PopupMenuButton<String>(
+                    icon: Icon(
+                      Icons.more_horiz,
+                      size: 18,
+                      color: Colors.grey[400],
+                    ),
+                    onSelected: (value) {
+                      if (value == 'delete') {
+                        onDelete?.call();
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.delete_outline,
+                              size: 20,
+                              color: Colors.red,
+                            ),
+                            SizedBox(width: 8),
+                            Text('删除', style: TextStyle(color: Colors.red)),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+
+              const SizedBox(height: 8),
+
+              // Title
               Text(
-                diary.content,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 15,
-                  height: 1.5,
-                  color: Colors.black87,
+                title,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500, // Medium
+                  height: 1.4,
+                  // Color handled by theme
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              if (diary.tags.isNotEmpty) ...[
-                const SizedBox(height: 12),
+
+              // Body Preview
+              if (body.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                ShaderMask(
+                  shaderCallback: (rect) {
+                    return const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.black, Colors.transparent],
+                      stops: [0.6, 1.0],
+                    ).createShader(rect);
+                  },
+                  blendMode: BlendMode.dstIn,
+                  child: Container(
+                    constraints: const BoxConstraints(
+                      maxHeight: 120,
+                    ), // Max height ~4-5 lines
+                    child: MarkdownBody(
+                      data: body,
+                      styleSheet: MarkdownStyleSheet(
+                        p: TextStyle(
+                          fontSize: 14,
+                          height: 1.5,
+                          // text-slate-600 dark:text-slate-400
+                          color: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.color?.withOpacity(0.8),
+                        ),
+                        // Adjust other markdown styles if needed for preview
+                        h1: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        h2: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+
+              // Tags
+              // Tags - only display if there are non-empty tags
+              if (diary.tags.where((t) => t.trim().isNotEmpty).isNotEmpty) ...[
+                const SizedBox(height: 16), // mt-4
                 Wrap(
                   spacing: 8,
-                  children: diary.tags.map((tag) {
-                    return Text(
-                      '#$tag',
-                      style: TextStyle(fontSize: 12, color: Colors.indigo[300]),
+                  runSpacing: 4,
+                  children: diary.tags.where((t) => t.trim().isNotEmpty).map((
+                    tag,
+                  ) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).brightness == Brightness.light
+                            ? AppTheme.backgroundLight
+                            : Colors.grey[800], // slate-100 or slate-800
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Theme.of(
+                            context,
+                          ).dividerColor.withOpacity(0.1),
+                          width: 1,
+                        ),
+                      ),
+                      child: Text(
+                        '#$tag',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color:
+                              Theme.of(context).brightness == Brightness.light
+                              ? AppTheme.textSecondaryLight
+                              : AppTheme.textSecondaryDark,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     );
                   }).toList(),
                 ),

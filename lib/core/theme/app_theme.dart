@@ -3,37 +3,73 @@ import 'package:flutter/material.dart';
 /// 白守的主题配置
 /// Sakura & Akatsuki 的配色风格
 class AppTheme {
-  // 私有构造函数
   AppTheme._();
 
-  /// 樱花的粉色 (Primary)
-  static const Color sakuraPink = Color(0xFFFFC0CB);
-  static const Color sakuraDeep = Color(0xFFFF69B4);
+  // Design Tokens - Colors
+  static const Color primary = Color(0xFF137FEC);
+  static const Color backgroundLight = Color(0xFFF6F7F8);
+  static const Color backgroundDark = Color(0xFF101922);
+  static const Color surfaceDark = Color(0xFF192633); // Card Dark
+  static const Color surfaceHighlight = Color(0xFF233648);
+  static const Color textSecondary = Color(0xFF92ADC9);
 
-  /// 拂晓的晨光 (Secondary/Tertiary)
-  static const Color akatsukiDawn = Color(0xFFFF9E80);
-  static const Color akatsukiDark = Color(0xFF2C2C2C);
+  // Font Family
+  static const String fontFamily = 'Manrope';
+
+  static const Color textSecondaryLight = Color(0xFF475569); // slate-600
+  static const Color textSecondaryDark = Color(0xFF94A3B8); // slate-400
 
   /// 亮色主题
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
+      fontFamily: fontFamily,
+      scaffoldBackgroundColor: backgroundLight,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: sakuraPink,
+        seedColor: primary,
         brightness: Brightness.light,
-        primary: const Color(0xFFD81B60), // 更深一点的粉，保证对比度
-        secondary: const Color(0xFF8E24AA),
-        surface: const Color(0xFFFFF5F8), // 淡淡的樱花背景
+        primary: primary,
+        surface: Colors.white,
+        background: backgroundLight,
       ),
-      scaffoldBackgroundColor: const Color(0xFFFFF5F8),
       appBarTheme: const AppBarTheme(
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
+        backgroundColor: backgroundLight,
         elevation: 0,
         scrolledUnderElevation: 0,
+        centerTitle: true,
+        titleTextStyle: TextStyle(
+          color: Colors.black,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          fontFamily: fontFamily,
+        ),
+        iconTheme: IconThemeData(color: Colors.black),
       ),
-      fontFamily: 'Noto Sans SC', // 假设后续会配置字体
+      timePickerTheme: TimePickerThemeData(
+        dialHandColor: primary,
+        dialBackgroundColor: Colors.grey[200],
+        hourMinuteColor: WidgetStateColor.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? primary.withOpacity(0.12)
+              : Colors.grey[100]!,
+        ),
+        hourMinuteTextColor: WidgetStateColor.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? primary
+              : Colors.grey[600]!,
+        ),
+        dayPeriodBorderSide: const BorderSide(color: primary),
+        dayPeriodTextColor: WidgetStateColor.resolveWith(
+          (states) =>
+              states.contains(WidgetState.selected) ? Colors.white : primary,
+        ),
+        dayPeriodColor: WidgetStateColor.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? primary
+              : Colors.transparent,
+        ),
+      ),
     );
   }
 
@@ -42,20 +78,59 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
+      fontFamily: fontFamily,
+      scaffoldBackgroundColor: backgroundDark,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: akatsukiDark,
+        seedColor: primary,
         brightness: Brightness.dark,
-        primary: sakuraPink, // 暗色下用亮粉色点缀
-        surface: const Color(0xFF1E1E1E),
+        primary: primary,
+        surface: surfaceDark,
+        background: backgroundDark,
+        onSurface: Colors.white,
       ),
-      scaffoldBackgroundColor: const Color(0xFF1E1E1E),
       appBarTheme: const AppBarTheme(
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
+        backgroundColor: backgroundDark,
         elevation: 0,
         scrolledUnderElevation: 0,
+        centerTitle: true,
+        titleTextStyle: TextStyle(
+          color: Colors.white,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          fontFamily: fontFamily,
+        ),
+        iconTheme: IconThemeData(color: Colors.white),
       ),
-      fontFamily: 'Noto Sans SC',
+      timePickerTheme: TimePickerThemeData(
+        dialHandColor: primary,
+        dialBackgroundColor: surfaceHighlight,
+        dialTextColor: Colors.white,
+        entryModeIconColor: primary,
+        hourMinuteColor: WidgetStateColor.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? primary.withOpacity(0.2)
+              : surfaceHighlight,
+        ),
+        hourMinuteTextColor: WidgetStateColor.resolveWith(
+          (states) =>
+              states.contains(WidgetState.selected) ? primary : textSecondary,
+        ),
+        dayPeriodBorderSide: const BorderSide(color: primary),
+        dayPeriodTextColor: WidgetStateColor.resolveWith(
+          (states) =>
+              states.contains(WidgetState.selected) ? Colors.white : primary,
+        ),
+        dayPeriodColor: WidgetStateColor.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? primary
+              : Colors.transparent,
+        ),
+      ),
+
+      textTheme: const TextTheme(
+        bodyMedium: TextStyle(color: Colors.white),
+        bodySmall: TextStyle(color: textSecondary),
+      ),
     );
   }
 }
