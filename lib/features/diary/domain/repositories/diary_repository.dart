@@ -19,4 +19,10 @@ abstract class DiaryRepository {
   // 删除日记
   Future<void> deleteDiary(int id);
   Future<List<Diary>> getDiariesByDateRange(DateTime start, DateTime end);
+  
+  /// Get all diaries (for analysis)
+  Future<List<Diary>> getAllDiaries();
+  
+  /// Get diaries in range (alias for getDiariesByDateRange but maybe with different sorting if needed)
+  Future<List<Diary>> getDiariesInRange(DateTime start, DateTime end);
 }

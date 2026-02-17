@@ -143,6 +143,21 @@ class DiaryRepositoryImpl implements DiaryRepository {
       updatedAt: row.updatedAt,
     );
   }
+
+  @override
+  Future<List<Diary>> getAllDiaries() async {
+    final query = _db.select(_db.diaries)
+      ..orderBy([
+        (t) => OrderingTerm(expression: t.date, mode: OrderingMode.asc),
+      ]);
+    final rows = await query.get();
+    return rows.map(_mapToEntity).toList();
+  }
+
+  @override
+  Future<List<Diary>> getDiariesInRange(DateTime start, DateTime end) {
+    return getDiariesByDateRange(start, end);
+  }
 }
 
 @Riverpod(keepAlive: true)

@@ -1,6 +1,7 @@
 import 'package:baishou/core/theme/app_theme.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:baishou/features/summary/domain/services/context_builder.dart';
+import 'package:baishou/features/summary/presentation/widgets/missing_summary_list.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -73,6 +74,10 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // 智能补全列表
+          const MissingSummaryList(),
+          const SizedBox(height: 16),
+
           // 仪表盘卡片
           _buildStatCard(context, '白守数据概览 (过去 $_months 个月)', [
             _StatItem('年度', stats.yearCount, Colors.orange),
@@ -103,21 +108,6 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
               padding: const EdgeInsets.all(16),
               backgroundColor: AppTheme.primary,
             ),
-          ),
-
-          const SizedBox(height: 12),
-
-          OutlinedButton.icon(
-            onPressed: () {
-              AppToast.show(
-                context,
-                'AI 一键生成功能将在下一版本上线 (付费功能)',
-                icon: Icons.lock_outline,
-              );
-            },
-            icon: const Icon(Icons.auto_awesome),
-            label: const Text('AI 一键生成总结 (Premium)'),
-            style: OutlinedButton.styleFrom(padding: const EdgeInsets.all(16)),
           ),
         ],
       ),
