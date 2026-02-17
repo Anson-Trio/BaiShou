@@ -3,34 +3,97 @@ import 'package:baishou/features/diary/data/repositories/diary_repository_impl.d
 import 'package:baishou/features/diary/domain/entities/diary.dart';
 import 'package:baishou/features/diary/presentation/widgets/diary_card.dart';
 import 'package:collection/collection.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-class DiaryListPage extends ConsumerWidget {
+class DiaryListPage extends ConsumerStatefulWidget {
   const DiaryListPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DiaryListPage> createState() => _DiaryListPageState();
+}
+
+class _DiaryListPageState extends ConsumerState<DiaryListPage> {
+  DateTime? _selectedMonth;
+
+  @override
+  Widget build(BuildContext context) {
     final diaryStream = ref.watch(diaryRepositoryProvider).watchAllDiaries();
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      // Custom Header logic integrated into body list if possible or use Sliver
+      appBar: AppBar(
+        centerTitle: false,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        elevation: 0,
+        title: GestureDetector(
+          onTap: () {
+            _showMonthPicker(context);
+          },
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _selectedMonth == null
+                    ? '全部日记'
+                    : DateFormat('yyyy年MM月').format(_selectedMonth!),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 22,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: Theme.of(context).textTheme.titleLarge?.color,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 20),
+            child: Center(
+              child: Text(
+                '白守',
+                style: TextStyle(
+                  fontFamily: 'MaShanZheng', // 假设已配置字体或仅作为样式参考
+                  fontSize: 22,
+                  fontWeight: FontWeight.normal,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: StreamBuilder<List<Diary>>(
           stream: diaryStream,
           builder: (context, snapshot) {
-            if (snapshot.hasError)
+            if (snapshot.hasError) {
               return Center(child: Text('Error: ${snapshot.error}'));
-            if (!snapshot.hasData)
+            }
+            if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
+            }
 
-            final diaries = snapshot.data!;
+            var diaries = snapshot.data!;
+
+            // 如果已选择月份，则按月份筛选
+            if (_selectedMonth != null) {
+              diaries = diaries.where((d) {
+                return d.date.year == _selectedMonth!.year &&
+                    d.date.month == _selectedMonth!.month;
+              }).toList();
+            }
+
             if (diaries.isEmpty) return _buildEmptyState(context);
 
-            // Group by Date
+            // 按日期分组
             final grouped = groupBy(diaries, (Diary d) {
               return DateTime(d.date.year, d.date.month, d.date.day);
             });
@@ -40,17 +103,14 @@ class DiaryListPage extends ConsumerWidget {
 
             return CustomScrollView(
               slivers: [
-                const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                const SliverToBoxAdapter(child: SizedBox(height: 10)),
                 ...() {
                   final List<Widget> slivers = [];
                   int? lastYear;
 
                   for (var date in sortedDates) {
-                    // Insert Year Divider if year changes
+                    // 如果年份变化，插入年份分割线
                     if (lastYear != null && date.year != lastYear) {
-                      // Because list is descending (newest first),
-                      // when we switch from 2024 to 2023, we want to show "2023"
-                      // This divider appears BEFORE the group of 2023 dates.
                       slivers.add(
                         SliverToBoxAdapter(
                           child: _buildYearDivider(context, date.year),
@@ -91,7 +151,7 @@ class DiaryListPage extends ConsumerWidget {
                 }(),
                 const SliverToBoxAdapter(
                   child: SizedBox(height: 80),
-                ), // Fab space
+                ), // Fab 占位空间
               ],
             );
           },
@@ -120,11 +180,18 @@ class DiaryListPage extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            '还没有日记哦',
+            _selectedMonth != null ? '本月还没有日记哦' : '还没有日记哦',
             style: Theme.of(
               context,
             ).textTheme.titleMedium?.copyWith(color: Colors.grey),
           ),
+          if (_selectedMonth != null) ...[
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => setState(() => _selectedMonth = null),
+              child: const Text('查看全部'),
+            ),
+          ],
         ],
       ),
     );
@@ -133,26 +200,25 @@ class DiaryListPage extends ConsumerWidget {
   Widget _buildTimelineItem(BuildContext context, WidgetRef ref, Diary diary) {
     return Stack(
       children: [
-        // Continuous Line on Left
+        // 左侧连续线条
         Positioned(
           left: 0,
           top: 0,
           bottom: 0,
-          width: 2, // border-l width
+          width: 2,
           child: Container(
             color: Theme.of(context).dividerColor.withOpacity(0.5),
           ),
         ),
-        // Item Content
+        // 内容区域
         Padding(
           padding: const EdgeInsets.only(left: 20, bottom: 24, right: 20),
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              // Dot
+              // 时间轴节点
               Positioned(
-                left:
-                    -26, // Adjust to center on line: -20 padding - (10width/2) + 1widthline = -24 approx
+                left: -26, // 调整以在直线上居中
                 top: 20,
                 child: Container(
                   width: 10,
@@ -203,63 +269,212 @@ class DiaryListPage extends ConsumerWidget {
       ),
     );
   }
-}
 
-Widget _buildYearDivider(BuildContext context, int year) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Expanded(
-          child: Container(
-            height: 1,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.transparent,
-                  Theme.of(context).dividerColor.withOpacity(0.5),
-                ],
+  Widget _buildYearDivider(BuildContext context, int year) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Container(
+              height: 1,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.transparent,
+                    Theme.of(context).dividerColor.withOpacity(0.5),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          margin: const EdgeInsets.symmetric(horizontal: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            margin: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: Theme.of(context).dividerColor.withOpacity(0.2),
+              ),
+            ),
+            child: Text(
+              '$year年',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textSecondaryLight,
+                letterSpacing: 2,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Container(
+              height: 1,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Theme.of(context).dividerColor.withOpacity(0.5),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showMonthPicker(BuildContext context) {
+    final now = DateTime.now();
+    // 默认选中当前选中月份，如果没有则选中当前时间
+    int selectedYear = _selectedMonth?.year ?? now.year;
+    int selectedMonth = _selectedMonth?.month ?? now.month;
+
+    final fixedExtentScrollControllerYear = FixedExtentScrollController(
+      initialItem: selectedYear - 2020,
+    );
+    final fixedExtentScrollControllerMonth = FixedExtentScrollController(
+      initialItem: selectedMonth - 1,
+    );
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent, // 为了圆角效果
+      builder: (BuildContext context) {
+        return Container(
+          height: 350,
           decoration: BoxDecoration(
             color: Theme.of(context).scaffoldBackgroundColor,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Theme.of(context).dividerColor.withOpacity(0.2),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(24),
+              topRight: Radius.circular(24),
             ),
           ),
-          child: Text(
-            '$year年',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textSecondaryLight,
-              letterSpacing: 2,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Container(
-            height: 1,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Theme.of(context).dividerColor.withOpacity(0.5),
-                  Colors.transparent,
-                ],
+          child: Column(
+            children: [
+              // 顶部操作栏
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 12.0,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        '取消',
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                    ),
+                    Text(
+                      '选择月份',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _selectedMonth = DateTime(
+                            selectedYear,
+                            selectedMonth,
+                          );
+                        });
+                        Navigator.pop(context);
+                      },
+                      child: const Text(
+                        '确定',
+                        style: TextStyle(
+                          color: AppTheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+              const Divider(height: 1),
+              // 选择器主体
+              Expanded(
+                child: Row(
+                  children: [
+                    // 年份选择
+                    Expanded(
+                      child: CupertinoPicker(
+                        scrollController: fixedExtentScrollControllerYear,
+                        itemExtent: 40,
+                        onSelectedItemChanged: (int index) {
+                          selectedYear = 2020 + index;
+                        },
+                        children: List<Widget>.generate(11, (int index) {
+                          return Center(
+                            child: Text(
+                              '${2020 + index}年',
+                              style: const TextStyle(fontSize: 18),
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                    // 月份选择
+                    Expanded(
+                      child: CupertinoPicker(
+                        scrollController: fixedExtentScrollControllerMonth,
+                        itemExtent: 40,
+                        onSelectedItemChanged: (int index) {
+                          selectedMonth = 1 + index;
+                        },
+                        children: List<Widget>.generate(12, (int index) {
+                          return Center(
+                            child: Text(
+                              '${1 + index}月',
+                              style: const TextStyle(fontSize: 18),
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // 底部查看全部按钮
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _selectedMonth = null;
+                        });
+                        Navigator.pop(context);
+                      },
+                      style: TextButton.styleFrom(
+                        backgroundColor: Theme.of(
+                          context,
+                        ).dividerColor.withOpacity(0.1),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text('查看全部日记'),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ),
-      ],
-    ),
-  );
+        );
+      },
+    );
+  }
 }
 
 class _DateHeaderDelegate extends SliverPersistentHeaderDelegate {
@@ -276,6 +491,10 @@ class _DateHeaderDelegate extends SliverPersistentHeaderDelegate {
     final isToday = DateUtils.isSameDay(date, DateTime.now());
     final dayStr = DateFormat('dd').format(date);
     final monthStr = DateFormat('MM').format(date);
+
+    // 手动计算星期几，避免本地化未就绪时的依赖
+    const weekdays = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    final weekdayStr = weekdays[date.weekday];
 
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.95),
@@ -295,14 +514,32 @@ class _DateHeaderDelegate extends SliverPersistentHeaderDelegate {
             style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w300),
           ),
           const Text('日', style: TextStyle(fontSize: 16, color: Colors.grey)),
+
+          const SizedBox(width: 8),
+          Text(
+            weekdayStr,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey, // 按要求设为更小且灰色的字体
+            ),
+          ),
+
           if (isToday) ...[
             const SizedBox(width: 8),
-            const Text(
-              '今天',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.primary,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                '今天',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primary,
+                ),
               ),
             ),
           ],
