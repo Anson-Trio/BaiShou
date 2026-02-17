@@ -107,6 +107,25 @@ class DiaryRepositoryImpl implements DiaryRepository {
     return (_db.delete(_db.diaries)..where((t) => t.id.equals(id))).go();
   }
 
+  @override
+  Future<List<Diary>> getDiariesByDateRange(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final query = _db.select(_db.diaries)
+      ..where(
+        (t) =>
+            t.date.isBiggerOrEqualValue(start) &
+            t.date.isSmallerOrEqualValue(end),
+      )
+      ..orderBy([
+        (t) => OrderingTerm(expression: t.date, mode: OrderingMode.asc),
+      ]);
+
+    final rows = await query.get();
+    return rows.map(_mapToEntity).toList();
+  }
+
   // 将数据库行转换为领域实体
   Diary _mapToEntity(db.Diary row) {
     return Diary(
