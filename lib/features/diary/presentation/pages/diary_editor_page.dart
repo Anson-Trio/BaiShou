@@ -630,6 +630,10 @@ class _DateTimePickerSheetState extends State<_DateTimePickerSheet>
   final int _minYear = 2000;
   final int _maxYear = 2200;
 
+  // Cache widgets to improve performance
+  late List<Widget> _yearWidgets;
+  late List<Widget> _monthWidgets;
+
   @override
   void initState() {
     super.initState();
@@ -649,6 +653,24 @@ class _DateTimePickerSheetState extends State<_DateTimePickerSheet>
       initialItem: _selectedMonth - 1,
     );
     _dayController = FixedExtentScrollController(initialItem: _selectedDay - 1);
+
+    // Initialize cached widgets
+    _yearWidgets = List.generate(
+      _maxYear - _minYear + 1,
+      (index) => Center(
+        child: Text(
+          '${_minYear + index}年',
+          style: const TextStyle(fontSize: 18),
+        ),
+      ),
+    );
+
+    _monthWidgets = List.generate(
+      12,
+      (index) => Center(
+        child: Text('${index + 1}月', style: const TextStyle(fontSize: 18)),
+      ),
+    );
   }
 
   @override
@@ -674,15 +696,7 @@ class _DateTimePickerSheetState extends State<_DateTimePickerSheet>
     final daysInMonth = _getDaysInMonth(_selectedYear, _selectedMonth);
     if (_selectedDay > daysInMonth) {
       _selectedDay = daysInMonth;
-      // Scroll to valid day if needed, but since this happens during build or callback,
-      // usually just clamping state is enough. However, visual update might need jump.
-      // We will handle visual update in build if needed, or just let the picker standard behavior work.
-      // Actually with CupertinoPicker, if item count changes, it might need help.
-      // But we just clamp value here.
     }
-    // Update controller if the clamped day is different?
-    // Usually user scrolls to change day, so controller is source of truth.
-    // If year/month changes and day becomes invalid (e.g. Feb 30), we clamp.
     if (_dayController.hasClients &&
         _dayController.selectedItem > daysInMonth - 1) {
       _dayController.jumpToItem(daysInMonth - 1);
@@ -694,8 +708,7 @@ class _DateTimePickerSheetState extends State<_DateTimePickerSheet>
   // Custom Picker Widget helper
   Widget _buildPicker({
     required FixedExtentScrollController controller,
-    required int itemCount,
-    required Widget Function(int) itemBuilder,
+    required List<Widget> children,
     required ValueChanged<int> onSelectedItemChanged,
   }) {
     return CupertinoPicker(
@@ -712,7 +725,7 @@ class _DateTimePickerSheetState extends State<_DateTimePickerSheet>
           ),
         ),
       ),
-      children: List.generate(itemCount, itemBuilder),
+      children: children,
     );
   }
 
@@ -745,19 +758,13 @@ class _DateTimePickerSheetState extends State<_DateTimePickerSheet>
                       flex: 2,
                       child: _buildPicker(
                         controller: _yearController,
-                        itemCount: _maxYear - _minYear + 1,
+                        children: _yearWidgets,
                         onSelectedItemChanged: (index) {
                           setState(() {
                             _selectedYear = _minYear + index;
                             _updateDate();
                           });
                         },
-                        itemBuilder: (index) => Center(
-                          child: Text(
-                            '${_minYear + index}年',
-                            style: const TextStyle(fontSize: 18),
-                          ),
-                        ),
                       ),
                     ),
                     // Month
@@ -765,19 +772,13 @@ class _DateTimePickerSheetState extends State<_DateTimePickerSheet>
                       flex: 1,
                       child: _buildPicker(
                         controller: _monthController,
-                        itemCount: 12,
+                        children: _monthWidgets,
                         onSelectedItemChanged: (index) {
                           setState(() {
                             _selectedMonth = index + 1;
                             _updateDate();
                           });
                         },
-                        itemBuilder: (index) => Center(
-                          child: Text(
-                            '${index + 1}月',
-                            style: const TextStyle(fontSize: 18),
-                          ),
-                        ),
                       ),
                     ),
                     // Day
@@ -785,9 +786,14 @@ class _DateTimePickerSheetState extends State<_DateTimePickerSheet>
                       flex: 1,
                       child: _buildPicker(
                         controller: _dayController,
-                        itemCount: _getDaysInMonth(
-                          _selectedYear,
-                          _selectedMonth,
+                        children: List.generate(
+                          _getDaysInMonth(_selectedYear, _selectedMonth),
+                          (index) => Center(
+                            child: Text(
+                              '${index + 1}日',
+                              style: const TextStyle(fontSize: 18),
+                            ),
+                          ),
                         ),
                         onSelectedItemChanged: (index) {
                           setState(() {
@@ -795,12 +801,6 @@ class _DateTimePickerSheetState extends State<_DateTimePickerSheet>
                             _updateDate();
                           });
                         },
-                        itemBuilder: (index) => Center(
-                          child: Text(
-                            '${index + 1}日',
-                            style: const TextStyle(fontSize: 18),
-                          ),
-                        ),
                       ),
                     ),
                   ],
@@ -815,7 +815,7 @@ class _DateTimePickerSheetState extends State<_DateTimePickerSheet>
                     widget.initialTime.hour,
                     widget.initialTime.minute,
                   ),
-                  use24hFormat: false,
+                  use24hFormat: true,
                   onDateTimeChanged: (dt) {
                     widget.onTimeChanged(TimeOfDay.fromDateTime(dt));
                   },

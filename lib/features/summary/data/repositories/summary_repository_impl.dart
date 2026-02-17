@@ -3,7 +3,6 @@ import 'package:baishou/core/database/tables/summaries.dart';
 import 'package:baishou/features/summary/domain/entities/summary.dart';
 import 'package:baishou/features/summary/domain/repositories/summary_repository.dart';
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart' hide Summary;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -34,35 +33,57 @@ class SummaryRepositoryImpl implements SummaryRepository {
   }
 
   @override
-  Future<void> saveSummary({
-    int? id,
+  Future<List<Summary>> getSummaries({DateTime? start, DateTime? end}) async {
+    final query = _db.select(_db.summaries);
+    if (start != null) {
+      query.where((t) => t.startDate.isBiggerOrEqualValue(start));
+    }
+    if (end != null) {
+      query.where((t) => t.endDate.isSmallerOrEqualValue(end));
+    }
+    query.orderBy([
+      (t) => OrderingTerm(expression: t.startDate, mode: OrderingMode.desc),
+    ]);
+
+    final rows = await query.get();
+    return rows.map(_mapToEntity).toList();
+  }
+
+  @override
+  Future<Summary?> getSummaryByTypeAndDate(
+    SummaryType type,
+    DateTime start,
+    DateTime end,
+  ) async {
+    final query = _db.select(_db.summaries)
+      ..where((t) => t.type.equalsValue(type))
+      ..where((t) => t.startDate.equals(start))
+      ..where((t) => t.endDate.equals(end));
+
+    final row = await query.getSingleOrNull();
+    return row != null ? _mapToEntity(row) : null;
+  }
+
+  @override
+  Future<int> addSummary({
     required SummaryType type,
     required DateTime startDate,
     required DateTime endDate,
     required String content,
     List<String> sourceIds = const [],
-  }) async {
-    final companion = db.SummariesCompanion(
-      type: Value(type),
-      startDate: Value(startDate),
-      endDate: Value(endDate),
-      content: Value(content),
-      sourceIds: Value(sourceIds.join(',')),
-      generatedAt: Value(DateTime.now()),
-    );
-
-    try {
-      if (id != null) {
-        await (_db.update(
-          _db.summaries,
-        )..where((t) => t.id.equals(id))).write(companion);
-      } else {
-        await _db.into(_db.summaries).insert(companion);
-      }
-    } catch (e) {
-      debugPrint('SummaryRepository: Failed to save summary. Error: $e');
-      rethrow;
-    }
+  }) {
+    return _db
+        .into(_db.summaries)
+        .insert(
+          db.SummariesCompanion(
+            type: Value(type),
+            startDate: Value(startDate),
+            endDate: Value(endDate),
+            content: Value(content),
+            sourceIds: Value(sourceIds.join(',')),
+            generatedAt: Value(DateTime.now()),
+          ),
+        );
   }
 
   @override

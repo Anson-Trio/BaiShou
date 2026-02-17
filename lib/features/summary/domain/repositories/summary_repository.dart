@@ -9,8 +9,18 @@ abstract class SummaryRepository {
   Future<Summary?> getSummaryById(int id);
 
   // 保存总结
-  Future<void> saveSummary({
-    int? id,
+  // 获取所有总结 (可按时间范围筛选)
+  Future<List<Summary>> getSummaries({DateTime? start, DateTime? end});
+
+  // 获取单个总结 (按类型和日期范围，用于查重)
+  Future<Summary?> getSummaryByTypeAndDate(
+    SummaryType type,
+    DateTime start,
+    DateTime end,
+  );
+
+  // 添加总结
+  Future<int> addSummary({
     required SummaryType type,
     required DateTime startDate,
     required DateTime endDate,

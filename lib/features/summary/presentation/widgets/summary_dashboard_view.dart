@@ -1,0 +1,181 @@
+import 'package:baishou/core/theme/app_theme.dart';
+import 'package:baishou/core/widgets/app_toast.dart';
+import 'package:baishou/features/summary/domain/services/context_builder.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+class SummaryDashboardView extends ConsumerStatefulWidget {
+  const SummaryDashboardView({super.key});
+
+  @override
+  ConsumerState<SummaryDashboardView> createState() =>
+      _SummaryDashboardViewState();
+}
+
+class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
+  bool _isLoading = false;
+  ContextResult? _result;
+  int _months = 12; // Default lookback
+
+  @override
+  void initState() {
+    super.initState();
+    _loadContext();
+  }
+
+  Future<void> _loadContext() async {
+    setState(() => _isLoading = true);
+    try {
+      final result = await ref
+          .read(contextBuilderProvider)
+          .buildLifeBookContext(months: _months);
+      setState(() {
+        _result = result;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        AppToast.show(context, '加载失败: $e');
+      }
+    }
+  }
+
+  Future<void> _copyContext() async {
+    if (_result == null) return;
+    await Clipboard.setData(ClipboardData(text: _result!.text));
+    if (mounted) {
+      AppToast.show(context, '共同回忆已复制', icon: Icons.check);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_result == null) {
+      return Center(
+        child: FilledButton.icon(
+          onPressed: _loadContext,
+          icon: const Icon(Icons.refresh),
+          label: const Text('加载数据'),
+        ),
+      );
+    }
+
+    final stats = _result!;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 仪表盘卡片
+          _buildStatCard(context, '白守数据概览 (过去 $_months 个月)', [
+            _StatItem('年度', stats.yearCount, Colors.orange),
+            _StatItem('季度', stats.quarterCount, Colors.amber),
+            _StatItem('月度', stats.monthCount, Colors.blue),
+            _StatItem('周度', stats.weekCount, Colors.cyan),
+            _StatItem('日记', stats.diaryCount, Colors.green),
+          ]),
+          const SizedBox(height: 24),
+
+          // 操作按钮区域
+          const Text(
+            '白守•共同回忆',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            '基于白守级联折叠算法，自动过滤冗余数据，构建我们共同的记忆脉络。',
+            style: TextStyle(color: Colors.grey, fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+
+          FilledButton.icon(
+            onPressed: _copyContext,
+            icon: const Icon(Icons.copy),
+            label: const Text('复制共同回忆'),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.all(16),
+              backgroundColor: AppTheme.primary,
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          OutlinedButton.icon(
+            onPressed: () {
+              AppToast.show(
+                context,
+                'AI 一键生成功能将在下一版本上线 (付费功能)',
+                icon: Icons.lock_outline,
+              );
+            },
+            icon: const Icon(Icons.auto_awesome),
+            label: const Text('AI 一键生成总结 (Premium)'),
+            style: OutlinedButton.styleFrom(padding: const EdgeInsets.all(16)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard(
+    BuildContext context,
+    String title,
+    List<_StatItem> items,
+  ) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: Theme.of(context).textTheme.titleMedium),
+            const Divider(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: items
+                  .map((item) => _buildStatItem(context, item))
+                  .toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatItem(BuildContext context, _StatItem item) {
+    return Column(
+      children: [
+        Text(
+          item.count.toString(),
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            color: item.color,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          item.label,
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: Colors.grey),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatItem {
+  final String label;
+  final int count;
+  final Color color;
+  _StatItem(this.label, this.count, this.color);
+}

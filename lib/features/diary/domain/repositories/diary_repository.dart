@@ -18,4 +18,5 @@ abstract class DiaryRepository {
 
   // 删除日记
   Future<void> deleteDiary(int id);
+  Future<List<Diary>> getDiariesByDateRange(DateTime start, DateTime end);
 }
