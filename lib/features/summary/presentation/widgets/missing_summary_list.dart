@@ -157,6 +157,9 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
   Future<void> _generate(MissingSummary item) async {
     final key = item.label;
     final service = GenerationStateService();
+    // 提前获取 necessary services，避免跨 async gap 使用 ref
+    final generator = ref.read(summaryGeneratorServiceProvider);
+    final repository = ref.read(summaryRepositoryProvider);
 
     // Check if already generating
     if (service.getStatus(key) != null) return;
@@ -164,7 +167,7 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
     service.setStatus(key, '准备中...');
 
     try {
-      final stream = ref.read(summaryGeneratorServiceProvider).generate(item);
+      final stream = generator.generate(item);
       String finalContent = '';
 
       await for (final status in stream) {
@@ -178,14 +181,12 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
 
       if (finalContent.isNotEmpty) {
         // Save to DB
-        await ref
-            .read(summaryRepositoryProvider)
-            .addSummary(
-              type: item.type,
-              startDate: item.startDate,
-              endDate: item.endDate,
-              content: finalContent,
-            );
+        await repository.addSummary(
+          type: item.type,
+          startDate: item.startDate,
+          endDate: item.endDate,
+          content: finalContent,
+        );
 
         service.removeStatus(key);
         if (mounted) setState(() {}); // 触发 FutureBuilder 刷新列表
