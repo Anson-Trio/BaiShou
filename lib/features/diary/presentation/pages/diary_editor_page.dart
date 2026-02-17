@@ -1,8 +1,10 @@
 import 'package:baishou/core/theme/app_theme.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:baishou/features/diary/data/repositories/diary_repository_impl.dart';
+import 'package:baishou/features/diary/presentation/widgets/datetime_picker_sheet.dart';
+import 'package:baishou/features/diary/presentation/widgets/markdown_toolbar.dart';
+import 'package:baishou/features/diary/presentation/widgets/tag_input_widget.dart';
 import 'package:baishou/features/summary/data/repositories/summary_repository_impl.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -207,7 +209,7 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) => _DateTimePickerSheet(
+      builder: (context) => DateTimePickerSheet(
         initialDate: _selectedDate,
         initialTime: _selectedTime,
         onDateChanged: (d) => setState(() {
@@ -376,7 +378,13 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
 
                         // Tags (chip-based)
                         const SizedBox(height: 8),
-                        _buildTagInput(),
+                        TagInputWidget(
+                          tags: _tags,
+                          controller: _tagInputController,
+                          focusNode: _tagFocusNode,
+                          onAddTag: _addTag,
+                          onRemoveTag: _removeTag,
+                        ),
                       ],
 
                       const SizedBox(height: 16),
@@ -479,412 +487,17 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
                     ],
                   ),
                 ),
-                _buildToolbar(context),
-              ],
-            ),
-    );
-  }
-
-  // ─── Tag Input Widget ───────────────────────────────
-  Widget _buildTagInput() {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 6,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        // Existing tags as chips
-        ..._tags.map(
-          (tag) => Chip(
-            label: Text(
-              '#$tag',
-              style: const TextStyle(fontSize: 12, color: AppTheme.primary),
-            ),
-            deleteIcon: const Icon(Icons.close, size: 14),
-            deleteIconColor: AppTheme.primary.withOpacity(0.6),
-            onDeleted: () => _removeTag(tag),
-            backgroundColor: AppTheme.primary.withOpacity(0.08),
-            side: BorderSide(color: AppTheme.primary.withOpacity(0.2)),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            visualDensity: VisualDensity.compact,
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-          ),
-        ),
-        // Input for new tag
-        SizedBox(
-          width: 120,
-          child: TextField(
-            controller: _tagInputController,
-            focusNode: _tagFocusNode,
-            style: const TextStyle(fontSize: 13, color: AppTheme.primary),
-            decoration: InputDecoration(
-              hintText: '添加标签...',
-              hintStyle: TextStyle(fontSize: 13, color: Colors.grey[400]),
-              border: InputBorder.none,
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(vertical: 8),
-            ),
-            onSubmitted: (value) {
-              // Split by comma to support multiple tags at once
-              final parts = value.split(RegExp(r'[,，]'));
-              for (final part in parts) {
-                _addTag(part);
-              }
-              _tagFocusNode.requestFocus();
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ─── Toolbar ────────────────────────────────────────
-  Widget _buildToolbar(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.1))),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _ToolBtn(
-                      icon: Icons.format_bold,
-                      onPressed: () => _insertText('**', '**'),
-                    ),
-                    _ToolBtn(
-                      icon: Icons.format_italic,
-                      onPressed: () => _insertText('*', '*'),
-                    ),
-                    _ToolBtn(
-                      icon: Icons.title,
-                      onPressed: () => _insertText('## '),
-                    ),
-                    _divider(),
-                    _ToolBtn(
-                      icon: Icons.format_list_bulleted,
-                      onPressed: () => _insertText('- '),
-                    ),
-                    _ToolBtn(
-                      icon: Icons.check_box_outlined,
-                      onPressed: () => _insertText('- [ ] '),
-                    ),
-                    _divider(),
-                    _ToolBtn(
-                      icon: Icons.link,
-                      onPressed: () => _insertText('[', '](url)'),
-                    ),
-                    _ToolBtn(
-                      icon: Icons.image,
-                      onPressed: () => _insertText('![', '](image_url)'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            // Preview toggle
-            Container(
-              decoration: BoxDecoration(
-                border: Border(
-                  left: BorderSide(color: Colors.grey.withOpacity(0.1)),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      _isPreview ? Icons.edit : Icons.menu_book_rounded,
-                      color: _isPreview ? AppTheme.primary : Colors.grey,
-                    ),
-                    onPressed: () {
-                      setState(() => _isPreview = !_isPreview);
-                      if (_isPreview) FocusScope.of(context).unfocus();
-                    },
-                    tooltip: _isPreview ? '编辑' : '预览',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.keyboard_hide),
-                    onPressed: () => FocusScope.of(context).unfocus(),
-                    color: Colors.grey,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _divider() => Container(
-    margin: const EdgeInsets.symmetric(horizontal: 8),
-    width: 1,
-    height: 20,
-    color: Colors.grey[300],
-  );
-}
-
-class _ToolBtn extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onPressed;
-
-  const _ToolBtn({required this.icon, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      icon: Icon(icon),
-      onPressed: onPressed,
-      color: Colors.grey[600],
-      iconSize: 22,
-      splashRadius: 20,
-      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-    );
-  }
-}
-
-class _DateTimePickerSheet extends StatefulWidget {
-  final DateTime initialDate;
-  final TimeOfDay initialTime;
-  final ValueChanged<DateTime> onDateChanged;
-  final ValueChanged<TimeOfDay> onTimeChanged;
-
-  const _DateTimePickerSheet({
-    required this.initialDate,
-    required this.initialTime,
-    required this.onDateChanged,
-    required this.onTimeChanged,
-  });
-
-  @override
-  State<_DateTimePickerSheet> createState() => _DateTimePickerSheetState();
-}
-
-class _DateTimePickerSheetState extends State<_DateTimePickerSheet>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  late int _selectedYear;
-  late int _selectedMonth;
-  late int _selectedDay;
-  late FixedExtentScrollController _yearController;
-  late FixedExtentScrollController _monthController;
-  late FixedExtentScrollController _dayController;
-
-  final int _minYear = 2000;
-  final int _maxYear = 2200;
-
-  // Cache widgets to improve performance
-  late List<Widget> _yearWidgets;
-  late List<Widget> _monthWidgets;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _selectedYear = widget.initialDate.year;
-    _selectedMonth = widget.initialDate.month;
-    _selectedDay = widget.initialDate.day;
-
-    // Clamp initial date to valid range just in case
-    if (_selectedYear < _minYear) _selectedYear = _minYear;
-    if (_selectedYear > _maxYear) _selectedYear = _maxYear;
-
-    _yearController = FixedExtentScrollController(
-      initialItem: _selectedYear - _minYear,
-    );
-    _monthController = FixedExtentScrollController(
-      initialItem: _selectedMonth - 1,
-    );
-    _dayController = FixedExtentScrollController(initialItem: _selectedDay - 1);
-
-    // Initialize cached widgets
-    _yearWidgets = List.generate(
-      _maxYear - _minYear + 1,
-      (index) => Center(
-        child: Text(
-          '${_minYear + index}年',
-          style: const TextStyle(fontSize: 18),
-        ),
-      ),
-    );
-
-    _monthWidgets = List.generate(
-      12,
-      (index) => Center(
-        child: Text('${index + 1}月', style: const TextStyle(fontSize: 18)),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    _yearController.dispose();
-    _monthController.dispose();
-    _dayController.dispose();
-    super.dispose();
-  }
-
-  int _getDaysInMonth(int year, int month) {
-    if (month == 2) {
-      final bool isLeapYear =
-          (year % 4 == 0) && (year % 100 != 0) || (year % 400 == 0);
-      return isLeapYear ? 29 : 28;
-    }
-    const daysInMonth = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-    return daysInMonth[month];
-  }
-
-  void _updateDate() {
-    final daysInMonth = _getDaysInMonth(_selectedYear, _selectedMonth);
-    if (_selectedDay > daysInMonth) {
-      _selectedDay = daysInMonth;
-    }
-    if (_dayController.hasClients &&
-        _dayController.selectedItem > daysInMonth - 1) {
-      _dayController.jumpToItem(daysInMonth - 1);
-    }
-
-    widget.onDateChanged(DateTime(_selectedYear, _selectedMonth, _selectedDay));
-  }
-
-  // Custom Picker Widget helper
-  Widget _buildPicker({
-    required FixedExtentScrollController controller,
-    required List<Widget> children,
-    required ValueChanged<int> onSelectedItemChanged,
-  }) {
-    return CupertinoPicker(
-      scrollController: controller,
-      itemExtent: 40,
-      onSelectedItemChanged: onSelectedItemChanged,
-      selectionOverlay: Container(
-        decoration: BoxDecoration(
-          border: Border.symmetric(
-            horizontal: BorderSide(
-              color: AppTheme.primary.withOpacity(0.1),
-              width: 1,
-            ),
-          ),
-        ),
-      ),
-      children: children,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 400,
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      child: Column(
-        children: [
-          TabBar(
-            controller: _tabController,
-            indicatorColor: AppTheme.primary,
-            labelColor: AppTheme.primary,
-            unselectedLabelColor: Colors.grey,
-            tabs: const [
-              Tab(text: '日期'),
-              Tab(text: '时间'),
-            ],
-          ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                // Custom Date Tab
-                Row(
-                  children: [
-                    // Year
-                    Expanded(
-                      flex: 2,
-                      child: _buildPicker(
-                        controller: _yearController,
-                        children: _yearWidgets,
-                        onSelectedItemChanged: (index) {
-                          setState(() {
-                            _selectedYear = _minYear + index;
-                            _updateDate();
-                          });
-                        },
-                      ),
-                    ),
-                    // Month
-                    Expanded(
-                      flex: 1,
-                      child: _buildPicker(
-                        controller: _monthController,
-                        children: _monthWidgets,
-                        onSelectedItemChanged: (index) {
-                          setState(() {
-                            _selectedMonth = index + 1;
-                            _updateDate();
-                          });
-                        },
-                      ),
-                    ),
-                    // Day
-                    Expanded(
-                      flex: 1,
-                      child: _buildPicker(
-                        controller: _dayController,
-                        children: List.generate(
-                          _getDaysInMonth(_selectedYear, _selectedMonth),
-                          (index) => Center(
-                            child: Text(
-                              '${index + 1}日',
-                              style: const TextStyle(fontSize: 18),
-                            ),
-                          ),
-                        ),
-                        onSelectedItemChanged: (index) {
-                          setState(() {
-                            _selectedDay = index + 1;
-                            _updateDate();
-                          });
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                // Time Tab
-                CupertinoDatePicker(
-                  mode: CupertinoDatePickerMode.time,
-                  initialDateTime: DateTime(
-                    2020,
-                    1,
-                    1,
-                    widget.initialTime.hour,
-                    widget.initialTime.minute,
-                  ),
-                  use24hFormat: true,
-                  onDateTimeChanged: (dt) {
-                    widget.onTimeChanged(TimeOfDay.fromDateTime(dt));
+                MarkdownToolbar(
+                  isPreview: _isPreview,
+                  onTogglePreview: () {
+                    setState(() => _isPreview = !_isPreview);
+                    if (_isPreview) FocusScope.of(context).unfocus();
                   },
+                  onHideKeyboard: () => FocusScope.of(context).unfocus(),
+                  onInsertText: _insertText,
                 ),
               ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }
