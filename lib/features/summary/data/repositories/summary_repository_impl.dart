@@ -87,6 +87,18 @@ class SummaryRepositoryImpl implements SummaryRepository {
   }
 
   @override
+  Future<void> updateSummary(Summary summary) {
+    return (_db.update(
+      _db.summaries,
+    )..where((t) => t.id.equals(summary.id))).write(
+      db.SummariesCompanion(
+        content: Value(summary.content),
+        // 其他字段通常不会更新，但如果需要可以添加
+      ),
+    );
+  }
+
+  @override
   Future<void> deleteSummary(int id) {
     return (_db.delete(_db.summaries)..where((t) => t.id.equals(id))).go();
   }
