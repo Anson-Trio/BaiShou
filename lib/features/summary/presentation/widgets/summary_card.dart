@@ -122,6 +122,7 @@ class SummaryCard extends StatelessWidget {
                         color: theme.textTheme.bodyMedium?.color?.withOpacity(
                           0.8,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ),

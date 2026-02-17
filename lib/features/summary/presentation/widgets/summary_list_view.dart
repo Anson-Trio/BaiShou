@@ -5,6 +5,7 @@ import 'package:baishou/features/summary/domain/entities/summary.dart';
 import 'package:baishou/features/summary/presentation/widgets/summary_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 class SummaryListView extends ConsumerWidget {
   final SummaryType type;
@@ -42,7 +43,8 @@ class SummaryListView extends ConsumerWidget {
             return SummaryCard(
               summary: summary,
               onTap: () {
-                // TODO: 导航到详情页或编辑模式
+                // 导航到编辑页面（使用日记编辑器的总结模式）
+                context.push('/diary/edit?summaryId=${summary.id}');
               },
               onDelete: () {
                 _confirmDelete(context, ref, summary);

@@ -1,6 +1,7 @@
 import 'package:baishou/core/theme/app_theme.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:baishou/features/diary/data/repositories/diary_repository_impl.dart';
+import 'package:baishou/features/summary/data/repositories/summary_repository_impl.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -10,9 +11,18 @@ import 'package:intl/intl.dart';
 
 class DiaryEditorPage extends ConsumerStatefulWidget {
   final int? diaryId;
+  final int? summaryId; // 新增：总结编辑模式
   final DateTime? initialDate;
 
-  const DiaryEditorPage({super.key, this.diaryId, this.initialDate});
+  const DiaryEditorPage({
+    super.key,
+    this.diaryId,
+    this.summaryId,
+    this.initialDate,
+  }) : assert(
+         diaryId == null || summaryId == null,
+         'Cannot edit diary and summary at the same time',
+       );
 
   @override
   ConsumerState<DiaryEditorPage> createState() => _DiaryEditorPageState();
@@ -33,6 +43,9 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
   bool _isLoading = false;
   bool _isPreview = false;
 
+  // 编辑模式：false=日记，true=总结
+  bool get _isSummaryMode => widget.summaryId != null;
+
   @override
   void initState() {
     super.initState();
@@ -48,6 +61,8 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
 
     if (widget.diaryId != null) {
       _loadDiary(widget.diaryId!);
+    } else if (widget.summaryId != null) {
+      _loadSummary(widget.summaryId!);
     }
   }
 
@@ -68,6 +83,34 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
       }
     } catch (e) {
       debugPrint('Err load diary: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  /// 加载总结数据（总结模式）
+  Future<void> _loadSummary(int id) async {
+    setState(() => _isLoading = true);
+    try {
+      final summary = await ref
+          .read(summaryRepositoryProvider)
+          .getSummaryById(id);
+      if (summary != null && mounted) {
+        setState(() {
+          _selectedDate = summary.startDate;
+          _selectedTime = TimeOfDay.fromDateTime(summary.startDate);
+        });
+        // 总结没有标题和标签，直接填充内容
+        _titleController.text = '';
+        _contentController.text = summary.content;
+        _tags.clear();
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) setState(() => _isDirty = false);
+        });
+      }
+    } catch (e) {
+      debugPrint('Err load summary: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -199,14 +242,29 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
     }
 
     try {
-      await ref
-          .read(diaryRepositoryProvider)
-          .saveDiary(
-            id: widget.diaryId,
-            date: _combinedDateTime,
-            content: combinedContent,
-            tags: _tags,
-          );
+      if (_isSummaryMode) {
+        // 总结模式：只保存内容
+        final summary = await ref
+            .read(summaryRepositoryProvider)
+            .getSummaryById(widget.summaryId!);
+        if (summary != null) {
+          await ref
+              .read(summaryRepositoryProvider)
+              .updateSummary(
+                summary.copyWith(content: _contentController.text.trim()),
+              );
+        }
+      } else {
+        // 日记模式：保存标题+内容+标签
+        await ref
+            .read(diaryRepositoryProvider)
+            .saveDiary(
+              id: widget.diaryId,
+              date: _combinedDateTime,
+              content: combinedContent,
+              tags: _tags,
+            );
+      }
 
       if (mounted) {
         setState(() => _isDirty = false);
@@ -299,25 +357,27 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
                       vertical: 16,
                     ),
                     children: [
-                      // Title
-                      TextField(
-                        controller: _titleController,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          height: 1.2,
+                      // Title (日记模式才显示)
+                      if (!_isSummaryMode) ...[
+                        TextField(
+                          controller: _titleController,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            height: 1.2,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: '标题',
+                            hintStyle: TextStyle(color: Colors.grey[400]),
+                            border: InputBorder.none,
+                          ),
+                          textInputAction: TextInputAction.next,
                         ),
-                        decoration: InputDecoration(
-                          hintText: '标题',
-                          hintStyle: TextStyle(color: Colors.grey[400]),
-                          border: InputBorder.none,
-                        ),
-                        textInputAction: TextInputAction.next,
-                      ),
 
-                      // Tags (chip-based)
-                      const SizedBox(height: 8),
-                      _buildTagInput(),
+                        // Tags (chip-based)
+                        const SizedBox(height: 8),
+                        _buildTagInput(),
+                      ],
 
                       const SizedBox(height: 16),
 

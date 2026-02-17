@@ -84,11 +84,19 @@ GoRouter goRouter(Ref ref) {
         builder: (context, state) {
           final dateStr = state.uri.queryParameters['date'];
           final idStr = state.uri.queryParameters['id'];
+          final summaryIdStr = state.uri.queryParameters['summaryId'];
 
           final date = dateStr != null ? DateTime.tryParse(dateStr) : null;
           final id = idStr != null ? int.tryParse(idStr) : null;
+          final summaryId = summaryIdStr != null
+              ? int.tryParse(summaryIdStr)
+              : null;
 
-          return DiaryEditorPage(diaryId: id, initialDate: date);
+          return DiaryEditorPage(
+            diaryId: id,
+            summaryId: summaryId,
+            initialDate: date,
+          );
         },
       ),
     ],

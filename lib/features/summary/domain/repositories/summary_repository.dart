@@ -28,6 +28,9 @@ abstract class SummaryRepository {
     List<String> sourceIds = const [],
   });
 
+  // 更新总结内容
+  Future<void> updateSummary(Summary summary);
+
   // 删除总结
   Future<void> deleteSummary(int id);
 }

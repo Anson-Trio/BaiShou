@@ -1,10 +1,14 @@
 import 'package:baishou/core/theme/app_theme.dart';
-
 import 'package:baishou/features/summary/domain/services/missing_summary_detector.dart';
 import 'package:baishou/features/summary/domain/services/summary_generator_service.dart';
 import 'package:baishou/features/summary/data/repositories/summary_repository_impl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+/// 全局状态：AI 生成状态（key -> status消息）
+final generationStatusProvider = StateProvider<Map<String, String>>(
+  (ref) => {},
+);
 
 class MissingSummaryList extends ConsumerStatefulWidget {
   const MissingSummaryList({super.key});
@@ -14,8 +18,6 @@ class MissingSummaryList extends ConsumerStatefulWidget {
 }
 
 class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
-  final Map<String, String> _generationStatus = {}; // key -> 状态消息
-
   @override
   Widget build(BuildContext context) {
     // 1. 获取缺失的总结
@@ -60,6 +62,16 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
                       ),
                     ),
                     const Spacer(),
+                    // 批量生成按钮
+                    FilledButton.tonal(
+                      onPressed: () => _batchGenerate(missing),
+                      style: FilledButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                      ),
+                      child: const Text('全部生成'),
+                    ),
+                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
@@ -70,7 +82,7 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        '${missing.length}个待生成',
+                        '${missing.length}个',
                         style: TextStyle(fontSize: 12, color: AppTheme.primary),
                       ),
                     ),
@@ -84,8 +96,9 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
                   separatorBuilder: (c, i) => const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final item = missing[index];
-                    final key = item.label; // Simple key
-                    final status = _generationStatus[key];
+                    final key = item.label;
+                    final statusMap = ref.watch(generationStatusProvider);
+                    final status = statusMap[key];
 
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
@@ -128,11 +141,18 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
     );
   }
 
+  Future<void> _batchGenerate(List<MissingSummary> items) async {
+    for (final item in items) {
+      _generate(item);
+    }
+  }
+
   Future<void> _generate(MissingSummary item) async {
     final key = item.label;
-    setState(() {
-      _generationStatus[key] = '准备中...';
-    });
+    ref.read(generationStatusProvider.notifier).state = {
+      ...ref.read(generationStatusProvider),
+      key: '准备中...',
+    };
 
     try {
       final stream = ref.read(summaryGeneratorServiceProvider).generate(item);
@@ -153,9 +173,10 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
           finalContent = status;
         } else {
           if (mounted) {
-            setState(() {
-              _generationStatus[key] = status;
-            });
+            ref.read(generationStatusProvider.notifier).state = {
+              ...ref.read(generationStatusProvider),
+              key: status,
+            };
           }
         }
       }
@@ -172,24 +193,27 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
             );
 
         if (mounted) {
-          setState(() {
-            _generationStatus.remove(key);
-            // 决定是否刷新列表？
-            // FutureBuilder 不会自动刷新，除非我们要么调用 setState 触发重建
-            // 并且 future provider 被重新调用。
-            // 但逻辑匹配：setState 触发 build，build 调用 getAllMissing()。
-            // getAllMissing 检查数据库。
-            // 我们刚刚写入了数据库。所以 getAllMissing 应该不会再返回这个项目了。
-          });
+          final newMap = Map<String, String>.from(
+            ref.read(generationStatusProvider),
+          );
+          newMap.remove(key);
+          ref.read(generationStatusProvider.notifier).state = newMap;
+          setState(() {}); // 触发 FutureBuilder 刷新
         }
       } else {
         if (mounted) {
-          setState(() => _generationStatus[key] = '生成内容为空');
+          ref.read(generationStatusProvider.notifier).state = {
+            ...ref.read(generationStatusProvider),
+            key: '生成内容为空',
+          };
         }
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _generationStatus[key] = '错误: $e');
+        ref.read(generationStatusProvider.notifier).state = {
+          ...ref.read(generationStatusProvider),
+          key: '错误: $e',
+        };
       }
     }
   }
