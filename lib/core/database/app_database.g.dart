@@ -29,7 +29,6 @@ class $DiariesTable extends Diaries with TableInfo<$DiariesTable, Diary> {
     false,
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
   );
   static const VerificationMeta _contentMeta = const VerificationMeta(
     'content',
@@ -179,7 +178,7 @@ class Diary extends DataClass implements Insertable<Diary> {
   /// 主键 ID (自增)
   final int id;
 
-  /// 日记日期 (每天一篇，建立索引方便查询)
+  /// 日记日期 (建立索引方便查询)
   final DateTime date;
 
   /// 日记内容 (Markdown格式)

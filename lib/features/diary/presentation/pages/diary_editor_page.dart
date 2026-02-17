@@ -620,11 +620,100 @@ class _DateTimePickerSheet extends StatefulWidget {
 class _DateTimePickerSheetState extends State<_DateTimePickerSheet>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  late int _selectedYear;
+  late int _selectedMonth;
+  late int _selectedDay;
+  late FixedExtentScrollController _yearController;
+  late FixedExtentScrollController _monthController;
+  late FixedExtentScrollController _dayController;
+
+  final int _minYear = 2000;
+  final int _maxYear = 2200;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _selectedYear = widget.initialDate.year;
+    _selectedMonth = widget.initialDate.month;
+    _selectedDay = widget.initialDate.day;
+
+    // Clamp initial date to valid range just in case
+    if (_selectedYear < _minYear) _selectedYear = _minYear;
+    if (_selectedYear > _maxYear) _selectedYear = _maxYear;
+
+    _yearController = FixedExtentScrollController(
+      initialItem: _selectedYear - _minYear,
+    );
+    _monthController = FixedExtentScrollController(
+      initialItem: _selectedMonth - 1,
+    );
+    _dayController = FixedExtentScrollController(initialItem: _selectedDay - 1);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _yearController.dispose();
+    _monthController.dispose();
+    _dayController.dispose();
+    super.dispose();
+  }
+
+  int _getDaysInMonth(int year, int month) {
+    if (month == 2) {
+      final bool isLeapYear =
+          (year % 4 == 0) && (year % 100 != 0) || (year % 400 == 0);
+      return isLeapYear ? 29 : 28;
+    }
+    const daysInMonth = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    return daysInMonth[month];
+  }
+
+  void _updateDate() {
+    final daysInMonth = _getDaysInMonth(_selectedYear, _selectedMonth);
+    if (_selectedDay > daysInMonth) {
+      _selectedDay = daysInMonth;
+      // Scroll to valid day if needed, but since this happens during build or callback,
+      // usually just clamping state is enough. However, visual update might need jump.
+      // We will handle visual update in build if needed, or just let the picker standard behavior work.
+      // Actually with CupertinoPicker, if item count changes, it might need help.
+      // But we just clamp value here.
+    }
+    // Update controller if the clamped day is different?
+    // Usually user scrolls to change day, so controller is source of truth.
+    // If year/month changes and day becomes invalid (e.g. Feb 30), we clamp.
+    if (_dayController.hasClients &&
+        _dayController.selectedItem > daysInMonth - 1) {
+      _dayController.jumpToItem(daysInMonth - 1);
+    }
+
+    widget.onDateChanged(DateTime(_selectedYear, _selectedMonth, _selectedDay));
+  }
+
+  // Custom Picker Widget helper
+  Widget _buildPicker({
+    required FixedExtentScrollController controller,
+    required int itemCount,
+    required Widget Function(int) itemBuilder,
+    required ValueChanged<int> onSelectedItemChanged,
+  }) {
+    return CupertinoPicker(
+      scrollController: controller,
+      itemExtent: 40,
+      onSelectedItemChanged: onSelectedItemChanged,
+      selectionOverlay: Container(
+        decoration: BoxDecoration(
+          border: Border.symmetric(
+            horizontal: BorderSide(
+              color: AppTheme.primary.withOpacity(0.1),
+              width: 1,
+            ),
+          ),
+        ),
+      ),
+      children: List.generate(itemCount, itemBuilder),
+    );
   }
 
   @override
@@ -648,14 +737,73 @@ class _DateTimePickerSheetState extends State<_DateTimePickerSheet>
             child: TabBarView(
               controller: _tabController,
               children: [
-                // Date Tab
-                CalendarDatePicker(
-                  initialDate: widget.initialDate,
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime.now().add(const Duration(days: 365)),
-                  onDateChanged: (date) {
-                    widget.onDateChanged(date);
-                  },
+                // Custom Date Tab
+                Row(
+                  children: [
+                    // Year
+                    Expanded(
+                      flex: 2,
+                      child: _buildPicker(
+                        controller: _yearController,
+                        itemCount: _maxYear - _minYear + 1,
+                        onSelectedItemChanged: (index) {
+                          setState(() {
+                            _selectedYear = _minYear + index;
+                            _updateDate();
+                          });
+                        },
+                        itemBuilder: (index) => Center(
+                          child: Text(
+                            '${_minYear + index}年',
+                            style: const TextStyle(fontSize: 18),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Month
+                    Expanded(
+                      flex: 1,
+                      child: _buildPicker(
+                        controller: _monthController,
+                        itemCount: 12,
+                        onSelectedItemChanged: (index) {
+                          setState(() {
+                            _selectedMonth = index + 1;
+                            _updateDate();
+                          });
+                        },
+                        itemBuilder: (index) => Center(
+                          child: Text(
+                            '${index + 1}月',
+                            style: const TextStyle(fontSize: 18),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Day
+                    Expanded(
+                      flex: 1,
+                      child: _buildPicker(
+                        controller: _dayController,
+                        itemCount: _getDaysInMonth(
+                          _selectedYear,
+                          _selectedMonth,
+                        ),
+                        onSelectedItemChanged: (index) {
+                          setState(() {
+                            _selectedDay = index + 1;
+                            _updateDate();
+                          });
+                        },
+                        itemBuilder: (index) => Center(
+                          child: Text(
+                            '${index + 1}日',
+                            style: const TextStyle(fontSize: 18),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 // Time Tab
                 CupertinoDatePicker(
