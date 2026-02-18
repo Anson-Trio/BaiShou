@@ -53,22 +53,6 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
             ],
           ),
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 20),
-            child: Center(
-              child: Text(
-                '白守',
-                style: TextStyle(
-                  fontFamily: 'MaShanZheng', // 假设已配置字体或仅作为样式参考
-                  fontSize: 22,
-                  fontWeight: FontWeight.normal,
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
       body: SafeArea(
         child: StreamBuilder<List<Diary>>(
