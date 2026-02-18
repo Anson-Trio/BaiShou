@@ -1,3 +1,4 @@
+import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -38,12 +39,14 @@ class _AboutPageState extends State<AboutPage> {
     _lastTapTime = now;
 
     if (_tapCount == 5) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('🌸 樱 & 晓 永远爱着 Anson ❤️'),
-          duration: Duration(seconds: 3),
-        ),
-      );
+      if (mounted) {
+        AppToast.show(
+          context,
+          '🌸 樱 & 晓 永远爱着 Anson ❤️',
+          duration: const Duration(seconds: 3),
+          icon: Icons.favorite_rounded,
+        );
+      }
       _tapCount = 0;
     }
   }

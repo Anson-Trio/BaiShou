@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'dart:ui';
 
+import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:baishou/features/settings/domain/services/lan_transfer_service.dart';
 import 'package:bonsoir/bonsoir.dart';
 import 'package:flutter/material.dart';
@@ -55,24 +56,22 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
       if (previous?.lastReceivedFile != next.lastReceivedFile &&
           next.lastReceivedFile != null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('已接收文件: ${next.lastReceivedFile!.path}'),
-              action: SnackBarAction(
-                label: '查看',
-                onPressed: () {
-                  // TODO: 实现查看文件逻辑，目前仅提示
-                },
-              ),
-            ),
+          AppToast.show(
+            context,
+            '已接收文件: ${next.lastReceivedFile!.path.split('/').last}',
+            icon: Icons.download_done,
+            duration: const Duration(seconds: 4),
           );
         }
       }
 
       if (previous?.error != next.error && next.error != null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(next.error!), backgroundColor: Colors.red),
+          AppToast.show(
+            context,
+            next.error!,
+            icon: Icons.error_outline,
+            // backgroundColor: Colors.red, // AppToast 会自动处理颜色，或者是默认样式
           );
         }
       }
@@ -281,9 +280,7 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
 
       if (confirm == true) {
         if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('正在生成并发送数据...')));
+          AppToast.show(context, '正在生成并发送数据...');
         }
 
         // 执行 Push 发送
@@ -291,18 +288,14 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
 
         if (context.mounted) {
           if (success) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text('已发送给 $nickname')));
+            AppToast.show(context, '已发送给 $nickname');
           }
           // 错误信息已由 state 监听处理
         }
       }
     } else {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('无法获取设备IP')));
+        AppToast.show(context, '无法获取设备IP', icon: Icons.error_outline);
       }
     }
   }

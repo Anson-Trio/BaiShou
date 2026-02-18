@@ -1,6 +1,7 @@
 import 'package:baishou/core/services/api_config_service.dart';
 import 'package:baishou/core/theme/app_theme.dart';
 import 'package:baishou/features/summary/domain/services/summary_generator_service.dart';
+import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -70,9 +71,7 @@ class _AiConfigPageState extends ConsumerState<AiConfigPage> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('配置已保存')));
+        AppToast.show(context, '配置已保存');
         Navigator.pop(context); // 可选：保存后返回
       }
     }
@@ -80,9 +79,7 @@ class _AiConfigPageState extends ConsumerState<AiConfigPage> {
 
   Future<void> _testConnection() async {
     if (_apiKeyController.text.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('请先填写 API Key')));
+      AppToast.show(context, '请先填写 API Key', icon: Icons.warning_amber_rounded);
       return;
     }
 
@@ -114,15 +111,11 @@ class _AiConfigPageState extends ConsumerState<AiConfigPage> {
       await ref.read(summaryGeneratorServiceProvider).testConnection(config);
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('连接测试成功！🎉')));
+        AppToast.show(context, '连接测试成功！🎉', icon: Icons.check_circle_outline);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('连接失败: $e'), backgroundColor: Colors.red),
-        );
+        AppToast.show(context, '连接失败: $e', icon: Icons.error_outline);
       }
     } finally {
       if (mounted) {

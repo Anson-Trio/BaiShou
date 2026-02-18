@@ -6,6 +6,7 @@ import 'package:baishou/features/settings/domain/services/import_service.dart';
 import 'package:baishou/features/settings/domain/services/user_profile_service.dart';
 import 'package:baishou/features/settings/presentation/pages/about_page.dart';
 import 'package:baishou/features/settings/presentation/pages/lan_transfer_page.dart';
+import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -310,15 +311,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     .exportToZip(share: false);
                 if (!mounted) return;
                 if (file != null) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(const SnackBar(content: Text('导出成功')));
+                  AppToast.show(context, '导出成功');
                 }
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('导出失败: $e')));
+                  AppToast.show(context, '导出失败: $e', icon: Icons.error_outline);
                 }
               }
             },
@@ -408,20 +405,19 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     Navigator.of(context).pop(); // 关闭加载对话框
 
     if (importResult.success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '导入成功：${importResult.diariesImported} 条日记，'
-            '${importResult.summariesImported} 条总结'
-            '${importResult.profileRestored ? "，配置已恢复" : ""}',
-          ),
-          duration: const Duration(seconds: 4),
-        ),
+      AppToast.show(
+        context,
+        '导入成功：${importResult.diariesImported} 条日记，'
+        '${importResult.summariesImported} 条总结'
+        '${importResult.profileRestored ? "，配置已恢复" : ""}',
+        duration: const Duration(seconds: 4),
       );
     } else {
-      ScaffoldMessenger.of(
+      AppToast.show(
         context,
-      ).showSnackBar(SnackBar(content: Text(importResult.error ?? '导入失败')));
+        importResult.error ?? '导入失败',
+        icon: Icons.error_outline,
+      );
     }
   }
 
