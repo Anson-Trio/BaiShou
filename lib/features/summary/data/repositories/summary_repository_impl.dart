@@ -100,6 +100,25 @@ class SummaryRepositoryImpl implements SummaryRepository {
   }
 
   @override
+  Future<void> batchAddSummaries(List<Summary> summaries) async {
+    await _db.batch((batch) {
+      for (final summary in summaries) {
+        batch.insert(
+          _db.summaries,
+          db.SummariesCompanion(
+            type: Value(summary.type),
+            startDate: Value(summary.startDate),
+            endDate: Value(summary.endDate),
+            content: Value(summary.content),
+            sourceIds: Value(summary.sourceIds.join(',')),
+            generatedAt: Value(DateTime.now()),
+          ),
+        );
+      }
+    });
+  }
+
+  @override
   Future<void> updateSummary(Summary summary) {
     return (_db.update(
       _db.summaries,

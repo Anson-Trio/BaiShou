@@ -31,7 +31,7 @@ class UserProfileNotifier extends Notifier<UserProfile> {
   UserProfile build() {
     _prefs = ref.watch(sharedPreferencesProvider);
     return UserProfile(
-      nickname: _prefs.getString(_keyNickname) ?? 'Anson',
+      nickname: _prefs.getString(_keyNickname) ?? '白守用户',
       avatarPath: _prefs.getString(_keyAvatarPath),
     );
   }
@@ -51,7 +51,9 @@ class UserProfileNotifier extends Notifier<UserProfile> {
 
     final fileName =
         'avatar_${DateTime.now().millisecondsSinceEpoch}${path.extension(newAvatar.path)}';
-    final savedImage = await newAvatar.copy(path.join(avatarDir.path, fileName));
+    final savedImage = await newAvatar.copy(
+      path.join(avatarDir.path, fileName),
+    );
 
     // 如果存在旧头像且不同，则删除
     if (state.avatarPath != null) {

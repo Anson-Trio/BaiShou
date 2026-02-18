@@ -102,6 +102,21 @@ class DiaryRepositoryImpl implements DiaryRepository {
   }
 
   @override
+  Future<void> batchSaveDiaries(List<Diary> diaries) async {
+    await _db.batch((batch) {
+      for (final diary in diaries) {
+        final companion = db.DiariesCompanion(
+          date: Value(diary.date),
+          content: Value(diary.content),
+          tags: Value(diary.tags.join(',')),
+          updatedAt: Value(DateTime.now()),
+        );
+        batch.insert(_db.diaries, companion);
+      }
+    });
+  }
+
+  @override
   Future<void> deleteDiary(int id) {
     return (_db.delete(_db.diaries)..where((t) => t.id.equals(id))).go();
   }

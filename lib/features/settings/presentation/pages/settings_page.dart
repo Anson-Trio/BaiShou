@@ -8,6 +8,7 @@ import 'package:baishou/features/settings/presentation/pages/about_page.dart';
 import 'package:baishou/features/settings/presentation/pages/lan_transfer_page.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:baishou/features/settings/presentation/pages/privacy_policy_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_cropper/image_cropper.dart';
@@ -22,17 +23,43 @@ class SettingsPage extends ConsumerStatefulWidget {
 }
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
+  bool _isImporting = false;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('设置')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      body: Stack(
         children: [
-          _buildProfileSection(),
-          _buildAppearanceSection(),
-          _buildDataSection(),
-          _buildAboutSection(),
+          ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              _buildProfileSection(),
+              _buildAppearanceSection(),
+              _buildDataSection(),
+              _buildAboutSection(),
+            ],
+          ),
+          // 导入时的全屏遮罩 (不使用 showDialog，避免 Navigator 崩溃)
+          if (_isImporting)
+            Container(
+              color: Colors.black54,
+              child: const Center(
+                child: Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(width: 16),
+                        Text('正在导入...'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -382,42 +409,46 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
     if (confirmed != true || !mounted) return;
 
-    // 显示加载
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const AlertDialog(
-        content: Row(
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 16),
-            Text('正在导入...'),
-          ],
-        ),
-      ),
-    );
+    // 使用 setState 显示加载遮罩（不使用 showDialog，避免 Navigator 锁定与主题变更冲突）
+    setState(() => _isImporting = true);
 
-    final importResult = await ref
-        .read(importServiceProvider)
-        .importFromZip(zipFile);
+    try {
+      final importResult = await ref
+          .read(importServiceProvider)
+          .importFromZip(zipFile);
 
-    if (!mounted) return;
-    Navigator.of(context).pop(); // 关闭加载对话框
+      if (!mounted) return;
 
-    if (importResult.success) {
-      AppToast.show(
-        context,
-        '导入成功：${importResult.diariesImported} 条日记，'
-        '${importResult.summariesImported} 条总结'
-        '${importResult.profileRestored ? "，配置已恢复" : ""}',
-        duration: const Duration(seconds: 4),
-      );
-    } else {
-      AppToast.show(
-        context,
-        importResult.error ?? '导入失败',
-        icon: Icons.error_outline,
-      );
+      // 先恢复配置（此时没有 Dialog 在 Navigator 上，主题变更不会导致崩溃）
+      if (importResult.success && importResult.configData != null) {
+        await ref
+            .read(importServiceProvider)
+            .restoreConfig(importResult.configData!);
+      }
+
+      if (!mounted) return;
+      setState(() => _isImporting = false);
+
+      if (importResult.success) {
+        AppToast.show(
+          context,
+          '导入成功：${importResult.diariesImported} 条日记，'
+          '${importResult.summariesImported} 条总结'
+          '${importResult.profileRestored ? "，配置已恢复" : ""}',
+          duration: const Duration(seconds: 4),
+        );
+      } else {
+        AppToast.show(
+          context,
+          importResult.error ?? '导入失败',
+          icon: Icons.error_outline,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isImporting = false);
+        AppToast.show(context, '导入失败: $e', icon: Icons.error_outline);
+      }
     }
   }
 
@@ -446,10 +477,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.privacy_tip_outlined),
-            title: const Text('隐私政策'),
+            title: const Text('开发理念'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              // TODO: 跳转隐私政策
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PrivacyPolicyPage(),
+                ),
+              );
             },
           ),
           const Divider(height: 1),

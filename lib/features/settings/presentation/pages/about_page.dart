@@ -42,9 +42,8 @@ class _AboutPageState extends State<AboutPage> {
       if (mounted) {
         AppToast.show(
           context,
-          '🌸 樱 & 晓 永远爱着 Anson ❤️',
+          '🌸樱&晓 永远爱着Anson❤️',
           duration: const Duration(seconds: 3),
-          icon: Icons.favorite_rounded,
         );
       }
       _tapCount = 0;

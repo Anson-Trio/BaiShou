@@ -1,9 +1,11 @@
 import 'package:baishou/core/database/tables/summaries.dart';
 import 'package:baishou/features/diary/data/repositories/diary_repository_impl.dart';
+import 'package:baishou/features/diary/domain/entities/diary.dart';
 import 'package:baishou/features/diary/domain/repositories/diary_repository.dart';
 import 'package:baishou/features/summary/data/repositories/summary_repository_impl.dart';
 import 'package:baishou/features/summary/domain/entities/summary.dart';
 import 'package:baishou/features/summary/domain/repositories/summary_repository.dart';
+import 'package:flutter/foundation.dart' hide Summary;
 import 'package:flutter/material.dart'; // 用于 DateTimeRange
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -14,7 +16,7 @@ class MissingSummary {
   final SummaryType type;
   final DateTime startDate;
   final DateTime endDate;
-  final String label; // 例如："2025年第42周", "2025年10月"
+  final String label;
 
   const MissingSummary({
     required this.type,
@@ -31,276 +33,244 @@ class MissingSummaryDetector {
   MissingSummaryDetector(this._diaryRepo, this._summaryRepo);
 
   /// 获取所有缺失的总结（周记、月报、季报、年鉴）
-  /// 返回按日期排序的合并列表（最早的在前）
   Future<List<MissingSummary>> getAllMissing() async {
-    final weekly = await getMissingWeekly();
-    final monthly = await getMissingMonthly();
-    final quarterly = await getMissingQuarterly();
-    final yearly = await getMissingYearly();
-
-    return [...weekly, ...monthly, ...quarterly, ...yearly]
-      ..sort((a, b) => a.startDate.compareTo(b.startDate));
-  }
-
-  /// 检测缺失的周记
-  /// 逻辑：查找所有至少有一篇日记但没有周记的周（周一至周日）。
-  /// 严格限制：只能生成已经完全结束的周。
-  Future<List<MissingSummary>> getMissingWeekly() async {
-    // 1. 获取所有日记日期
+    // 1. 一次性获取所有数据
     final allDiaries = await _diaryRepo.getAllDiaries();
+    final allSummaries = await _summaryRepo.getSummaries();
+
     if (allDiaries.isEmpty) return [];
 
-    final dates = allDiaries.map((d) => d.date).toList()..sort();
-    final firstDate = dates.first;
-
-    // 2. 识别从第一篇日记到现在的所有可能周
-    final weeks = <DateTimeRange>[];
-    // 将 firstDate 对齐到周一
-    var currentStart = firstDate.subtract(
-      Duration(days: firstDate.weekday - 1),
-    );
-    currentStart = DateTime(
-      currentStart.year,
-      currentStart.month,
-      currentStart.day,
-    ); // 去除时间部分
-
-    final now = DateTime.now();
-    // 只有当这一周的结束时间早于现在时，才认为这周是"历史"的
-    // 周一 00:00 -> 下周一 00:00 (不含) 或者 周日 23:59:59
-
-    while (true) {
-      final currentEnd = currentStart.add(
-        const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
-      );
-
-      // 停止条件：如果这一周还没有结束（结束时间在未来），则停止
-      if (currentEnd.isAfter(now)) {
-        break;
-      }
-
-      // 这周已经结束了。检查是否有日记。
-      bool hasEntry = dates.any(
-        (d) =>
-            d.isAfter(currentStart.subtract(const Duration(seconds: 1))) &&
-            d.isBefore(currentEnd.add(const Duration(seconds: 1))),
-      );
-
-      if (hasEntry) {
-        weeks.add(DateTimeRange(start: currentStart, end: currentEnd));
-      }
-
-      currentStart = currentStart.add(const Duration(days: 7));
-
-      // 安全出口：防止死循环（虽然上面的 break 应该够了）
-      if (currentStart.year > now.year + 1) break;
-    }
-
-    // 3. 检查现有总结
-    final missing = <MissingSummary>[];
-    for (final week in weeks) {
-      final existing = await _summaryRepo.getSummaryByTypeAndDate(
-        SummaryType.weekly,
-        week.start,
-        week.end,
-      );
-
-      if (existing == null) {
-        missing.add(
-          MissingSummary(
-            type: SummaryType.weekly,
-            startDate: week.start,
-            endDate: week.end,
-            label: '${week.start.year}年第${_getWeekNumber(week.start)}周',
-          ),
-        );
-      }
-    }
-    return missing;
-  }
-
-  /// 检测缺失的月报
-  /// 逻辑：查找至少有一篇周记但没有月报的月份。
-  /// 严格限制：只能生成已经完全结束的月份。
-  Future<List<MissingSummary>> getMissingMonthly() async {
-    // 1. 获取所有周记
-    final weeklySummaries = await _summaryRepo.getSummaries();
-    final weeklies = weeklySummaries
-        .where((s) => s.type == SummaryType.weekly)
-        .toList();
-
-    if (weeklies.isEmpty) return [];
-
-    // 2. 识别周记覆盖的月份
-    final months = <DateTime>[]; // 每月1号
-    for (final w in weeklies) {
-      final m = DateTime(w.startDate.year, w.startDate.month, 1);
-      if (!months.contains(m)) months.add(m);
-    }
-
-    final now = DateTime.now();
-
-    // 3. 检查状态
-    final missing = <MissingSummary>[];
-    for (final m in months) {
-      // 月末
-      final nextMonth = DateTime(m.year, m.month + 1, 1);
-      final monthEnd = nextMonth.subtract(const Duration(seconds: 1));
-
-      // 只有当这个月完全过完（月末时间早于现在）才允许生成
-      if (monthEnd.isAfter(now)) {
-        continue;
-      }
-
-      final candidates = await _summaryRepo.getSummaries(
-        start: m,
-        end: monthEnd,
-      );
-      final hasMonthly = candidates.any(
-        (s) =>
-            s.type == SummaryType.monthly &&
-            s.startDate.year == m.year &&
-            s.startDate.month == m.month,
-      );
-
-      if (!hasMonthly) {
-        missing.add(
-          MissingSummary(
-            type: SummaryType.monthly,
-            startDate: m,
-            endDate: monthEnd,
-            label: '${m.year}年${m.month}月',
-          ),
-        );
-      }
-    }
-    return missing;
-  }
-
-  /// 检测缺失的季报
-  /// 严格限制：只能生成已经完全结束的季度。
-  Future<List<MissingSummary>> getMissingQuarterly() async {
-    final summaries = await _summaryRepo.getSummaries();
-    final monthlies = summaries
-        .where((s) => s.type == SummaryType.monthly)
-        .toList();
-
-    if (monthlies.isEmpty) return [];
-
-    // 识别季度
-    final quarters = <String>{}; // "2025-1" (Q1), "2025-2" (Q2)
-    for (final m in monthlies) {
-      final q = (m.startDate.month / 3.0).ceil();
-      quarters.add('${m.startDate.year}-$q');
-    }
-
-    final now = DateTime.now();
-    final missing = <MissingSummary>[];
-
-    for (final qKey in quarters) {
-      final parts = qKey.split('-');
-      final year = int.parse(parts[0]);
-      final quarter = int.parse(parts[1]);
-
-      final startMonth = (quarter - 1) * 3 + 1;
-      final qStart = DateTime(year, startMonth, 1);
-      final qEndMonth = startMonth + 2;
-      final qEnd = DateTime(year, qEndMonth + 1, 0, 23, 59, 59);
-
-      // 只有当这个季度完全过完（季度末时间早于现在）才允许生成
-      if (qEnd.isAfter(now)) {
-        continue;
-      }
-
-      // 检查我们是否有该季度的月报（这里放宽一点，只要本季度有月报且季度已过完，就提示生成）
-      // 或者保持严格：必须有至少一个月报？上面的逻辑是基于 monthlies 存在的季度。
-      // 所以只要有月报落在这个季度，并且季度已结束，就检查是否有季报。
-
-      final candidates = await _summaryRepo.getSummaries(
-        start: qStart,
-        end: qEnd,
-      );
-      final hasQuarterly = candidates.any(
-        (s) => s.type == SummaryType.quarterly && s.startDate.year == year,
-      );
-
-      if (!hasQuarterly) {
-        missing.add(
-          MissingSummary(
-            type: SummaryType.quarterly,
-            startDate: qStart,
-            endDate: qEnd,
-            label: '$year年Q$quarter',
-          ),
-        );
-      }
-    }
-    return missing;
-  }
-
-  /// 检测缺失的年鉴
-  /// 严格限制：只能生成已经完全结束的年份。
-  Future<List<MissingSummary>> getMissingYearly() async {
-    final summaries = await _summaryRepo.getSummaries();
-    final quarterlies = summaries
-        .where((s) => s.type == SummaryType.quarterly)
-        .toList();
-
-    if (quarterlies.isEmpty) return [];
-
-    // 识别年份
-    final years = <int>{};
-    for (final q in quarterlies) {
-      years.add(q.startDate.year);
-    }
-
-    final now = DateTime.now();
-    final missing = <MissingSummary>[];
-
-    for (final year in years) {
-      final yearStart = DateTime(year, 1, 1);
-      final yearEnd = DateTime(year, 12, 31, 23, 59, 59);
-
-      // 只有当这一年完全过完（年末时间早于现在）才允许生成
-      if (yearEnd.isAfter(now)) {
-        continue;
-      }
-
-      // 检查年鉴
-      final existing = await _summaryRepo.getSummaries(
-        start: yearStart,
-        end: yearEnd,
-      );
-      final hasYearly = existing.any((s) => s.type == SummaryType.yearly);
-
-      if (!hasYearly) {
-        missing.add(
-          MissingSummary(
-            type: SummaryType.yearly,
-            startDate: yearStart,
-            endDate: yearEnd,
-            label: '$year年度',
-          ),
-        );
-      }
-    }
-    return missing;
-  }
-
-  // 获取周数的辅助方法 (ISO 8601 近似)
-  int _getWeekNumber(DateTime date) {
-    int dayOfYear = int.parse(
-      date.difference(DateTime(date.year, 1, 1)).inDays.toString(),
-    );
-    return ((dayOfYear - date.weekday + 10) / 7).floor();
+    // 2. 在 Isolate 中处理计算逻辑
+    return compute(_detectMissing, _DetectorInput(allDiaries, allSummaries));
   }
 }
 
-// 简单的 DateTimeRange 结构
-class DateTimeRange {
-  final DateTime start;
-  final DateTime end;
-  DateTimeRange({required this.start, required this.end});
+class _DetectorInput {
+  final List<Diary> diaries;
+  final List<Summary> summaries;
+  _DetectorInput(this.diaries, this.summaries);
+}
+
+// Top-level function for isolate
+List<MissingSummary> _detectMissing(_DetectorInput input) {
+  final diaries = input.diaries;
+  final summaries = input.summaries;
+
+  if (diaries.isEmpty) return [];
+
+  // 预处理总结数据，加速查找
+  final summaryMap = <String, List<Summary>>{};
+  for (final s in summaries) {
+    summaryMap.putIfAbsent(s.type.name, () => []).add(s);
+  }
+
+  final weekly = _getMissingWeekly(
+    diaries,
+    summaryMap[SummaryType.weekly.name] ?? [],
+  );
+  final monthly = _getMissingMonthly(
+    summaryMap[SummaryType.weekly.name] ?? [],
+    summaryMap[SummaryType.monthly.name] ?? [],
+  );
+  final quarterly = _getMissingQuarterly(
+    summaryMap[SummaryType.monthly.name] ?? [],
+    summaryMap[SummaryType.quarterly.name] ?? [],
+  );
+  final yearly = _getMissingYearly(
+    summaryMap[SummaryType.quarterly.name] ?? [],
+    summaryMap[SummaryType.yearly.name] ?? [],
+  );
+
+  return [...weekly, ...monthly, ...quarterly, ...yearly]
+    ..sort((a, b) => a.startDate.compareTo(b.startDate));
+}
+
+// --- 独立计算逻辑 ---
+
+List<MissingSummary> _getMissingWeekly(
+  List<Diary> diaries,
+  List<Summary> existingSummaries,
+) {
+  final missing = <MissingSummary>[];
+  final dates = diaries.map((d) => d.date).toList()..sort();
+  final firstDate = dates.first;
+  final now = DateTime.now();
+
+  // 将 firstDate 对齐到周一
+  var currentStart = firstDate.subtract(Duration(days: firstDate.weekday - 1));
+  currentStart = DateTime(
+    currentStart.year,
+    currentStart.month,
+    currentStart.day,
+  );
+
+  while (true) {
+    final currentEnd = currentStart.add(
+      const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
+    );
+
+    if (currentEnd.isAfter(now)) break;
+
+    // 检查是否有日记
+    bool hasEntry = dates.any(
+      (d) =>
+          d.isAfter(currentStart.subtract(const Duration(seconds: 1))) &&
+          d.isBefore(currentEnd.add(const Duration(seconds: 1))),
+    );
+
+    if (hasEntry) {
+      // 检查是否已有总结
+      final hasSummary = existingSummaries.any(
+        (s) =>
+            s.startDate.year == currentStart.year &&
+            s.startDate.month == currentStart.month &&
+            s.startDate.day == currentStart.day,
+      ); // 简化判断：周记通常由开始日期唯一确定
+
+      if (!hasSummary) {
+        missing.add(
+          MissingSummary(
+            type: SummaryType.weekly,
+            startDate: currentStart,
+            endDate: currentEnd,
+            label: '${currentStart.year}年第${_getWeekNumber(currentStart)}周',
+          ),
+        );
+      }
+    }
+
+    currentStart = currentStart.add(const Duration(days: 7));
+    if (currentStart.year > now.year + 1) break;
+  }
+  return missing;
+}
+
+List<MissingSummary> _getMissingMonthly(
+  List<Summary> weeklies,
+  List<Summary> monthlies,
+) {
+  if (weeklies.isEmpty) return [];
+  final missing = <MissingSummary>[];
+  final now = DateTime.now();
+
+  // 识别周记覆盖的月份
+  final months = <DateTime>{};
+  for (final w in weeklies) {
+    months.add(DateTime(w.startDate.year, w.startDate.month, 1));
+  }
+
+  for (final m in months) {
+    final nextMonth = DateTime(m.year, m.month + 1, 1);
+    final monthEnd = nextMonth.subtract(const Duration(seconds: 1));
+
+    if (monthEnd.isAfter(now)) continue;
+
+    final hasMonthly = monthlies.any(
+      (s) => s.startDate.year == m.year && s.startDate.month == m.month,
+    );
+
+    if (!hasMonthly) {
+      missing.add(
+        MissingSummary(
+          type: SummaryType.monthly,
+          startDate: m,
+          endDate: monthEnd,
+          label: '${m.year}年${m.month}月',
+        ),
+      );
+    }
+  }
+  return missing;
+}
+
+List<MissingSummary> _getMissingQuarterly(
+  List<Summary> monthlies,
+  List<Summary> quarterlies,
+) {
+  if (monthlies.isEmpty) return [];
+  final missing = <MissingSummary>[];
+  final now = DateTime.now();
+
+  final quarters = <String>{};
+  for (final m in monthlies) {
+    final q = (m.startDate.month / 3.0).ceil();
+    quarters.add('${m.startDate.year}-$q');
+  }
+
+  for (final qKey in quarters) {
+    final parts = qKey.split('-');
+    final year = int.parse(parts[0]);
+    final quarter = int.parse(parts[1]);
+
+    final startMonth = (quarter - 1) * 3 + 1;
+    final qStart = DateTime(year, startMonth, 1);
+    final qEndMonth = startMonth + 2;
+    final qEnd = DateTime(year, qEndMonth + 1, 0, 23, 59, 59);
+
+    if (qEnd.isAfter(now)) continue;
+
+    final hasQuarterly = quarterlies.any(
+      (s) =>
+          s.startDate.year == year &&
+          // 简单判断年份和大概时间，或者更精确类型判断
+          s.type == SummaryType.quarterly &&
+          (s.startDate.month / 3.0).ceil() == quarter,
+    );
+
+    if (!hasQuarterly) {
+      missing.add(
+        MissingSummary(
+          type: SummaryType.quarterly,
+          startDate: qStart,
+          endDate: qEnd,
+          label: '$year年Q$quarter',
+        ),
+      );
+    }
+  }
+  return missing;
+}
+
+List<MissingSummary> _getMissingYearly(
+  List<Summary> quarterlies,
+  List<Summary> yearlies,
+) {
+  if (quarterlies.isEmpty) return [];
+  final missing = <MissingSummary>[];
+  final now = DateTime.now();
+
+  final years = <int>{};
+  for (final q in quarterlies) {
+    years.add(q.startDate.year);
+  }
+
+  for (final year in years) {
+    final yearStart = DateTime(year, 1, 1);
+    final yearEnd = DateTime(year, 12, 31, 23, 59, 59);
+
+    if (yearEnd.isAfter(now)) continue;
+
+    final hasYearly = yearlies.any((s) => s.startDate.year == year);
+
+    if (!hasYearly) {
+      missing.add(
+        MissingSummary(
+          type: SummaryType.yearly,
+          startDate: yearStart,
+          endDate: yearEnd,
+          label: '$year年度',
+        ),
+      );
+    }
+  }
+  return missing;
+}
+
+int _getWeekNumber(DateTime date) {
+  int dayOfYear = int.parse(
+    date.difference(DateTime(date.year, 1, 1)).inDays.toString(),
+  );
+  return ((dayOfYear - date.weekday + 10) / 7).floor();
 }
 
 @Riverpod(keepAlive: true)

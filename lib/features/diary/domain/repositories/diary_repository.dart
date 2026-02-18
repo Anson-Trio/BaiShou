@@ -16,6 +16,9 @@ abstract class DiaryRepository {
     List<String> tags = const [],
   });
 
+  /// 批量保存日记
+  Future<void> batchSaveDiaries(List<Diary> diaries);
+
   // 删除日记
   Future<void> deleteDiary(int id);
   Future<List<Diary>> getDiariesByDateRange(DateTime start, DateTime end);

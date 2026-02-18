@@ -32,6 +32,9 @@ abstract class SummaryRepository {
     List<String> sourceIds = const [],
   });
 
+  /// 批量添加总结
+  Future<void> batchAddSummaries(List<Summary> summaries);
+
   // 更新总结内容
   Future<void> updateSummary(Summary summary);
 
