@@ -38,6 +38,9 @@ abstract class SummaryRepository {
   // 更新总结内容
   Future<void> updateSummary(Summary summary);
 
+  /// 清空所有总结
+  Future<void> deleteAllSummaries();
+
   // 删除总结
   Future<void> deleteSummary(int id);
 }

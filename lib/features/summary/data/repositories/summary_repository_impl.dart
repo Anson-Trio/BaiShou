@@ -135,6 +135,11 @@ class SummaryRepositoryImpl implements SummaryRepository {
     return (_db.delete(_db.summaries)..where((t) => t.id.equals(id))).go();
   }
 
+  @override
+  Future<void> deleteAllSummaries() {
+    return _db.delete(_db.summaries).go();
+  }
+
   Summary _mapToEntity(db.Summary row) {
     return Summary(
       id: row.id,

@@ -8,6 +8,7 @@ import 'package:baishou/core/theme/theme_service.dart';
 import 'package:baishou/features/diary/data/repositories/diary_repository_impl.dart';
 import 'package:baishou/features/diary/domain/entities/diary.dart';
 import 'package:baishou/features/diary/domain/repositories/diary_repository.dart';
+import 'package:baishou/features/settings/domain/services/export_service.dart';
 import 'package:baishou/features/settings/domain/services/user_profile_service.dart';
 import 'package:baishou/features/summary/data/repositories/summary_repository_impl.dart';
 import 'package:baishou/features/summary/domain/entities/summary.dart';
@@ -15,6 +16,7 @@ import 'package:baishou/features/summary/domain/repositories/summary_repository.
 import 'package:flutter/foundation.dart' hide Summary;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
@@ -24,6 +26,7 @@ class ImportResult {
   final int summariesImported;
   final bool profileRestored;
   final Map<String, dynamic>? configData;
+  final String? snapshotPath;
   final String? error;
 
   const ImportResult({
@@ -31,6 +34,7 @@ class ImportResult {
     this.summariesImported = 0,
     this.profileRestored = false,
     this.configData,
+    this.snapshotPath,
     this.error,
   });
 
@@ -104,6 +108,7 @@ Future<ParsedImportData> parseZipData(String zipFilePath) async {
 class ImportService {
   final DiaryRepository _diaryRepository;
   final SummaryRepository _summaryRepository;
+  final ExportService _exportService;
   final UserProfileNotifier _profileNotifier;
   final ThemeNotifier _themeNotifier;
   final ApiConfigService _apiConfig;
@@ -111,18 +116,19 @@ class ImportService {
   ImportService({
     required DiaryRepository diaryRepository,
     required SummaryRepository summaryRepository,
+    required ExportService exportService,
     required UserProfileNotifier profileNotifier,
     required ThemeNotifier themeNotifier,
     required ApiConfigService apiConfig,
   }) : _diaryRepository = diaryRepository,
        _summaryRepository = summaryRepository,
+       _exportService = exportService,
        _profileNotifier = profileNotifier,
        _themeNotifier = themeNotifier,
        _apiConfig = apiConfig;
 
-  /// 从 ZIP 文件导入备份
-  /// [merge] 为 true 时跳过已存在的日记（按日期判断），false 时不做去重直接写入
-  Future<ImportResult> importFromZip(File zipFile, {bool merge = true}) async {
+  /// 从 ZIP 文件导入备份（覆盖模式：先自动创建快照，再清空数据，最后写入）
+  Future<ImportResult> importFromZip(File zipFile) async {
     try {
       // 1. 传递文件路径给 isolate (避免主线程读取大文件)
       final parsedData = await compute(parseZipData, zipFile.path);
@@ -133,33 +139,56 @@ class ImportService {
         return ImportResult(error: '备份版本过高 (v$schemaVersion)，请升级白守后再导入');
       }
 
-      // 3. 导入日记 (IO/DB 操作)
-      int diariesImported = 0;
-      if (parsedData.diaries != null) {
-        diariesImported = await _importDiaries(
-          parsedData.diaries!,
-          merge: merge,
-        );
+      // 3. 创建导入前快照（用户可恢复到此节点）
+      String? snapshotPath;
+      try {
+        final snapshotFile = await _exportService.exportToZip(share: true);
+        if (snapshotFile != null) {
+          // 将快照移动到持久化目录
+          final appDir = await getApplicationDocumentsDirectory();
+          final snapshotDir = Directory(path.join(appDir.path, 'snapshots'));
+          if (!snapshotDir.existsSync()) {
+            await snapshotDir.create(recursive: true);
+          }
+          final now = DateTime.now();
+          final snapshotName =
+              'pre_import_${DateFormat('yyyyMMdd_HHmmss').format(now)}.zip';
+          final destFile = File(path.join(snapshotDir.path, snapshotName));
+          await snapshotFile.copy(destFile.path);
+          snapshotPath = destFile.path;
+          debugPrint('Import: Snapshot created at $snapshotPath');
+        }
+      } catch (e) {
+        debugPrint('Import: Failed to create snapshot, proceeding anyway: $e');
       }
 
-      // 4. 导入总结
+      // 4. 清空现有数据（覆盖模式）
+      await _diaryRepository.deleteAllDiaries();
+      await _summaryRepository.deleteAllSummaries();
+
+      // 5. 导入日记
+      int diariesImported = 0;
+      if (parsedData.diaries != null) {
+        diariesImported = await _importDiaries(parsedData.diaries!);
+      }
+
+      // 6. 导入总结
       int summariesImported = 0;
       if (parsedData.summaries != null) {
         summariesImported = await _importSummaries(parsedData.summaries!);
       }
 
-      // 5. 返回结果 (不在此处恢复配置，避免在 dialog 未关闭时触发主题变更导致崩溃)
+      // 7. 返回结果
       return ImportResult(
         diariesImported: diariesImported,
         summariesImported: summariesImported,
         profileRestored: parsedData.config != null,
         configData: parsedData.config,
+        snapshotPath: snapshotPath,
       );
     } catch (e) {
       debugPrint('Import error: $e');
-      // 捕获 compute 抛出的异常
       if (e.toString().contains('manifest.json')) {
-        // 提取我们自己的错误信息
         return ImportResult(error: '无效的备份文件：缺少 manifest.json');
       }
       return ImportResult(error: '导入失败: $e');
@@ -168,10 +197,7 @@ class ImportService {
 
   // --- 私有方法 ---
 
-  Future<int> _importDiaries(
-    List<dynamic> diariesJson, {
-    required bool merge,
-  }) async {
+  Future<int> _importDiaries(List<dynamic> diariesJson) async {
     // 1. 解析所有日记对象
     final parsedDiaries = <Diary>[];
     for (final item in diariesJson) {
@@ -179,7 +205,7 @@ class ImportService {
       final date = DateTime.parse(map['date'] as String);
       parsedDiaries.add(
         Diary(
-          id: 0, // 占位 ID，不使用
+          id: 0,
           date: date,
           content: map['content'] as String? ?? '',
           tags: (map['tags'] as List<dynamic>?)?.cast<String>() ?? [],
@@ -189,61 +215,22 @@ class ImportService {
       );
     }
 
-    // 2. 过滤需要插入的日记
-    final diariesToInsert = <Diary>[];
-    if (merge) {
-      // 获取现有日记的日期集合用于去重 (内存去重比逐条查库快)
-      final existing = await _diaryRepository.getAllDiaries();
-      final existingDates = existing
-          .map(
-            (d) =>
-                '${d.date.year}-${d.date.month}-${d.date.day}-${d.date.hour}-${d.date.minute}',
-          )
-          .toSet();
-
-      for (final diary in parsedDiaries) {
-        final dateKey =
-            '${diary.date.year}-${diary.date.month}-${diary.date.day}-${diary.date.hour}-${diary.date.minute}';
-        if (!existingDates.contains(dateKey)) {
-          diariesToInsert.add(diary);
-        }
-      }
-    } else {
-      diariesToInsert.addAll(parsedDiaries);
-    }
-
-    // 3. 批量插入
-    if (diariesToInsert.isNotEmpty) {
-      // 分批执行，防止一次性事务过大 (如一次 500 条)
+    // 2. 批量插入（数据已被清空，无需去重）
+    if (parsedDiaries.isNotEmpty) {
       const batchSize = 500;
-      for (var i = 0; i < diariesToInsert.length; i += batchSize) {
-        final end = (i + batchSize < diariesToInsert.length)
+      for (var i = 0; i < parsedDiaries.length; i += batchSize) {
+        final end = (i + batchSize < parsedDiaries.length)
             ? i + batchSize
-            : diariesToInsert.length;
-        await _diaryRepository.batchSaveDiaries(
-          diariesToInsert.sublist(i, end),
-        );
+            : parsedDiaries.length;
+        await _diaryRepository.batchSaveDiaries(parsedDiaries.sublist(i, end));
       }
     }
 
-    return diariesToInsert.length;
+    return parsedDiaries.length;
   }
 
   Future<int> _importSummaries(List<dynamic> summariesJson) async {
-    final summariesToInsert = <Summary>[];
-
-    // 为了去重，我们需要检查每一条。
-    // 如果数据量大，逐条检查 getSummaryByTypeAndDate 可能会慢。
-    // 优化：一次性拉取所有 Summary (通常 Summary 数量不多)，在内存比对。
-    final allExisting = await _summaryRepository.getSummaries();
-
-    // 构建查找表: type_start_end -> true
-    final existingMap = <String, bool>{};
-    for (final s in allExisting) {
-      final key =
-          '${s.type.name}_${s.startDate.millisecondsSinceEpoch}_${s.endDate.millisecondsSinceEpoch}';
-      existingMap[key] = true;
-    }
+    final parsedSummaries = <Summary>[];
 
     for (final item in summariesJson) {
       final map = item as Map<String, dynamic>;
@@ -255,12 +242,7 @@ class ImportService {
       final startDate = DateTime.parse(map['start_date'] as String);
       final endDate = DateTime.parse(map['end_date'] as String);
 
-      final key =
-          '${type.name}_${startDate.millisecondsSinceEpoch}_${endDate.millisecondsSinceEpoch}';
-
-      if (existingMap.containsKey(key)) continue;
-
-      summariesToInsert.add(
+      parsedSummaries.add(
         Summary(
           id: 0,
           type: type,
@@ -274,20 +256,20 @@ class ImportService {
       );
     }
 
-    // 3. 批量插入
-    if (summariesToInsert.isNotEmpty) {
+    // 批量插入（数据已被清空，无需去重）
+    if (parsedSummaries.isNotEmpty) {
       const batchSize = 100;
-      for (var i = 0; i < summariesToInsert.length; i += batchSize) {
-        final end = (i + batchSize < summariesToInsert.length)
+      for (var i = 0; i < parsedSummaries.length; i += batchSize) {
+        final end = (i + batchSize < parsedSummaries.length)
             ? i + batchSize
-            : summariesToInsert.length;
+            : parsedSummaries.length;
         await _summaryRepository.batchAddSummaries(
-          summariesToInsert.sublist(i, end),
+          parsedSummaries.sublist(i, end),
         );
       }
     }
 
-    return summariesToInsert.length;
+    return parsedSummaries.length;
   }
 
   /// 恢复用户配置（主题、API Key 等）
@@ -378,6 +360,7 @@ final importServiceProvider = Provider<ImportService>((ref) {
   return ImportService(
     diaryRepository: ref.watch(diaryRepositoryProvider),
     summaryRepository: ref.watch(summaryRepositoryProvider),
+    exportService: ref.watch(exportServiceProvider),
     profileNotifier: ref.watch(userProfileProvider.notifier),
     themeNotifier: ref.watch(themeProvider.notifier),
     apiConfig: ref.watch(apiConfigServiceProvider),

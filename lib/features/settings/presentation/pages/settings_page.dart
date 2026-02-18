@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:baishou/core/services/data_refresh_notifier.dart';
+
 import 'package:baishou/core/theme/theme_service.dart';
 import 'package:baishou/features/settings/domain/services/export_service.dart';
 import 'package:baishou/features/settings/domain/services/import_service.dart';
@@ -13,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
@@ -370,6 +373,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               );
             },
           ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.restore_outlined),
+            title: const Text('恢复快照'),
+            subtitle: const Text('恢复到导入前的数据状态'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _restoreFromSnapshot(),
+          ),
         ],
       ),
     );
@@ -393,7 +404,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('导入备份'),
-        content: const Text('导入将合并数据（跳过重复日记）并恢复配置（含 API Key、主题、头像）。\n\n确认继续？'),
+        content: const Text(
+          '导入将覆盖当前所有数据并恢复配置（含 API Key、主题、头像）。\n\n导入前会自动创建快照，可用于恢复。\n\n确认继续？',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -430,11 +443,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       setState(() => _isImporting = false);
 
       if (importResult.success) {
+        // 通知其他页面刷新数据（如仪表盘）
+        ref.read(dataRefreshProvider.notifier).refresh();
         AppToast.show(
           context,
           '导入成功：${importResult.diariesImported} 条日记，'
           '${importResult.summariesImported} 条总结'
-          '${importResult.profileRestored ? "，配置已恢复" : ""}',
+          '${importResult.profileRestored ? "，配置已恢复" : ""}'
+          '${importResult.snapshotPath != null ? "\n已创建恢复快照" : ""}',
           duration: const Duration(seconds: 4),
         );
       } else {
@@ -448,6 +464,145 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       if (mounted) {
         setState(() => _isImporting = false);
         AppToast.show(context, '导入失败: $e', icon: Icons.error_outline);
+      }
+    }
+  }
+
+  Future<void> _restoreFromSnapshot() async {
+    // 查找快照目录
+    final appDir = await getApplicationDocumentsDirectory();
+    final snapshotDir = Directory('${appDir.path}/snapshots');
+
+    if (!snapshotDir.existsSync()) {
+      if (mounted) {
+        AppToast.show(context, '暂无可用快照', icon: Icons.info_outline);
+      }
+      return;
+    }
+
+    // 获取所有快照文件
+    final snapshots =
+        snapshotDir
+            .listSync()
+            .whereType<File>()
+            .where((f) => f.path.endsWith('.zip'))
+            .toList()
+          ..sort((a, b) => b.path.compareTo(a.path)); // 最新的在前
+
+    if (snapshots.isEmpty) {
+      if (mounted) {
+        AppToast.show(context, '暂无可用快照', icon: Icons.info_outline);
+      }
+      return;
+    }
+
+    if (!mounted) return;
+
+    // 显示快照列表对话框
+    final selected = await showDialog<File>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('选择要恢复的快照'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: snapshots.length,
+            itemBuilder: (context, index) {
+              final file = snapshots[index];
+              final name = file.path.split('/').last;
+              // 从文件名提取时间：pre_import_20260218_230500.zip
+              final timeMatch = RegExp(r'(\d{8})_(\d{6})').firstMatch(name);
+              String displayTime = name;
+              if (timeMatch != null) {
+                final d = timeMatch.group(1)!;
+                final t = timeMatch.group(2)!;
+                displayTime =
+                    '${d.substring(0, 4)}-${d.substring(4, 6)}-${d.substring(6, 8)} '
+                    '${t.substring(0, 2)}:${t.substring(2, 4)}:${t.substring(4, 6)}';
+              }
+              final fileSize = file.lengthSync();
+              final sizeStr = fileSize > 1024 * 1024
+                  ? '${(fileSize / 1024 / 1024).toStringAsFixed(1)} MB'
+                  : '${(fileSize / 1024).toStringAsFixed(0)} KB';
+              return ListTile(
+                leading: const Icon(Icons.history),
+                title: Text(displayTime),
+                subtitle: Text(sizeStr),
+                onTap: () => Navigator.pop(ctx, file),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
+          ),
+        ],
+      ),
+    );
+
+    if (selected == null || !mounted) return;
+
+    // 确认恢复
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('确认恢复'),
+        content: const Text('恢复快照将覆盖当前所有数据。\n\n确认继续？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('恢复'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isImporting = true);
+
+    try {
+      final importResult = await ref
+          .read(importServiceProvider)
+          .importFromZip(selected);
+
+      if (!mounted) return;
+
+      if (importResult.success && importResult.configData != null) {
+        await ref
+            .read(importServiceProvider)
+            .restoreConfig(importResult.configData!);
+      }
+
+      if (!mounted) return;
+      setState(() => _isImporting = false);
+
+      if (importResult.success) {
+        ref.read(dataRefreshProvider.notifier).refresh();
+        AppToast.show(
+          context,
+          '快照恢复成功：${importResult.diariesImported} 条日记，'
+          '${importResult.summariesImported} 条总结',
+          duration: const Duration(seconds: 4),
+        );
+      } else {
+        AppToast.show(
+          context,
+          importResult.error ?? '恢复失败',
+          icon: Icons.error_outline,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isImporting = false);
+        AppToast.show(context, '恢复失败: $e', icon: Icons.error_outline);
       }
     }
   }

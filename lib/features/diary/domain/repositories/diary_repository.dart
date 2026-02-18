@@ -19,6 +19,9 @@ abstract class DiaryRepository {
   /// 批量保存日记
   Future<void> batchSaveDiaries(List<Diary> diaries);
 
+  /// 清空所有日记
+  Future<void> deleteAllDiaries();
+
   // 删除日记
   Future<void> deleteDiary(int id);
   Future<List<Diary>> getDiariesByDateRange(DateTime start, DateTime end);
