@@ -102,6 +102,12 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
                         final item = missing[index];
                         final key = item.label;
                         final status = generationStatus[key];
+                        final isError =
+                            status != null &&
+                            (status.startsWith('错误') ||
+                                status.startsWith('生成内容为空'));
+                        // Loading: status is set and not an error
+                        final isLoading = status != null && !isError;
 
                         return ListTile(
                           contentPadding: EdgeInsets.zero,
@@ -114,10 +120,12 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
                             status ??
                                 '${item.startDate.month}月${item.startDate.day}日 - ${item.endDate.month}月${item.endDate.day}日',
                             style: TextStyle(
-                              color: status != null ? AppTheme.primary : null,
+                              color: status != null
+                                  ? (isError ? Colors.red : AppTheme.primary)
+                                  : null,
                             ),
                           ),
-                          trailing: status != null
+                          trailing: isLoading
                               ? const SizedBox(
                                   width: 16,
                                   height: 16,
@@ -132,8 +140,14 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 12,
                                     ),
+                                    backgroundColor: isError
+                                        ? Colors.red.withOpacity(0.1)
+                                        : null,
+                                    foregroundColor: isError
+                                        ? Colors.red
+                                        : null,
                                   ),
-                                  child: const Text('生成'),
+                                  child: Text(isError ? '重试' : '生成'),
                                 ),
                         );
                       },
@@ -161,8 +175,13 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
     final generator = ref.read(summaryGeneratorServiceProvider);
     final repository = ref.read(summaryRepositoryProvider);
 
-    // Check if already generating
-    if (service.getStatus(key) != null) return;
+    // Check if already generating (but allow retry if error or empty)
+    final currentStatus = service.getStatus(key);
+    if (currentStatus != null &&
+        !currentStatus.startsWith('错误') &&
+        !currentStatus.startsWith('生成内容为空')) {
+      return;
+    }
 
     service.setStatus(key, '准备中...');
 
@@ -171,11 +190,12 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
       String finalContent = '';
 
       await for (final status in stream) {
-        // 简单逻辑判断内容还是状态
-        if (status.length > 50 && status.contains('#')) {
-          finalContent = status;
+        // 使用明确的前缀判断
+        if (status.startsWith('STATUS:')) {
+          service.setStatus(key, status.substring(7)); // remove 'STATUS:'
         } else {
-          service.setStatus(key, status);
+          // 没有前缀的被视为最终内容
+          finalContent = status;
         }
       }
 

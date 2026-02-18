@@ -9,15 +9,22 @@ import 'package:go_router/go_router.dart';
 
 class SummaryListView extends ConsumerWidget {
   final SummaryType type;
+  final DateTime? startDate;
+  final DateTime? endDate;
 
-  const SummaryListView({super.key, required this.type});
+  const SummaryListView({
+    super.key,
+    required this.type,
+    this.startDate,
+    this.endDate,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // 监听仓库数据流
     final summaryStream = ref
         .watch(summaryRepositoryProvider)
-        .watchSummaries(type);
+        .watchSummaries(type, start: startDate, end: endDate);
 
     return StreamBuilder<List<Summary>>(
       stream: summaryStream,

@@ -1,9 +1,9 @@
 import 'package:baishou/core/theme/app_theme.dart';
+import 'package:baishou/core/widgets/year_month_picker_sheet.dart';
 import 'package:baishou/features/diary/data/repositories/diary_repository_impl.dart';
 import 'package:baishou/features/diary/domain/entities/diary.dart';
 import 'package:baishou/features/diary/presentation/widgets/diary_card.dart';
 import 'package:collection/collection.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -327,153 +327,22 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
     );
   }
 
-  void _showMonthPicker(BuildContext context) {
-    final now = DateTime.now();
-    // 默认选中当前选中月份，如果没有则选中当前时间
-    int selectedYear = _selectedMonth?.year ?? now.year;
-    int selectedMonth = _selectedMonth?.month ?? now.month;
-
-    final fixedExtentScrollControllerYear = FixedExtentScrollController(
-      initialItem: selectedYear - 2020,
-    );
-    final fixedExtentScrollControllerMonth = FixedExtentScrollController(
-      initialItem: selectedMonth - 1,
-    );
-
-    showModalBottomSheet(
+  void _showMonthPicker(BuildContext context) async {
+    final result = await showModalBottomSheet<DateTime>(
       context: context,
-      backgroundColor: Colors.transparent, // 为了圆角效果
-      builder: (BuildContext context) {
-        return Container(
-          height: 350,
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(24),
-              topRight: Radius.circular(24),
-            ),
-          ),
-          child: Column(
-            children: [
-              // 顶部操作栏
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 12.0,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text(
-                        '取消',
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
-                    ),
-                    Text(
-                      '选择月份',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        setState(() {
-                          _selectedMonth = DateTime(
-                            selectedYear,
-                            selectedMonth,
-                          );
-                        });
-                        Navigator.pop(context);
-                      },
-                      child: const Text(
-                        '确定',
-                        style: TextStyle(
-                          color: AppTheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              // 选择器主体
-              Expanded(
-                child: Row(
-                  children: [
-                    // 年份选择
-                    Expanded(
-                      child: CupertinoPicker(
-                        scrollController: fixedExtentScrollControllerYear,
-                        itemExtent: 40,
-                        onSelectedItemChanged: (int index) {
-                          selectedYear = 2020 + index;
-                        },
-                        children: List<Widget>.generate(11, (int index) {
-                          return Center(
-                            child: Text(
-                              '${2020 + index}年',
-                              style: const TextStyle(fontSize: 18),
-                            ),
-                          );
-                        }),
-                      ),
-                    ),
-                    // 月份选择
-                    Expanded(
-                      child: CupertinoPicker(
-                        scrollController: fixedExtentScrollControllerMonth,
-                        itemExtent: 40,
-                        onSelectedItemChanged: (int index) {
-                          selectedMonth = 1 + index;
-                        },
-                        children: List<Widget>.generate(12, (int index) {
-                          return Center(
-                            child: Text(
-                              '${1 + index}月',
-                              style: const TextStyle(fontSize: 18),
-                            ),
-                          );
-                        }),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // 底部查看全部按钮
-              SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: TextButton(
-                      onPressed: () {
-                        setState(() {
-                          _selectedMonth = null;
-                        });
-                        Navigator.pop(context);
-                      },
-                      style: TextButton.styleFrom(
-                        backgroundColor: Theme.of(
-                          context,
-                        ).dividerColor.withOpacity(0.1),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text('查看全部日记'),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+      backgroundColor: Colors.transparent,
+      builder: (context) => YearMonthPickerSheet(initialDate: _selectedMonth),
     );
+
+    if (result != null) {
+      setState(() {
+        if (result.year == 0) {
+          _selectedMonth = null; // 清除筛选
+        } else {
+          _selectedMonth = result;
+        }
+      });
+    }
   }
 }
 

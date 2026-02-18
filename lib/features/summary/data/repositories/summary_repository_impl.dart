@@ -14,13 +14,30 @@ class SummaryRepositoryImpl implements SummaryRepository {
   SummaryRepositoryImpl(this._db);
 
   @override
-  Stream<List<Summary>> watchSummaries(SummaryType type) {
-    return (_db.select(_db.summaries)
-          ..where((t) => t.type.equals(type.name))
-          ..orderBy([
-            (t) =>
-                OrderingTerm(expression: t.startDate, mode: OrderingMode.desc),
-          ]))
+  Stream<List<Summary>> watchSummaries(
+    SummaryType type, {
+    DateTime? start,
+    DateTime? end,
+  }) {
+    final query = _db.select(_db.summaries)
+      ..where((t) => t.type.equals(type.name));
+
+    if (start != null) {
+      // 筛选 startDate >= start
+      query.where((t) => t.startDate.isBiggerOrEqualValue(start));
+    }
+    if (end != null) {
+      // 筛选 startDate <= end (通常筛选范围是基于开始日期的？或者重叠？)
+      // 用户需求是"更改周记对应的时间范围"，"更改月报对应的月份"。
+      // 实际上用户想要的是"查看特定时间段的总结"。
+      // 暂时假设是筛选 startDate 在范围内。
+      // 或者，对于"月报对应的月份"，若选了2月，则 start=2.1, end=2.28。
+      query.where((t) => t.startDate.isSmallerOrEqualValue(end));
+    }
+
+    return (query..orderBy([
+          (t) => OrderingTerm(expression: t.startDate, mode: OrderingMode.desc),
+        ]))
         .watch()
         .map((rows) => rows.map(_mapToEntity).toList());
   }

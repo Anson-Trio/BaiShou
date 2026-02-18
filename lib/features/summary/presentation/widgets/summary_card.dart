@@ -102,7 +102,8 @@ class SummaryCard extends StatelessWidget {
 
               // 内容预览
               Container(
-                constraints: const BoxConstraints(maxHeight: 150),
+                height: 150, // 固定高度
+                width: double.infinity,
                 child: ShaderMask(
                   shaderCallback: (rect) {
                     return const LinearGradient(
@@ -113,16 +114,20 @@ class SummaryCard extends StatelessWidget {
                     ).createShader(rect);
                   },
                   blendMode: BlendMode.dstIn,
-                  child: MarkdownBody(
-                    data: summary.content,
-                    styleSheet: MarkdownStyleSheet(
-                      p: TextStyle(
-                        fontSize: 14,
-                        height: 1.5,
-                        color: theme.textTheme.bodyMedium?.color?.withOpacity(
-                          0.8,
+                  child: SingleChildScrollView(
+                    physics: const NeverScrollableScrollPhysics(), // 禁止滚动
+                    child: MarkdownBody(
+                      data: summary.content.length > 1000
+                          ? '${summary.content.substring(0, 1000)}...'
+                          : summary.content, // 截断过长内容以优化性能
+                      styleSheet: MarkdownStyleSheet(
+                        p: TextStyle(
+                          fontSize: 14,
+                          height: 1.5,
+                          color: theme.textTheme.bodyMedium?.color?.withOpacity(
+                            0.8,
+                          ),
                         ),
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ),

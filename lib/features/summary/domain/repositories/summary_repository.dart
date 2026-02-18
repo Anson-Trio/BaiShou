@@ -2,8 +2,12 @@ import 'package:baishou/core/database/tables/summaries.dart';
 import 'package:baishou/features/summary/domain/entities/summary.dart';
 
 abstract class SummaryRepository {
-  // 监听特定类型的总结列表
-  Stream<List<Summary>> watchSummaries(SummaryType type);
+  // 监听特定类型的总结列表 (可选日期筛选)
+  Stream<List<Summary>> watchSummaries(
+    SummaryType type, {
+    DateTime? start,
+    DateTime? end,
+  });
 
   // 获取单个总结
   Future<Summary?> getSummaryById(int id);
