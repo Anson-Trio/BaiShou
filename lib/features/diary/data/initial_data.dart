@@ -71,7 +71,7 @@ List<Map<String, dynamic>> initialDiaries = [
   },
   {
     'content':
-        '读完了一本书，《悉达多》。📖\n\n深受震撼。关于寻找自我，关于体验生命。所有的经历，无论是好是坏，都是生命的一部分。\n\n我也在寻找我的“道”吗？',
+        '读完了一本书，《被讨厌的勇气》。📖\n\n深受震撼。关于寻找自我，关于体验生命。所有的经历，无论是好是坏，都是生命的一部分。',
     'date': DateTime.now().subtract(const Duration(days: 12)).toIso8601String(),
     'tags': ['阅读', '思考', '人生'],
   },

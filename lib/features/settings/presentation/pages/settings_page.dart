@@ -52,7 +52,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             title: const Text('反馈问题'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              launchUrl(Uri.parse('https://github.com/Anson/BaiShou/issues'));
+              launchUrl(
+                Uri.parse('https://github.com/Anson-Trio/BaiShou/issues'),
+              );
             },
           ),
         ],
