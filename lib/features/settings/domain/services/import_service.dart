@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -81,9 +82,6 @@ Future<ParsedImportData> parseZipData(String zipFilePath) async {
 
     // 1. 读取并验证 manifest
     final manifest = parseJsonFile('manifest.json');
-    if (manifest == null) {
-      throw Exception('无效的备份文件：缺少 manifest.json');
-    }
 
     // 2. 读取其他数据
     final diaries = parseJsonFile('data/diaries.json') as List<dynamic>?;
@@ -129,9 +127,30 @@ class ImportService {
 
   /// 从 ZIP 文件导入备份（覆盖模式：先自动创建快照，再清空数据，最后写入）
   Future<ImportResult> importFromZip(File zipFile) async {
+    final stopwatch = Stopwatch()..start();
+    debugPrint('Import: Starting import process from ${zipFile.path}');
+
+    // 创建一个完全独立的临时副本，以规避潜在的文件锁冲突 (特别是 LAN 传输刚完成时)
+    final tempZipFile = File(
+      path.join(
+        Directory.systemTemp.path,
+        'import_tmp_${DateTime.now().millisecondsSinceEpoch}.zip',
+      ),
+    );
+
     try {
-      // 1. 传递文件路径给 isolate (避免主线程读取大文件)
-      final parsedData = await compute(parseZipData, zipFile.path);
+      debugPrint('Import: Copying ZIP to temporary location...');
+      await zipFile.copy(tempZipFile.path);
+
+      debugPrint('Import: Parsing ZIP data in Isolate...');
+      // 1. 传递临时文件路径给 isolate
+      final parsedData = await compute(parseZipData, tempZipFile.path).timeout(
+        const Duration(minutes: 2),
+        onTimeout: () {
+          throw TimeoutException('解析备份文件超时，请检查文件是否过大');
+        },
+      );
+      debugPrint('Import: ZIP parsed in ${stopwatch.elapsedMilliseconds}ms');
 
       // 2. 验证版本
       final schemaVersion = parsedData.manifest['schema_version'] as int? ?? 0;
@@ -142,7 +161,15 @@ class ImportService {
       // 3. 创建导入前快照（用户可恢复到此节点）
       String? snapshotPath;
       try {
-        final snapshotFile = await _exportService.exportToZip(share: true);
+        // 设置 3 分钟超时
+        final snapshotFile = await _exportService
+            .exportToZip(share: true)
+            .timeout(
+              const Duration(minutes: 3),
+              onTimeout: () {
+                throw TimeoutException('创建快照超时，跳过备份步骤');
+              },
+            );
         if (snapshotFile != null) {
           // 将快照移动到持久化目录
           final appDir = await getApplicationDocumentsDirectory();
@@ -163,19 +190,29 @@ class ImportService {
       }
 
       // 4. 清空现有数据（覆盖模式）
+      debugPrint('Import: Deleting existing diaries...');
       await _diaryRepository.deleteAllDiaries();
+      debugPrint('Import: Deleting existing summaries...');
       await _summaryRepository.deleteAllSummaries();
 
       // 5. 导入日记
       int diariesImported = 0;
       if (parsedData.diaries != null) {
+        debugPrint(
+          'Import: Starting batch save for ${parsedData.diaries!.length} diaries...',
+        );
         diariesImported = await _importDiaries(parsedData.diaries!);
+        debugPrint('Import: Diaries batch save complete');
       }
 
       // 6. 导入总结
       int summariesImported = 0;
       if (parsedData.summaries != null) {
+        debugPrint(
+          'Import: Starting batch save for ${parsedData.summaries!.length} summaries...',
+        );
         summariesImported = await _importSummaries(parsedData.summaries!);
+        debugPrint('Import: Summaries batch save complete');
       }
 
       // 7. 返回结果
@@ -192,6 +229,16 @@ class ImportService {
         return ImportResult(error: '无效的备份文件：缺少 manifest.json');
       }
       return ImportResult(error: '导入失败: $e');
+    } finally {
+      // 8. 彻底清理临时文件逻辑
+      if (tempZipFile.existsSync()) {
+        try {
+          tempZipFile.deleteSync();
+          debugPrint('Import: Temporary ZIP deleted');
+        } catch (e) {
+          debugPrint('Import: Failed to delete temporary ZIP: $e');
+        }
+      }
     }
   }
 
