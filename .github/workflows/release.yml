@@ -102,6 +102,12 @@ jobs:
       - name: Build Windows
         run: flutter build windows --release
 
+      - name: Download Inno Setup Chinese language pack
+        shell: pwsh
+        run: |
+          $dest = "C:\Program Files (x86)\Inno Setup 6\Languages\ChineseSimplified.isl"
+          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/jrsoftware/issrc/main/Files/Languages/Unofficial/ChineseSimplified.isl" -OutFile $dest
+
       - name: Create Inno Setup script
         shell: pwsh
         run: |
@@ -122,7 +128,7 @@ jobs:
           SetupIconFile=windows\runner\resources\app_icon.ico
 
           [Languages]
-          Name: "english"; MessagesFile: "compiler:Default.isl"
+          Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
 
           [Tasks]
           Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "附加任务:"; Flags: unchecked
