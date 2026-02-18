@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:archive/archive_io.dart';
@@ -190,16 +191,26 @@ class ExportService {
     }
 
     // share: false（用户手动导出）——弹出系统文件保存对话框，与导入体验一致
+    // Android/iOS 需要传 bytes 参数，桌面端通过路径写入
     final outputPath = await FilePicker.platform.saveFile(
       dialogTitle: '选择保存位置',
       fileName: fileName,
       allowedExtensions: ['zip'],
       type: FileType.custom,
+      bytes: Uint8List.fromList(zipData), // Android/iOS 必须传 bytes
     );
 
     if (outputPath != null) {
       final file = File(outputPath);
-      await file.writeAsBytes(zipData);
+
+      // 桌面端：FilePicker 返回路径但不写入，需要手动写入
+      // Android/iOS：FilePicker 已通过 bytes 写入，且返回的可能是 SAF URI (如 /document/516)，
+      // 无法被 dart:io File 识别，因此跳过写入检查，直接返回
+      if (!Platform.isAndroid && !Platform.isIOS) {
+        if (!file.existsSync()) {
+          await file.writeAsBytes(zipData);
+        }
+      }
       return file;
     }
     return null; // 用户取消
