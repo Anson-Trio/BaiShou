@@ -304,8 +304,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             trailing: const Icon(Icons.chevron_right),
             onTap: () async {
               try {
-                await ref.read(exportServiceProvider).exportToZip();
-                if (mounted) {
+                // FilePicker 会弹出系统文件保存对话框，与导入体验一致
+                final file = await ref
+                    .read(exportServiceProvider)
+                    .exportToZip(share: false);
+                if (!mounted) return;
+                if (file != null) {
                   ScaffoldMessenger.of(
                     context,
                   ).showSnackBar(const SnackBar(content: Text('导出成功')));

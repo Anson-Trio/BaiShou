@@ -19,7 +19,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 
 /// 备份包 schema 版本，每次修改格式时递增
 const int _kSchemaVersion = 1;
@@ -182,33 +181,28 @@ class ExportService {
   }) async {
     if (zipData == null) return null;
 
-    if (Platform.isAndroid || Platform.isIOS) {
+    if (share) {
+      // share: true 仅用于局域网传输——保存到临时目录后直接返回，不弹任何 UI
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/$fileName');
       await file.writeAsBytes(zipData);
-
-      if (share) {
-        await SharePlus.instance.share(
-          ShareParams(files: [XFile(file.path)], text: '白守数据备份'),
-        );
-      }
       return file;
-    } else {
-      // 桌面端：弹出保存对话框
-      final outputPath = await FilePicker.platform.saveFile(
-        dialogTitle: '选择保存位置',
-        fileName: fileName,
-        allowedExtensions: ['zip'],
-        type: FileType.custom,
-      );
-
-      if (outputPath != null) {
-        final file = File(outputPath);
-        await file.writeAsBytes(zipData);
-        return file;
-      }
-      return null;
     }
+
+    // share: false（用户手动导出）——弹出系统文件保存对话框，与导入体验一致
+    final outputPath = await FilePicker.platform.saveFile(
+      dialogTitle: '选择保存位置',
+      fileName: fileName,
+      allowedExtensions: ['zip'],
+      type: FileType.custom,
+    );
+
+    if (outputPath != null) {
+      final file = File(outputPath);
+      await file.writeAsBytes(zipData);
+      return file;
+    }
+    return null; // 用户取消
   }
 }
 
