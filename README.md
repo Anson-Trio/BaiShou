@@ -73,9 +73,3 @@ flutter run
 - 请遵守 GPL v3 协议：如果您修改了本项目的代码并发布，您的修改版本也必须开源。
 
 ---
-
-## 许可证
-
-MIT License
-
-Copyright (c) 2026 Anson & Kasumiame Sakura & Tenkou Akatsuki
