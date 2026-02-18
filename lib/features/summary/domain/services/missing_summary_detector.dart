@@ -44,6 +44,7 @@ class MissingSummaryDetector {
 
   /// 检测缺失的周记
   /// 逻辑：查找所有至少有一篇日记但没有周记的周（周一至周日）。
+  /// 严格限制：只能生成已经完全结束的周。
   Future<List<MissingSummary>> getMissingWeekly() async {
     // 1. 获取所有日记日期
     final allDiaries = await _diaryRepo.getAllDiaries();
@@ -51,7 +52,6 @@ class MissingSummaryDetector {
 
     final dates = allDiaries.map((d) => d.date).toList()..sort();
     final firstDate = dates.first;
-    final lastDate = dates.last;
 
     // 2. 识别从第一篇日记到现在的所有可能周
     final weeks = <DateTimeRange>[];
@@ -66,15 +66,20 @@ class MissingSummaryDetector {
     ); // 去除时间部分
 
     final now = DateTime.now();
+    // 只有当这一周的结束时间早于现在时，才认为这周是"历史"的
+    // 周一 00:00 -> 下周一 00:00 (不含) 或者 周日 23:59:59
 
-    while (currentStart.isBefore(lastDate) ||
-        currentStart.isBefore(now.subtract(const Duration(days: 7)))) {
+    while (true) {
       final currentEnd = currentStart.add(
         const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
       );
 
-      // 只考虑完全过去或包含日记条目的周
-      // 简单逻辑：如果这周有任何日记条目，它就是一个候选项。
+      // 停止条件：如果这一周还没有结束（结束时间在未来），则停止
+      if (currentEnd.isAfter(now)) {
+        break;
+      }
+
+      // 这周已经结束了。检查是否有日记。
       bool hasEntry = dates.any(
         (d) =>
             d.isAfter(currentStart.subtract(const Duration(seconds: 1))) &&
@@ -86,6 +91,9 @@ class MissingSummaryDetector {
       }
 
       currentStart = currentStart.add(const Duration(days: 7));
+
+      // 安全出口：防止死循环（虽然上面的 break 应该够了）
+      if (currentStart.year > now.year + 1) break;
     }
 
     // 3. 检查现有总结
@@ -94,18 +102,10 @@ class MissingSummaryDetector {
       final existing = await _summaryRepo.getSummaryByTypeAndDate(
         SummaryType.weekly,
         week.start,
-        week.end, // 注意：Repo 实现通常比较确切的日期，可能需要模糊检查或严格标准化的日期
+        week.end,
       );
 
-      // 在 SummaryRepositoryImpl 中，addSummary 使用标准日期。
-      // 我们假设检测生成严格的周一 00:00 到周日 23:59:59 的范围以匹配存储。
-      // 但 Repo 通常存储传递过来的任何日期。
-      // 让我们假设严格性。或者更好的是，检查是否有任何周记主要重叠？
-      // 对于 MVP：在本地检查严格范围匹配，假设我们生成严格的范围。
-
       if (existing == null) {
-        // 双重检查严格匹配如果存储不同可能会失败？
-        // 让我们相信我们会存储标准化的范围。
         missing.add(
           MissingSummary(
             type: SummaryType.weekly,
@@ -121,13 +121,10 @@ class MissingSummaryDetector {
 
   /// 检测缺失的月报
   /// 逻辑：查找至少有一篇周记但没有月报的月份。
-  /// (严格来说，月报依赖于周记)
+  /// 严格限制：只能生成已经完全结束的月份。
   Future<List<MissingSummary>> getMissingMonthly() async {
     // 1. 获取所有周记
-    final weeklySummaries = await _summaryRepo
-        .getSummaries(); // 需要 Helper? 或者 watchSummaries.
-    // Repo 有 getSummaries().
-    // 我们手动过滤周记.
+    final weeklySummaries = await _summaryRepo.getSummaries();
     final weeklies = weeklySummaries
         .where((s) => s.type == SummaryType.weekly)
         .toList();
@@ -137,10 +134,11 @@ class MissingSummaryDetector {
     // 2. 识别周记覆盖的月份
     final months = <DateTime>[]; // 每月1号
     for (final w in weeklies) {
-      // 逻辑：一周属于其开始日期所在的月份（大部分情况下）。
       final m = DateTime(w.startDate.year, w.startDate.month, 1);
       if (!months.contains(m)) months.add(m);
     }
+
+    final now = DateTime.now();
 
     // 3. 检查状态
     final missing = <MissingSummary>[];
@@ -149,25 +147,11 @@ class MissingSummaryDetector {
       final nextMonth = DateTime(m.year, m.month + 1, 1);
       final monthEnd = nextMonth.subtract(const Duration(seconds: 1));
 
-      // 检查月报是否存在
-      // 假设月报存储为 1号 00:00 到 最后一天 23:59:59
-      // 我们可能需要一个 "getSummariesInPeriod" 查询更安全。
-      // 目前如果可能的话使用 类型 + 日期 的精确匹配逻辑。
-      // 实际上 SummaryRepositoryImpl.getSummaryByTypeAndDate 检查精确相等。
-      // 我们必须确保生成月报时使用精确范围：1号 00:00 -> 最后一天 23:59:59？
-      // 或者 1号 00:00 -> 下月1号 00:00？
-      // 让我们标准化：开始 00:00，结束 下一天 00:00 (不包含)？
-      // Drift 定义：DateTimeColumn。
-      // 让我们坚持：开始：YYYY-MM-01 00:00:00，结束：YYYY-MM-LAST 23:59:59。
+      // 只有当这个月完全过完（月末时间早于现在）才允许生成
+      if (monthEnd.isAfter(now)) {
+        continue;
+      }
 
-      final existing = await _summaryRepo.getSummaryByTypeAndDate(
-        SummaryType.monthly,
-        m,
-        DateTime(m.year, m.month + 1, 0, 23, 59, 59), // 近似最后一天逻辑？
-        // DateTime(year, month + 1, 0) 给出该月最后一天。
-      );
-
-      // 实际上让我们通过类型查询并检查 startDate 是否匹配 m。
       final candidates = await _summaryRepo.getSummaries(
         start: m,
         end: monthEnd,
@@ -194,6 +178,7 @@ class MissingSummaryDetector {
   }
 
   /// 检测缺失的季报
+  /// 严格限制：只能生成已经完全结束的季度。
   Future<List<MissingSummary>> getMissingQuarterly() async {
     final summaries = await _summaryRepo.getSummaries();
     final monthlies = summaries
@@ -209,66 +194,52 @@ class MissingSummaryDetector {
       quarters.add('${m.startDate.year}-$q');
     }
 
+    final now = DateTime.now();
     final missing = <MissingSummary>[];
+
     for (final qKey in quarters) {
       final parts = qKey.split('-');
       final year = int.parse(parts[0]);
       final quarter = int.parse(parts[1]);
 
-      // 验证我们是否拥有该季度的所有3个月？
-      // 手册上说：“只有当季度的最后一个月完成时”。
-      // 让我们现在放宽条件：如果我们在本季度有任何月报，我们就提示生成季报？
-      // 或者严格模式：必须有 M1, M2, M3？
-      // 严格模式对 AI 上下文更好。
-      // Q1: 1,2,3.
-      final m1 = monthlies.any(
-        (s) =>
-            s.startDate.year == year &&
-            s.startDate.month == (quarter - 1) * 3 + 1,
+      final startMonth = (quarter - 1) * 3 + 1;
+      final qStart = DateTime(year, startMonth, 1);
+      final qEndMonth = startMonth + 2;
+      final qEnd = DateTime(year, qEndMonth + 1, 0, 23, 59, 59);
+
+      // 只有当这个季度完全过完（季度末时间早于现在）才允许生成
+      if (qEnd.isAfter(now)) {
+        continue;
+      }
+
+      // 检查我们是否有该季度的月报（这里放宽一点，只要本季度有月报且季度已过完，就提示生成）
+      // 或者保持严格：必须有至少一个月报？上面的逻辑是基于 monthlies 存在的季度。
+      // 所以只要有月报落在这个季度，并且季度已结束，就检查是否有季报。
+
+      final candidates = await _summaryRepo.getSummaries(
+        start: qStart,
+        end: qEnd,
       );
-      final m2 = monthlies.any(
-        (s) =>
-            s.startDate.year == year &&
-            s.startDate.month == (quarter - 1) * 3 + 2,
-      );
-      final m3 = monthlies.any(
-        (s) =>
-            s.startDate.year == year &&
-            s.startDate.month == (quarter - 1) * 3 + 3,
+      final hasQuarterly = candidates.any(
+        (s) => s.type == SummaryType.quarterly && s.startDate.year == year,
       );
 
-      if (m1 && m2 && m3) {
-        // 检查 Q 总结是否存在
-        final startMonth = (quarter - 1) * 3 + 1;
-        final qStart = DateTime(year, startMonth, 1);
-        // 结束是第3个月的结束
-        final qEndMonth = startMonth + 2;
-        final qEnd = DateTime(year, qEndMonth + 1, 0, 23, 59, 59);
-
-        final candidates = await _summaryRepo.getSummaries(
-          start: qStart,
-          end: qEnd,
+      if (!hasQuarterly) {
+        missing.add(
+          MissingSummary(
+            type: SummaryType.quarterly,
+            startDate: qStart,
+            endDate: qEnd,
+            label: '$year年Q$quarter',
+          ),
         );
-        final hasQuarterly = candidates.any(
-          (s) => s.type == SummaryType.quarterly && s.startDate.year == year,
-        ); // 简化检查
-
-        if (!hasQuarterly) {
-          missing.add(
-            MissingSummary(
-              type: SummaryType.quarterly,
-              startDate: qStart,
-              endDate: qEnd,
-              label: '$year年Q$quarter',
-            ),
-          );
-        }
       }
     }
     return missing;
   }
 
   /// 检测缺失的年鉴
+  /// 严格限制：只能生成已经完全结束的年份。
   Future<List<MissingSummary>> getMissingYearly() async {
     final summaries = await _summaryRepo.getSummaries();
     final quarterlies = summaries
@@ -283,30 +254,34 @@ class MissingSummaryDetector {
       years.add(q.startDate.year);
     }
 
+    final now = DateTime.now();
     final missing = <MissingSummary>[];
+
     for (final year in years) {
-      // 检查我们是否有 Q1-Q4？
-      // 严格模式：至少需要3个季度？
-      // 假设我们有 >= 3 个季度，我们允许生成年鉴。
-      final count = quarterlies.where((s) => s.startDate.year == year).length;
+      final yearStart = DateTime(year, 1, 1);
+      final yearEnd = DateTime(year, 12, 31, 23, 59, 59);
 
-      if (count >= 3) {
-        final existing = await _summaryRepo.getSummaries(
-          start: DateTime(year, 1, 1),
-          end: DateTime(year, 12, 31, 23, 59, 59),
+      // 只有当这一年完全过完（年末时间早于现在）才允许生成
+      if (yearEnd.isAfter(now)) {
+        continue;
+      }
+
+      // 检查年鉴
+      final existing = await _summaryRepo.getSummaries(
+        start: yearStart,
+        end: yearEnd,
+      );
+      final hasYearly = existing.any((s) => s.type == SummaryType.yearly);
+
+      if (!hasYearly) {
+        missing.add(
+          MissingSummary(
+            type: SummaryType.yearly,
+            startDate: yearStart,
+            endDate: yearEnd,
+            label: '$year年度',
+          ),
         );
-        final hasYearly = existing.any((s) => s.type == SummaryType.yearly);
-
-        if (!hasYearly) {
-          missing.add(
-            MissingSummary(
-              type: SummaryType.yearly,
-              startDate: DateTime(year, 1, 1),
-              endDate: DateTime(year, 12, 31, 23, 59, 59),
-              label: '$year年度',
-            ),
-          );
-        }
       }
     }
     return missing;

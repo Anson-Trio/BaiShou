@@ -200,6 +200,17 @@ class SummaryGeneratorService {
     }
   }
 
+  Future<void> testConnection(ApiConfigService config) async {
+    const testPrompt = '你好！';
+    const testData = '';
+
+    if (config.provider == AiProvider.gemini) {
+      await _callGemini(testPrompt, testData, config);
+    } else {
+      await _callOpenAi(testPrompt, testData, config);
+    }
+  }
+
   Future<String> _callGemini(
     String prompt,
     String data,
@@ -235,7 +246,7 @@ class SummaryGeneratorService {
                 ],
               },
             ],
-            'generationConfig': {'temperature': 0.7, 'maxOutputTokens': 36000},
+            'generationConfig': {'temperature': 0.7, 'maxOutputTokens': 8192},
           }),
         )
         .timeout(
@@ -245,7 +256,33 @@ class SummaryGeneratorService {
 
     if (response.statusCode == 200) {
       final json = jsonDecode(response.body);
-      return json['candidates'][0]['content']['parts'][0]['text'];
+
+      if (json['candidates'] == null || (json['candidates'] as List).isEmpty) {
+        // Check for promptFeedback if available
+        final feedback = json['promptFeedback'];
+        throw Exception(
+          'Gemini 返回无法生成内容 (Candidates Empty). Feedback: $feedback',
+        );
+      }
+
+      final candidate = json['candidates'][0];
+      final finishReason = candidate['finishReason'];
+
+      if (candidate['content'] == null) {
+        throw Exception('Gemini 生成内容为空. FinishReason: $finishReason');
+      }
+
+      final parts = candidate['content']['parts'] as List?;
+      if (parts == null || parts.isEmpty) {
+        throw Exception('Gemini 生成内容部分为空. FinishReason: $finishReason');
+      }
+
+      final text = parts[0]['text'] as String?;
+      if (text == null || text.isEmpty) {
+        throw Exception('Gemini 生成文本为空字符串. FinishReason: $finishReason');
+      }
+
+      return text;
     } else {
       throw Exception(
         'Gemini API 错误: ${response.statusCode} - ${response.body}',
@@ -298,7 +335,7 @@ class SummaryGeneratorService {
               },
             ],
             'temperature': 0.7,
-            'max_tokens': 36000,
+            'max_tokens': 8192,
           }),
         )
         .timeout(
@@ -307,12 +344,27 @@ class SummaryGeneratorService {
         );
 
     if (response.statusCode == 200) {
-      final json = jsonDecode(utf8.decode(response.bodyBytes)); // 确保 UTF8 解码
-      return json['choices'][0]['message']['content'];
+      final json = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (json['choices'] == null || (json['choices'] as List).isEmpty) {
+        throw Exception('AI返回无法生成内容 (Choices Empty)');
+      }
+
+      final choice = json['choices'][0];
+      final finishReason = choice['finish_reason'];
+
+      if (choice['message'] == null) {
+        throw Exception('AI生成消息为空. FinishReason: $finishReason');
+      }
+
+      final content = choice['message']['content'] as String?;
+      if (content == null || content.isEmpty) {
+        throw Exception('AI生成内容为空字符串. FinishReason: $finishReason');
+      }
+
+      return content;
     } else {
-      throw Exception(
-        'OpenAI API 错误: ${response.statusCode} - ${response.body}',
-      );
+      throw Exception('AI API 错误: ${response.statusCode} - ${response.body}');
     }
   }
 }

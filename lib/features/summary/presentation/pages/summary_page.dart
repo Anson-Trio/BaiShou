@@ -5,6 +5,7 @@ import 'package:baishou/features/summary/data/repositories/summary_repository_im
 
 import 'package:baishou/core/widgets/year_month_picker_sheet.dart';
 import 'package:baishou/core/widgets/year_picker_sheet.dart';
+import 'package:baishou/features/settings/presentation/pages/ai_config_page.dart';
 import 'package:baishou/features/summary/presentation/widgets/summary_dashboard_view.dart';
 import 'package:baishou/features/summary/presentation/widgets/summary_list_view.dart';
 import 'package:baishou/features/summary/presentation/widgets/summary_raw_data_view.dart';
@@ -32,7 +33,10 @@ class SummaryPage extends ConsumerWidget {
             IconButton(
               icon: const Icon(Icons.settings_outlined),
               onPressed: () {
-                AppToast.show(context, '设置功能开发中');
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AiConfigPage()),
+                );
               },
             ),
           ],
