@@ -317,13 +317,6 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
         ),
         title: _buildAppBarTitle(context),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.auto_awesome),
-            onPressed: () {
-              AppToast.show(context, 'AI 功能开发中...', icon: Icons.construction);
-            },
-            color: AppTheme.primary,
-          ),
           Padding(
             padding: const EdgeInsets.only(left: 8, right: 16),
             child: FilledButton(

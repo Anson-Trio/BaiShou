@@ -16,7 +16,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 0.0.1+1
 
 environment:
   sdk: ^3.11.0
@@ -54,6 +54,19 @@ dependencies:
   flutter_dotenv: ^6.0.0
   shared_preferences: ^2.5.4
   url_launcher: ^6.3.2
+  image_picker: ^1.2.1
+  share_plus: ^12.0.1
+  file_picker: ^10.3.10
+  package_info_plus: ^9.0.0
+  image_cropper: ^11.0.0
+  archive: ^4.0.9
+  shelf: ^1.4.2
+  bonsoir: ^6.0.1
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^7.1.4
+  network_info_plus: ^7.0.0
+  uuid: ^4.5.2
+  shelf_router: ^1.1.4
 
 dev_dependencies:
   flutter_test:
@@ -85,6 +98,7 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - .env
+    - assets/images/
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
 

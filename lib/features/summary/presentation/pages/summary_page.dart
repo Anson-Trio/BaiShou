@@ -164,7 +164,8 @@ class _SummaryArchiveViewState extends State<_SummaryArchiveView>
           child: FloatingActionButton(
             onPressed: () => _showAddSummaryDialog(context),
             backgroundColor: AppTheme.primary,
-            child: const Icon(Icons.add),
+            shape: const CircleBorder(),
+            child: const Icon(Icons.add, color: Colors.white, size: 32),
           ),
         ),
       ],

@@ -2,6 +2,18 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>需要访问相册以选择头像</string>
+	<key>NSCameraUsageDescription</key>
+	<string>需要访问相机以拍摄头像</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>需要访问麦克风以录制视频</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>需要访问局域网以发现附近的设备并传输数据</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_baishou._tcp</string>
+	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
