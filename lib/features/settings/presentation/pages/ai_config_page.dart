@@ -317,7 +317,7 @@ class _AiConfigPageState extends ConsumerState<AiConfigPage> {
                 border: const OutlineInputBorder(),
                 helperText: _provider == AiProvider.gemini
                     ? '必填项 (推荐 gemini-3-flash-preview)'
-                    : '必填项 (如 gpt-4o, deepseek-chat)',
+                    : '必填项 (如 deepseek-chat)',
                 helperMaxLines: 2,
               ),
               validator: (value) {
