@@ -87,8 +87,10 @@ class SummaryGeneratorService {
 
       yield generatedContent;
     } catch (e) {
-      yield 'STATUS:生成失败: $e';
-      rethrow;
+      final msg = _sanitizeError(e);
+      yield 'STATUS:生成失败: $msg';
+      // 重新抛出脱敏后的异常，以便上层逻辑（如UI）能显示处理后的信息
+      throw Exception(msg);
     }
   }
 
@@ -215,11 +217,38 @@ class SummaryGeneratorService {
     const testPrompt = '你好！';
     const testData = '';
 
-    if (config.provider == AiProvider.gemini) {
-      await _callGemini(testPrompt, testData, config);
-    } else {
-      await _callOpenAi(testPrompt, testData, config);
+    try {
+      if (config.provider == AiProvider.gemini) {
+        await _callGemini(testPrompt, testData, config);
+      } else {
+        await _callOpenAi(testPrompt, testData, config);
+      }
+    } catch (e) {
+      throw Exception(_sanitizeError(e));
     }
+  }
+
+  String _sanitizeError(Object e) {
+    var errorMsg = e.toString();
+
+    // 1. 脱敏 API Key
+    // 匹配 key=AIzaSy... 这种格式，不管是 query param 还是 json body
+    errorMsg = errorMsg.replaceAllMapped(
+      RegExp(r'(key|api_key|Authorization)=([A-Za-z0-9\-_]+)'),
+      (match) => '${match.group(1)}=******',
+    );
+
+    // 2. 常见网络错误汉化
+    if (errorMsg.contains('SocketException') ||
+        errorMsg.contains('Connection refused') ||
+        errorMsg.contains('Connection timed out') ||
+        errorMsg.contains('信号灯超时')) {
+      errorMsg = '网络连接失败。请检查网络设置或配置国内可用的 API Base URL (反向代理)。\n原始错误: $errorMsg';
+    } else if (errorMsg.contains('HandshakeException')) {
+      errorMsg = 'SSL 握手失败。请检查网络或代理设置。\n原始错误: $errorMsg';
+    }
+
+    return errorMsg;
   }
 
   Future<String> _callGemini(
