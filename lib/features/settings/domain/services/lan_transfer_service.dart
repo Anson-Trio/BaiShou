@@ -89,7 +89,6 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
       // 1. 启动 HTTP 服务器
       final handler = _createRouter();
 
-      // 使用 Anson 指定的端口 31004 (3月10月4日)
       // shared: true 允许同一端口被多次绑定（解决退出后端口未释放的问题）
       const port = 31004;
       _server = await shelf_io.serve(
@@ -274,8 +273,8 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
   Future<bool> sendFileTo(String host, int port) async {
     try {
       final exportService = ref.read(exportServiceProvider);
-      // 1. 生成 Zip，不调用系统分享
-      final zipFile = await exportService.exportToZip(share: false);
+      // 1. 生成 Zip，不调用系统分享 (share: true 表示生成临时文件不弹窗)
+      final zipFile = await exportService.exportToZip(share: true);
       if (zipFile == null) throw Exception('无法生成备份文件');
 
       // 2. 读取文件字节
