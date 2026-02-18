@@ -3,40 +3,130 @@ import 'dart:io';
 
 import 'package:archive/archive.dart';
 import 'package:archive/archive_io.dart';
-import 'package:baishou/features/diary/domain/entities/diary.dart';
 
+import 'package:baishou/core/services/api_config_service.dart';
+import 'package:baishou/core/theme/theme_service.dart';
+import 'package:baishou/features/diary/domain/entities/diary.dart';
 import 'package:baishou/features/diary/domain/repositories/diary_repository.dart';
 import 'package:baishou/features/diary/data/repositories/diary_repository_impl.dart';
+import 'package:baishou/features/settings/domain/services/user_profile_service.dart';
+import 'package:baishou/features/summary/data/repositories/summary_repository_impl.dart';
+import 'package:baishou/features/summary/domain/entities/summary.dart';
+import 'package:baishou/features/summary/domain/repositories/summary_repository.dart';
 import 'package:file_picker/file_picker.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+/// 备份包 schema 版本，每次修改格式时递增
+const int _kSchemaVersion = 1;
+
 class ExportService {
   final DiaryRepository _diaryRepository;
+  final SummaryRepository _summaryRepository;
+  final ApiConfigService _apiConfig;
+  final UserProfile _userProfile;
+  final AppThemeState _themeState;
 
-  ExportService(this._diaryRepository);
+  ExportService({
+    required DiaryRepository diaryRepository,
+    required SummaryRepository summaryRepository,
+    required ApiConfigService apiConfig,
+    required UserProfile userProfile,
+    required AppThemeState themeState,
+  }) : _diaryRepository = diaryRepository,
+       _summaryRepository = summaryRepository,
+       _apiConfig = apiConfig,
+       _userProfile = userProfile,
+       _themeState = themeState;
 
-  // 导出为 ZIP 压缩包 (按日期分类 Markdown)
-  // share: 是否调用系统分享 (默认 true，局域网传输时应设为 false)
+  /// 导出完整备份 ZIP
+  /// [share] 是否调用系统分享（局域网传输时设为 false）
   Future<File?> exportToZip({bool share = true}) async {
-    final diaries = await _diaryRepository.getAllDiaries();
-    // Sort by date descending
     final archive = Archive();
+    final now = DateTime.now();
 
-    // 按日期分组日记
+    // 1. 获取所有数据
+    final diaries = await _diaryRepository.getAllDiaries();
+    final summaries = await _summaryRepository.getSummaries();
+    final packageInfo = await PackageInfo.fromPlatform();
+
+    // 2. 写入 manifest.json
+    final manifest = {
+      'schema_version': _kSchemaVersion,
+      'app_version': packageInfo.version,
+      'exported_at': now.toIso8601String(),
+      'device_nickname': _userProfile.nickname,
+      'counts': {'diaries': diaries.length, 'summaries': summaries.length},
+    };
+    _addJsonFile(archive, 'manifest.json', manifest);
+
+    // 3. 写入 data/diaries.json
+    final diariesJson = diaries.map((d) => _diaryToJson(d)).toList();
+    _addJsonFile(archive, 'data/diaries.json', diariesJson);
+
+    // 4. 写入 data/summaries.json
+    final summariesJson = summaries.map((s) => _summaryToJson(s)).toList();
+    _addJsonFile(archive, 'data/summaries.json', summariesJson);
+
+    // 5. 写入 config/user_profile.json（含 API Key）
+    final config = {
+      'nickname': _userProfile.nickname,
+      'theme_mode': _themeState.mode.index,
+      'seed_color': _themeState.seedColor.toARGB32(),
+      // AI 配置
+      'ai_provider': _apiConfig.provider.name,
+      'gemini_api_key': _apiConfig.geminiApiKey,
+      'gemini_base_url': _apiConfig.geminiBaseUrl,
+      'openai_api_key': _apiConfig.openAiApiKey,
+      'openai_base_url': _apiConfig.openAiBaseUrl,
+      'ai_model': _apiConfig.model,
+    };
+
+    // 头像：如果存在则以 Base64 编码写入
+    if (_userProfile.avatarPath != null) {
+      final avatarFile = File(_userProfile.avatarPath!);
+      if (avatarFile.existsSync()) {
+        final avatarBytes = await avatarFile.readAsBytes();
+        final avatarExt = _userProfile.avatarPath!.split('.').last;
+        config['avatar_base64'] = base64Encode(avatarBytes);
+        config['avatar_ext'] = avatarExt;
+      }
+    }
+
+    _addJsonFile(archive, 'config/user_profile.json', config);
+
+    // 6. 写入 markdown/ 目录（人类可读版本）
+    _addMarkdownFiles(archive, diaries);
+
+    // 7. 编码为 ZIP
+    final zipEncoder = ZipEncoder();
+    final zipData = zipEncoder.encode(archive);
+
+    final fileName =
+        'BaiShou_Backup_${DateFormat('yyyyMMdd_HHmmss').format(now)}.zip';
+
+    return _saveOrShare(zipData, fileName, share: share);
+  }
+
+  // --- 私有辅助方法 ---
+
+  void _addJsonFile(Archive archive, String path, dynamic data) {
+    final bytes = utf8.encode(jsonEncode(data));
+    archive.addFile(ArchiveFile(path, bytes.length, bytes));
+  }
+
+  void _addMarkdownFiles(Archive archive, List<Diary> diaries) {
+    // 按日期分组
     final Map<String, List<Diary>> grouped = {};
     for (final diary in diaries) {
       final dateStr = DateFormat('yyyy-MM-dd').format(diary.date);
-      if (!grouped.containsKey(dateStr)) {
-        grouped[dateStr] = [];
-      }
-      grouped[dateStr]!.add(diary);
+      grouped.putIfAbsent(dateStr, () => []).add(diary);
     }
 
-    // 为每一天生成 Markdown 内容
     for (final entry in grouped.entries) {
       final dateStr = entry.key;
       final dailyDiaries = entry.value;
@@ -58,15 +148,39 @@ class ExportService {
       }
 
       final bytes = utf8.encode(sb.toString());
-      archive.addFile(ArchiveFile('$dateStr.md', bytes.length, bytes));
+      archive.addFile(ArchiveFile('markdown/$dateStr.md', bytes.length, bytes));
     }
+  }
 
-    // 编码为 ZIP
-    final zipEncoder = ZipEncoder();
-    final zipData = zipEncoder.encode(archive);
+  Map<String, dynamic> _diaryToJson(Diary diary) {
+    return {
+      'id': diary.id,
+      'date': diary.date.toIso8601String(),
+      'content': diary.content,
+      'tags': diary.tags,
+      'created_at': diary.createdAt.toIso8601String(),
+      'updated_at': diary.updatedAt.toIso8601String(),
+    };
+  }
 
-    final fileName =
-        'BaiShou_Backup_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.zip';
+  Map<String, dynamic> _summaryToJson(Summary summary) {
+    return {
+      'id': summary.id,
+      'type': summary.type.name,
+      'start_date': summary.startDate.toIso8601String(),
+      'end_date': summary.endDate.toIso8601String(),
+      'content': summary.content,
+      'generated_at': summary.generatedAt.toIso8601String(),
+      'source_ids': summary.sourceIds,
+    };
+  }
+
+  Future<File?> _saveOrShare(
+    List<int>? zipData,
+    String fileName, {
+    required bool share,
+  }) async {
+    if (zipData == null) return null;
 
     if (Platform.isAndroid || Platform.isIOS) {
       final dir = await getTemporaryDirectory();
@@ -74,29 +188,36 @@ class ExportService {
       await file.writeAsBytes(zipData);
 
       if (share) {
-        await Share.shareXFiles([XFile(file.path)], text: '白守数据备份');
+        await SharePlus.instance.share(
+          ShareParams(files: [XFile(file.path)], text: '白守数据备份'),
+        );
       }
       return file;
     } else {
-      String? outputFile = await FilePicker.platform.saveFile(
+      // 桌面端：弹出保存对话框
+      final outputPath = await FilePicker.platform.saveFile(
         dialogTitle: '选择保存位置',
         fileName: fileName,
         allowedExtensions: ['zip'],
         type: FileType.custom,
       );
 
-      if (outputFile != null) {
-        final file = File(outputFile);
+      if (outputPath != null) {
+        final file = File(outputPath);
         await file.writeAsBytes(zipData);
         return file;
-      } else {
-        return null; // User cancelled
       }
+      return null;
     }
   }
 }
 
 final exportServiceProvider = Provider<ExportService>((ref) {
-  final diaryRepository = ref.watch(diaryRepositoryProvider);
-  return ExportService(diaryRepository);
+  return ExportService(
+    diaryRepository: ref.watch(diaryRepositoryProvider),
+    summaryRepository: ref.watch(summaryRepositoryProvider),
+    apiConfig: ref.watch(apiConfigServiceProvider),
+    userProfile: ref.watch(userProfileProvider),
+    themeState: ref.watch(themeProvider),
+  );
 });

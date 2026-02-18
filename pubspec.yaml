@@ -51,7 +51,7 @@ dependencies:
   collection: ^1.19.1
   google_fonts: ^6.2.1
   http: ^1.6.0
-  flutter_dotenv: ^6.0.0
+
   shared_preferences: ^2.5.4
   url_launcher: ^6.3.2
   image_picker: ^1.2.1

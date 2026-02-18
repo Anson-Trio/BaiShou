@@ -2,9 +2,11 @@ import 'dart:io';
 
 import 'package:baishou/core/theme/theme_service.dart';
 import 'package:baishou/features/settings/domain/services/export_service.dart';
+import 'package:baishou/features/settings/domain/services/import_service.dart';
 import 'package:baishou/features/settings/domain/services/user_profile_service.dart';
 import 'package:baishou/features/settings/presentation/pages/about_page.dart';
 import 'package:baishou/features/settings/presentation/pages/lan_transfer_page.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_cropper/image_cropper.dart';
@@ -298,7 +300,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ListTile(
             leading: const Icon(Icons.download_outlined),
             title: const Text('导出数据'),
-            subtitle: const Text('导出为 Zip 压缩包 (按天归档)'),
+            subtitle: const Text('导出完整备份（含日记、总结、配置）'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () async {
               try {
@@ -319,6 +321,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ),
           const Divider(height: 1),
           ListTile(
+            leading: const Icon(Icons.upload_outlined),
+            title: const Text('导入数据'),
+            subtitle: const Text('从备份 ZIP 恢复日记、总结和配置'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _importBackup(),
+          ),
+          const Divider(height: 1),
+          ListTile(
             leading: const Icon(Icons.wifi_tethering_outlined),
             title: const Text('局域网传输'),
             subtitle: const Text('在同一网络下的设备间同步'),
@@ -335,6 +345,80 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _importBackup() async {
+    // 选择 ZIP 文件
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['zip'],
+      dialogTitle: '选择备份文件',
+    );
+
+    if (result == null || result.files.single.path == null) return;
+    final zipFile = File(result.files.single.path!);
+
+    if (!mounted) return;
+
+    // 确认对话框
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('导入备份'),
+        content: const Text('导入将合并数据（跳过重复日记）并恢复配置（含 API Key、主题、头像）。\n\n确认继续？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('导入'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    // 显示加载
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('正在导入...'),
+          ],
+        ),
+      ),
+    );
+
+    final importResult = await ref
+        .read(importServiceProvider)
+        .importFromZip(zipFile);
+
+    if (!mounted) return;
+    Navigator.of(context).pop(); // 关闭加载对话框
+
+    if (importResult.success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '导入成功：${importResult.diariesImported} 条日记，'
+            '${importResult.summariesImported} 条总结'
+            '${importResult.profileRestored ? "，配置已恢复" : ""}',
+          ),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(importResult.error ?? '导入失败')));
+    }
   }
 
   Widget _buildAboutSection() {

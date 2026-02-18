@@ -66,10 +66,12 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
 
   @override
   LanTransferState build() {
-    ref.onDispose(() {
-      _broadcast?.stop();
-      _server?.close(force: true);
-      _discovery?.stop();
+    ref.onDispose(() async {
+      // 确保资源按顺序释放，防止端口占用
+      await _broadcast?.stop();
+      await _server?.close(force: true);
+      _server = null;
+      await _discovery?.stop();
     });
     return const LanTransferState();
   }
@@ -88,14 +90,14 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
       final handler = _createRouter();
 
       // 使用 Anson 指定的端口 31004 (3月10月4日)
+      // shared: true 允许同一端口被多次绑定（解决退出后端口未释放的问题）
       const port = 31004;
-      try {
-        _server = await shelf_io.serve(handler, InternetAddress.anyIPv4, port);
-      } catch (e) {
-        // 如果端口被占用，可能是上次未释放，尝试复用或抛出异常
-        // 简单起见，这里直接抛出，由UI处理重试
-        rethrow;
-      }
+      _server = await shelf_io.serve(
+        handler,
+        InternetAddress.anyIPv4,
+        port,
+        shared: true,
+      );
 
       // 获取本机 IP
       final info = NetworkInfo();
