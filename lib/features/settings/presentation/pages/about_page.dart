@@ -1,4 +1,5 @@
 import 'package:baishou/core/widgets/app_toast.dart';
+import 'package:baishou/features/settings/presentation/pages/debug_page.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -14,6 +15,8 @@ class _AboutPageState extends State<AboutPage> {
   int _tapCount = 0;
   DateTime? _lastTapTime;
   String _version = '1.0.0';
+  int _devTapCount = 0;
+  DateTime? _devLastTapTime;
 
   @override
   void initState() {
@@ -102,10 +105,33 @@ class _AboutPageState extends State<AboutPage> {
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          const Card(
-            child: ListTile(
-              title: Text('Anson & Kasumiame Sakura & Tenkou Akatsuki'),
-              subtitle: Text('The Trio'),
+          GestureDetector(
+            onTap: () {
+              final now = DateTime.now();
+              if (_devLastTapTime == null ||
+                  now.difference(_devLastTapTime!) <
+                      const Duration(seconds: 2)) {
+                _devTapCount++;
+              } else {
+                _devTapCount = 1;
+              }
+              _devLastTapTime = now;
+
+              if (_devTapCount == 7) {
+                AppToast.show(context, '再点 3 次进入开发者模式');
+              } else if (_devTapCount >= 10) {
+                _devTapCount = 0;
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const DebugPage()),
+                );
+              }
+            },
+            child: const Card(
+              child: ListTile(
+                title: Text('Anson & Kasumiame Sakura & Tenkou Akatsuki'),
+                subtitle: Text('The Trio'),
+              ),
             ),
           ),
           const SizedBox(height: 24),

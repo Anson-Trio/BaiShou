@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:bonsoir/bonsoir.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:network_info_plus/network_info_plus.dart';
@@ -9,7 +11,7 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
-import 'package:shelf_router/shelf_router.dart';
+import 'package:shelf_router/shelf_router.dart' as shelf_router;
 import 'package:uuid/uuid.dart';
 
 import 'export_service.dart';
@@ -70,13 +72,6 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
 
   @override
   LanTransferState build() {
-    ref.onDispose(() async {
-      // 确保资源按顺序释放，防止端口占用
-      await _broadcast?.stop();
-      await _server?.close(force: true);
-      _server = null;
-      await _discovery?.stop();
-    });
     return const LanTransferState();
   }
 
@@ -110,20 +105,32 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
 
       // 2. 启动 mDNS 广播
       // 服务名称包含昵称和 UUID 前缀，防止冲突
+      // 限制昵称长度，防止 mDNS 数据包过大导致解析错误 (EOFException)
+      String safeNickname = userProfile.nickname;
+      if (safeNickname.length > 10) {
+        safeNickname = safeNickname.substring(0, 10);
+      }
+
+      // 替换掉可能破坏 mDNS 格式的特殊字符
+      safeNickname = safeNickname.replaceAll(RegExp(r'[^\w\u4e00-\u9fa5]'), '');
+      if (safeNickname.isEmpty) safeNickname = 'User';
+
       final serviceName =
-          'BaiShou-${userProfile.nickname}-${const Uuid().v4().substring(0, 4)}';
+          'BaiShou-$safeNickname-${const Uuid().v4().substring(0, 4)}';
       final deviceType = Platform.isAndroid || Platform.isIOS
           ? 'mobile'
           : (Platform.isMacOS || Platform.isWindows || Platform.isLinux
                 ? 'desktop'
                 : 'other');
 
+      debugPrint('Starting broadcast service: $serviceName');
+
       final service = BonsoirService(
         name: serviceName,
         type: _serviceType,
         port: port,
         attributes: {
-          'nickname': userProfile.nickname,
+          'nickname': userProfile.nickname, // 属性里保留完整昵称，如果出错再考虑截断
           'ip': ip ?? 'Unknown',
           'device_type': deviceType,
         },
@@ -154,7 +161,7 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
 
   /// 创建 HTTP 路由处理
   Handler _createRouter() {
-    final router = Router();
+    final router = shelf_router.Router();
     final userProfile = ref.read(userProfileProvider);
 
     // GET /download: 允许接收者主动拉取 (保留作为一种方式, 例如扫码)
@@ -186,20 +193,22 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
     router.post('/upload', (Request request) async {
       try {
         // 读取请求体中的文件数据
-        final payload = await request
-            .read()
-            .expand((element) => element)
-            .toList();
-        if (payload.isEmpty) {
-          return Response.badRequest(body: 'Empty payload');
-        }
-
+        // 使用流式写入，避免大文件内存溢出
         final dir = await getApplicationDocumentsDirectory();
         final fileName =
             'received_backup_${DateTime.now().millisecondsSinceEpoch}.zip';
         final file = File(path.join(dir.path, fileName));
 
-        await file.writeAsBytes(payload);
+        final sink = file.openWrite();
+        try {
+          await sink.addStream(request.read());
+          await sink.flush();
+        } finally {
+          await sink.close();
+        }
+
+        // 确保文件句柄释放
+        await Future.delayed(const Duration(milliseconds: 200));
 
         // 更新状态，通知 UI 收到新文件 (同时触发弹窗信号)
         state = state.copyWith(
@@ -226,7 +235,7 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
 
   /// 消费待导入文件信号 (UI 处理完弹窗后调用)
   void consumeReceivedFile() {
-    // 显式置空 receivedFileToImport，不使用 copyWith 避免 ?? 逻辑覆盖 null
+    // 显式置空 receivedFileToImport
     state = LanTransferState(
       isBroadcasting: state.isBroadcasting,
       isDiscovering: state.isDiscovering,

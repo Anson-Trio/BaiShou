@@ -23,6 +23,7 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
     with TickerProviderStateMixin {
   late AnimationController _radarController;
   late AnimationController _floatController;
+  LanTransferNotifier? _notifier; // Cache for safe disposal
 
   @override
   void initState() {
@@ -47,7 +48,8 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
   @override
   void dispose() {
     // 退出页面时关闭服务，防止后台残留
-    ref.read(lanTransferServiceProvider.notifier).stopDualMode();
+    // 使用缓存的 notifier 进行清理，避免 dispose 时 ref 不可用导致的崩溃
+    _notifier?.stopDualMode();
     _radarController.dispose();
     _floatController.dispose();
     super.dispose();
@@ -55,6 +57,8 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
 
   @override
   Widget build(BuildContext context) {
+    _notifier = ref.read(lanTransferServiceProvider.notifier);
+
     // 监听状态，处理文件接收通知
     ref.listen(lanTransferServiceProvider, (previous, next) {
       // 1. 处理文件接收成功提示
@@ -351,46 +355,62 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
   }
 
   Future<void> _importFile(File file) async {
-    // 简单的全屏 Loading
+    // 用一个变量捕获弹窗自己的 BuildContext，确保关闭的是正确的弹窗
+    BuildContext? dialogContext;
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => const Center(child: CircularProgressIndicator()),
+      builder: (ctx) {
+        dialogContext = ctx;
+        return const Center(child: CircularProgressIndicator());
+      },
     );
 
+    // 等待一帧，确保弹窗已经完全建立
+    await Future.delayed(Duration.zero);
+
+    void closeDialog() {
+      if (dialogContext != null && Navigator.of(dialogContext!).canPop()) {
+        Navigator.of(dialogContext!).pop();
+        debugPrint('UI: Loading dialog popped via dialogContext');
+      }
+    }
+
     try {
+      debugPrint('UI: Stopping dual mode...');
+      await ref.read(lanTransferServiceProvider.notifier).stopDualMode();
+
+      debugPrint('UI: Calling importFromZip...');
       final importService = ref.read(importServiceProvider);
-      // 调用 overwrite import
-      // 注意：importService 会自动生成快照并覆盖
       final result = await importService.importFromZip(file);
 
-      if (!mounted) return;
-      Navigator.of(context).pop(); // 关闭 Loading
+      debugPrint('UI: Import returned with success=${result.success}');
+
+      closeDialog();
 
       if (result.success) {
-        if (result.configData != null) {
-          // 恢复配置（主题等）
-          await ref
-              .read(importServiceProvider)
-              .restoreConfig(result.configData!);
+        if (mounted) {
+          ref.read(dataRefreshProvider.notifier).refresh();
+          AppToast.show(context, '导入成功！\n已自动创建快照备份。', icon: Icons.check_circle);
         }
 
-        // 刷新全局数据信号
-        ref.read(dataRefreshProvider.notifier).refresh();
-
-        if (mounted) {
-          AppToast.show(context, '导入成功！\n已自动创建快照备份。', icon: Icons.check_circle);
+        if (result.configData != null) {
+          debugPrint('UI: Scheduling restoreConfig after page close...');
+          Future.delayed(const Duration(milliseconds: 300), () {
+            importService.restoreConfig(result.configData!);
+          });
         }
       } else {
         if (mounted) {
           AppToast.show(context, '导入失败: ${result.error}', icon: Icons.error);
         }
       }
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('UI: Error in _importFile: $e\n$stack');
+      closeDialog();
       if (mounted) {
-        Navigator.of(context).pop(); // Ensure loading closed
         AppToast.show(context, '发生错误: $e', icon: Icons.error);
-        debugPrint(e.toString());
       }
     }
   }

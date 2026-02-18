@@ -21,34 +21,21 @@ class DiaryRepositoryImpl implements DiaryRepository {
           (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
         ]))
         .watch()
-        .asyncMap((rows) async {
-          if (rows.isEmpty) {
-            final count = await _db
-                .select(_db.diaries)
-                .get()
-                .then((v) => v.length);
-            if (count == 0) {
-              await _seedInitialData();
-              // 播种完成后，我们不需要做任何事情，流会再次发射数据，因为我们正在监听表。
-              // 然而，watch() 会立即发射数据，所以我们可能需要处理第一次空的发射。
-              // 或者让 UI 来处理它。
-              // 这里我们只返回空列表作为第一次发射，下一次将会有数据。
-              return <Diary>[];
-            }
-          }
-          return rows.map(_mapToEntity).toList();
-        });
+        .map((rows) => rows.map(_mapToEntity).toList());
   }
 
-  Future<void> _seedInitialData() async {
+  /// 手动加载演示数据（仅通过调试页面触发）
+  /// [force] 为 true 时强制写入，不检查是否已有数据
+  Future<void> ensureInitialData({bool force = false}) async {
     try {
-      final existingCount = await (_db.select(
-        _db.diaries,
-      )).get().then((v) => v.length);
-      if (existingCount > 0) return;
+      if (!force) {
+        final existingCount = await (_db.select(
+          _db.diaries,
+        )).get().then((v) => v.length);
+        if (existingCount > 0) return;
+      }
 
       debugPrint('DiaryRepository: Seeding initial data...');
-
       for (final diary in initialDiaries) {
         final companion = db.DiariesCompanion(
           date: Value(DateTime.parse(diary['date'] as String)),
@@ -61,6 +48,7 @@ class DiaryRepositoryImpl implements DiaryRepository {
       debugPrint('DiaryRepository: Seeding completed.');
     } catch (e) {
       debugPrint('DiaryRepository: Failed to seed initial data. Error: $e');
+      rethrow;
     }
   }
 

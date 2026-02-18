@@ -15,7 +15,7 @@ import 'package:baishou/features/summary/data/repositories/summary_repository_im
 import 'package:baishou/features/summary/domain/entities/summary.dart';
 import 'package:baishou/features/summary/domain/repositories/summary_repository.dart';
 import 'package:file_picker/file_picker.dart';
-
+import 'package:flutter/foundation.dart' hide Summary;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -102,14 +102,18 @@ class ExportService {
     // 6. 写入 markdown/ 目录（人类可读版本）
     _addMarkdownFiles(archive, diaries);
 
-    // 7. 编码为 ZIP
-    final zipEncoder = ZipEncoder();
-    final zipData = zipEncoder.encode(archive);
+    // 7. 编码为 ZIP (移至 Isolate 避免主线程卡死)
+    final zipData = await compute(_encodeZip, archive);
 
     final fileName =
         'BaiShou_Backup_${DateFormat('yyyyMMdd_HHmmss').format(now)}.zip';
 
     return _saveOrShare(zipData, fileName, share: share);
+  }
+
+  /// 在 Isolate 中运行的编码函数
+  static List<int> _encodeZip(Archive archive) {
+    return ZipEncoder().encode(archive);
   }
 
   // --- 私有辅助方法 ---

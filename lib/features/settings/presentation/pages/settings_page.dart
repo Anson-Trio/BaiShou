@@ -481,13 +481,30 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     }
 
     // 获取所有快照文件
-    final snapshots =
-        snapshotDir
-            .listSync()
-            .whereType<File>()
-            .where((f) => f.path.endsWith('.zip'))
-            .toList()
-          ..sort((a, b) => b.path.compareTo(a.path)); // 最新的在前
+    // 获取所有快照文件，按时间倒序排列，仅取最近10条
+    final allFiles = snapshotDir
+        .listSync()
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.zip'))
+        .toList();
+
+    allFiles.sort((a, b) => b.path.compareTo(a.path)); // 最新的在前
+
+    // 超过10条就删除最早的
+    if (allFiles.length > 10) {
+      for (var i = 10; i < allFiles.length; i++) {
+        try {
+          if (allFiles[i].existsSync()) {
+            allFiles[i].deleteSync();
+            debugPrint('Deleted old snapshot: ${allFiles[i].path}');
+          }
+        } catch (e) {
+          debugPrint('Failed to delete old snapshot: $e');
+        }
+      }
+    }
+
+    final snapshots = allFiles.take(10).toList();
 
     if (snapshots.isEmpty) {
       if (mounted) {
@@ -505,6 +522,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         title: const Text('选择要恢复的快照'),
         content: SizedBox(
           width: double.maxFinite,
+          height: 300, // 限制高度，避免列表过长覆盖整个屏幕
           child: ListView.builder(
             shrinkWrap: true,
             itemCount: snapshots.length,
