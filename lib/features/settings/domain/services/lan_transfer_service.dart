@@ -25,6 +25,7 @@ class LanTransferState {
   final int? serverPort;
   final String? error;
   final File? lastReceivedFile; // 新增：最近接收到的文件
+  final File? receivedFileToImport; // 新增：待导入的文件（用于 UI 触发弹窗）
 
   const LanTransferState({
     this.isBroadcasting = false,
@@ -34,6 +35,7 @@ class LanTransferState {
     this.serverPort,
     this.error,
     this.lastReceivedFile,
+    this.receivedFileToImport,
   });
 
   LanTransferState copyWith({
@@ -44,6 +46,7 @@ class LanTransferState {
     int? serverPort,
     String? error,
     File? lastReceivedFile,
+    File? receivedFileToImport,
   }) {
     return LanTransferState(
       isBroadcasting: isBroadcasting ?? this.isBroadcasting,
@@ -53,6 +56,7 @@ class LanTransferState {
       serverPort: serverPort ?? this.serverPort,
       error: error,
       lastReceivedFile: lastReceivedFile ?? this.lastReceivedFile,
+      receivedFileToImport: receivedFileToImport ?? this.receivedFileToImport,
     );
   }
 }
@@ -108,11 +112,21 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
       // 服务名称包含昵称和 UUID 前缀，防止冲突
       final serviceName =
           'BaiShou-${userProfile.nickname}-${const Uuid().v4().substring(0, 4)}';
+      final deviceType = Platform.isAndroid || Platform.isIOS
+          ? 'mobile'
+          : (Platform.isMacOS || Platform.isWindows || Platform.isLinux
+                ? 'desktop'
+                : 'other');
+
       final service = BonsoirService(
         name: serviceName,
         type: _serviceType,
         port: port,
-        attributes: {'nickname': userProfile.nickname, 'ip': ip ?? 'Unknown'},
+        attributes: {
+          'nickname': userProfile.nickname,
+          'ip': ip ?? 'Unknown',
+          'device_type': deviceType,
+        },
       );
 
       _broadcast = BonsoirBroadcast(service: service);
@@ -187,8 +201,11 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
 
         await file.writeAsBytes(payload);
 
-        // 更新状态，通知 UI 收到新文件
-        state = state.copyWith(lastReceivedFile: file);
+        // 更新状态，通知 UI 收到新文件 (同时触发弹窗信号)
+        state = state.copyWith(
+          lastReceivedFile: file,
+          receivedFileToImport: file,
+        );
 
         return Response.ok('File received successfully');
       } catch (e) {
@@ -205,6 +222,21 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
     });
 
     return router;
+  }
+
+  /// 消费待导入文件信号 (UI 处理完弹窗后调用)
+  void consumeReceivedFile() {
+    // 显式置空 receivedFileToImport，不使用 copyWith 避免 ?? 逻辑覆盖 null
+    state = LanTransferState(
+      isBroadcasting: state.isBroadcasting,
+      isDiscovering: state.isDiscovering,
+      discoveredServices: state.discoveredServices,
+      serverIp: state.serverIp,
+      serverPort: state.serverPort,
+      error: state.error,
+      lastReceivedFile: state.lastReceivedFile,
+      receivedFileToImport: null,
+    );
   }
 
   // --- 双向模式 (广播 + 发现) ---

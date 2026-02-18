@@ -1,7 +1,10 @@
+import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
 
+import 'package:baishou/core/services/data_refresh_notifier.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
+import 'package:baishou/features/settings/domain/services/import_service.dart';
 import 'package:baishou/features/settings/domain/services/lan_transfer_service.dart';
 import 'package:bonsoir/bonsoir.dart';
 import 'package:flutter/material.dart';
@@ -43,6 +46,8 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
 
   @override
   void dispose() {
+    // 退出页面时关闭服务，防止后台残留
+    ref.read(lanTransferServiceProvider.notifier).stopDualMode();
     _radarController.dispose();
     _floatController.dispose();
     super.dispose();
@@ -52,7 +57,7 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
   Widget build(BuildContext context) {
     // 监听状态，处理文件接收通知
     ref.listen(lanTransferServiceProvider, (previous, next) {
-      // 检测是否收到了新文件
+      // 1. 处理文件接收成功提示
       if (previous?.lastReceivedFile != next.lastReceivedFile &&
           next.lastReceivedFile != null) {
         if (mounted) {
@@ -63,6 +68,12 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
             duration: const Duration(seconds: 4),
           );
         }
+      }
+
+      // 2. 处理自动导入请求 (新增)
+      if (previous?.receivedFileToImport != next.receivedFileToImport &&
+          next.receivedFileToImport != null) {
+        _showImportConfirmDialog(context, next.receivedFileToImport!);
       }
 
       if (previous?.error != next.error && next.error != null) {
@@ -299,6 +310,90 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
       }
     }
   }
+
+  void _showImportConfirmDialog(BuildContext context, File file) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('收到数据备份'),
+        content: Text(
+          '来自局域网设备的数据 (${(file.lengthSync() / 1024 / 1024).toStringAsFixed(2)} MB)。\n'
+          '是否立即覆盖当前数据并导入？\n\n'
+          '注意：导入前会自动创建当前数据的快照。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              ref
+                  .read(lanTransferServiceProvider.notifier)
+                  .consumeReceivedFile();
+              Navigator.pop(context);
+            },
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+
+              // 消费信号
+              ref
+                  .read(lanTransferServiceProvider.notifier)
+                  .consumeReceivedFile();
+
+              _importFile(file);
+            },
+            child: const Text('导入'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _importFile(File file) async {
+    // 简单的全屏 Loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final importService = ref.read(importServiceProvider);
+      // 调用 overwrite import
+      // 注意：importService 会自动生成快照并覆盖
+      final result = await importService.importFromZip(file);
+
+      if (!mounted) return;
+      Navigator.of(context).pop(); // 关闭 Loading
+
+      if (result.success) {
+        if (result.configData != null) {
+          // 恢复配置（主题等）
+          await ref
+              .read(importServiceProvider)
+              .restoreConfig(result.configData!);
+        }
+
+        // 刷新全局数据信号
+        ref.read(dataRefreshProvider.notifier).refresh();
+
+        if (mounted) {
+          AppToast.show(context, '导入成功！\n已自动创建快照备份。', icon: Icons.check_circle);
+        }
+      } else {
+        if (mounted) {
+          AppToast.show(context, '导入失败: ${result.error}', icon: Icons.error);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop(); // Ensure loading closed
+        AppToast.show(context, '发生错误: $e', icon: Icons.error);
+        debugPrint(e.toString());
+      }
+    }
+  }
 }
 
 class _RadarPainter extends CustomPainter {
@@ -452,7 +547,7 @@ class _FloatingBubble extends StatelessWidget {
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Icon(
-                          _getIconForName(service.name),
+                          _getIconForName(),
                           size: 24,
                           color: Theme.of(context).primaryColor,
                         ),
@@ -477,17 +572,23 @@ class _FloatingBubble extends StatelessWidget {
     );
   }
 
-  IconData _getIconForName(String name) {
-    final lower = name.toLowerCase();
-    if (lower.contains('macbook') ||
-        lower.contains('desktop') ||
-        lower.contains('pc'))
-      return Icons.laptop_mac;
-    if (lower.contains('iphone') ||
-        lower.contains('phone') ||
-        lower.contains('android'))
+  IconData _getIconForName() {
+    // 1. 优先使用广播中携带的设备类型
+    final deviceType = service.attributes['device_type'];
+    if (deviceType == 'mobile') return Icons.smartphone;
+    if (deviceType == 'desktop') return Icons.computer;
+
+    // 2. 降级使用名称匹配
+    final name = service.name.toLowerCase();
+    if (name.contains('macbook') ||
+        name.contains('desktop') ||
+        name.contains('pc'))
+      return Icons.computer;
+    if (name.contains('iphone') ||
+        name.contains('phone') ||
+        name.contains('android'))
       return Icons.smartphone;
-    if (lower.contains('ipad') || lower.contains('tablet'))
+    if (name.contains('ipad') || name.contains('tablet'))
       return Icons.tablet_mac;
     return Icons.devices;
   }
