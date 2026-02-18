@@ -122,6 +122,11 @@ class DiaryRepositoryImpl implements DiaryRepository {
   }
 
   @override
+  Future<void> deleteAllDiaries() {
+    return _db.delete(_db.diaries).go();
+  }
+
+  @override
   Future<List<Diary>> getDiariesByDateRange(
     DateTime start,
     DateTime end,

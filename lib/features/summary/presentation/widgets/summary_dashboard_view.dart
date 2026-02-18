@@ -1,5 +1,6 @@
 import 'package:baishou/core/theme/app_theme.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
+import 'package:baishou/core/services/data_refresh_notifier.dart';
 
 import 'package:baishou/features/summary/domain/services/context_builder.dart';
 import 'package:baishou/features/summary/presentation/widgets/missing_summary_list.dart';
@@ -20,6 +21,8 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
   bool _isLoading = false;
   ContextResult? _result;
   int _months = 12; // Default lookback
+
+  int _lastRefreshVersion = 0;
 
   @override
   void initState() {
@@ -55,6 +58,16 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
 
   @override
   Widget build(BuildContext context) {
+    // 监听全局数据刷新信号（导入/恢复后会递增）
+    final refreshVersion = ref.watch(dataRefreshProvider);
+    if (refreshVersion != _lastRefreshVersion) {
+      _lastRefreshVersion = refreshVersion;
+      // 延迟到帧结束后再刷新，避免在 build 中调用 setState
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadContext();
+      });
+    }
+
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }

@@ -350,7 +350,8 @@ class _DateHeaderDelegate extends SliverPersistentHeaderDelegate {
     final weekdayStr = weekdays[date.weekday];
 
     return Container(
-      color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.95),
+      // 使用完全不透明的背景色，避免主题变更后渲染穿透
+      color: Theme.of(context).scaffoldBackgroundColor,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       alignment: Alignment.centerLeft,
       child: Row(
@@ -374,7 +375,7 @@ class _DateHeaderDelegate extends SliverPersistentHeaderDelegate {
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: Colors.grey, // 按要求设为更小且灰色的字体
+              color: Colors.grey,
             ),
           ),
 
@@ -405,10 +406,11 @@ class _DateHeaderDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => 70;
 
   @override
-  double get minExtent => 70; // 保持固定高度
+  double get minExtent => 70;
 
   @override
   bool shouldRebuild(covariant _DateHeaderDelegate oldDelegate) {
-    return oldDelegate.date != date;
+    // 始终返回 true，确保主题变更时日期头会重新绘制（更新背景色）
+    return true;
   }
 }
