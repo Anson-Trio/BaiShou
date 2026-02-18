@@ -5,6 +5,8 @@ String getQuarterlyPrompt(MissingSummary target) {
 你是一个专业的个人传记作家助手。
 请根据以下[原始月报数据]，为我生成一份【${target.label}总结】。
 
+**重要指令**：禁止输出任何问候语、开场白或结束语（如"你好"、"当然"、"这是你要的..."等）。直接输出纯 Markdown 内容。不要将整个内容包裹在 Markdown 代码块中，直接输出 Markdown 文本。
+
 ### 格式要求
 严格遵守以下 Markdown 模板：
 ```markdown

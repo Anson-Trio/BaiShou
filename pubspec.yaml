@@ -52,6 +52,8 @@ dependencies:
   google_fonts: ^6.2.1
   http: ^1.6.0
   flutter_dotenv: ^6.0.0
+  shared_preferences: ^2.5.4
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

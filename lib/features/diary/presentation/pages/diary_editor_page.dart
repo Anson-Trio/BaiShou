@@ -4,7 +4,9 @@ import 'package:baishou/features/diary/data/repositories/diary_repository_impl.d
 import 'package:baishou/features/diary/presentation/widgets/datetime_picker_sheet.dart';
 import 'package:baishou/features/diary/presentation/widgets/markdown_toolbar.dart';
 import 'package:baishou/features/diary/presentation/widgets/tag_input_widget.dart';
+import 'package:baishou/core/database/tables/summaries.dart';
 import 'package:baishou/features/summary/data/repositories/summary_repository_impl.dart';
+import 'package:baishou/features/summary/domain/entities/summary.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -47,6 +49,11 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
 
   // 编辑模式：false=日记，true=总结
   bool get _isSummaryMode => widget.summaryId != null;
+
+  // Summary-specific state
+  SummaryType? _summaryType;
+  DateTime? _summaryStartDate;
+  DateTime? _summaryEndDate;
 
   @override
   void initState() {
@@ -101,6 +108,9 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
         setState(() {
           _selectedDate = summary.startDate;
           _selectedTime = TimeOfDay.fromDateTime(summary.startDate);
+          _summaryType = summary.type;
+          _summaryStartDate = summary.startDate;
+          _summaryEndDate = summary.endDate;
         });
         // 总结没有标题和标签，直接填充内容
         _titleController.text = '';
@@ -253,7 +263,11 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
           await ref
               .read(summaryRepositoryProvider)
               .updateSummary(
-                summary.copyWith(content: _contentController.text.trim()),
+                summary.copyWith(
+                  content: _contentController.text.trim(),
+                  startDate: _summaryStartDate,
+                  endDate: _summaryEndDate,
+                ),
               );
         }
       } else {
@@ -301,31 +315,7 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
           icon: const Icon(Icons.arrow_back_ios_new),
           onPressed: () => context.pop(),
         ),
-        title: GestureDetector(
-          onTap: _isSummaryMode ? null : _showDateTimePicker,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '$weekDay / $timeStr',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                dateStr,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
-          ),
-        ),
+        title: _buildAppBarTitle(context),
         actions: [
           IconButton(
             icon: const Icon(Icons.auto_awesome),
@@ -499,5 +489,251 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
               ],
             ),
     );
+  }
+
+  // ─── Summary Date Logic ─────────────────────────────
+
+  Widget _buildAppBarTitle(BuildContext context) {
+    if (_isSummaryMode && _summaryType != null) {
+      String dateText = '';
+      String subText = '';
+
+      switch (_summaryType!) {
+        case SummaryType.weekly:
+          subText = '周记';
+          if (_summaryStartDate != null && _summaryEndDate != null) {
+            dateText =
+                '${_summaryStartDate!.month}.${_summaryStartDate!.day} - ${_summaryEndDate!.month}.${_summaryEndDate!.day}';
+          }
+          break;
+        case SummaryType.monthly:
+          subText = '月报';
+          if (_summaryStartDate != null) {
+            dateText =
+                '${_summaryStartDate!.year}年 ${_summaryStartDate!.month}月';
+          }
+          break;
+        case SummaryType.quarterly:
+          subText = '季报';
+          if (_summaryStartDate != null) {
+            final q = (_summaryStartDate!.month / 3).ceil();
+            dateText = '${_summaryStartDate!.year}年 Q$q';
+          }
+          break;
+        case SummaryType.yearly:
+          subText = '年鉴';
+          if (_summaryStartDate != null) {
+            dateText = '${_summaryStartDate!.year}年';
+          }
+          break;
+      }
+
+      return GestureDetector(
+        onTap: _pickSummaryDate,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              subText,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              dateText,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Default Diary Title
+    final dateStr = DateFormat('yyyy年MM月dd日').format(_selectedDate);
+    final timeStr = _selectedTime.format(context);
+    final weekDay = DateFormat('EEEE', 'zh_CN').format(_selectedDate);
+
+    return GestureDetector(
+      onTap: _showDateTimePicker,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '$weekDay / $timeStr',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            dateStr,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickSummaryDate() async {
+    if (_summaryType == null) return;
+
+    final now = DateTime.now();
+    switch (_summaryType!) {
+      case SummaryType.weekly:
+        final result = await showDateRangePicker(
+          context: context,
+          firstDate: DateTime(2020),
+          lastDate: DateTime(2030),
+          initialDateRange:
+              (_summaryStartDate != null && _summaryEndDate != null)
+              ? DateTimeRange(start: _summaryStartDate!, end: _summaryEndDate!)
+              : null,
+        );
+        if (result != null) {
+          setState(() {
+            _summaryStartDate = result.start;
+            _summaryEndDate = result.end;
+            _isDirty = true;
+          });
+        }
+        break;
+
+      case SummaryType.monthly:
+        final date = await showDatePicker(
+          context: context,
+          firstDate: DateTime(2020),
+          lastDate: DateTime(2030),
+          initialDate: _summaryStartDate ?? now,
+          initialDatePickerMode: DatePickerMode.year,
+          helpText: '选择月份',
+        );
+        if (date != null) {
+          setState(() {
+            _summaryStartDate = DateTime(date.year, date.month, 1);
+            _summaryEndDate = DateTime(
+              date.year,
+              date.month + 1,
+              0,
+            ); // End of month
+            _isDirty = true;
+          });
+        }
+        break;
+
+      case SummaryType.quarterly:
+        // Simple Quarter Picker Logic
+        int year = _summaryStartDate?.year ?? now.year;
+        int quarter = _summaryStartDate != null
+            ? (_summaryStartDate!.month / 3).ceil()
+            : 1;
+
+        await showDialog(
+          context: context,
+          builder: (ctx) => StatefulBuilder(
+            builder: (context, setDialogState) {
+              return AlertDialog(
+                title: const Text('选择季度'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButton<int>(
+                      value: year,
+                      items: List.generate(10, (i) => 2020 + i)
+                          .map(
+                            (y) =>
+                                DropdownMenuItem(value: y, child: Text('$y年')),
+                          )
+                          .toList(),
+                      onChanged: (v) => setDialogState(() => year = v!),
+                    ),
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 8,
+                      children: [1, 2, 3, 4]
+                          .map(
+                            (q) => ChoiceChip(
+                              label: Text('Q$q'),
+                              selected: quarter == q,
+                              onSelected: (b) {
+                                if (b) setDialogState(() => quarter = q);
+                              },
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('取消'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _summaryStartDate = DateTime(
+                          year,
+                          (quarter - 1) * 3 + 1,
+                          1,
+                        );
+                        _summaryEndDate = DateTime(
+                          year,
+                          (quarter - 1) * 3 + 3 + 1,
+                          0,
+                        ); // End of quarter
+                        _isDirty = true;
+                      });
+                      Navigator.pop(context);
+                    },
+                    child: const Text('确定'),
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+        break;
+
+      case SummaryType.yearly:
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text("选择年份"),
+              content: SizedBox(
+                width: 300,
+                height: 300,
+                child: YearPicker(
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime(2030),
+                  selectedDate: _summaryStartDate ?? now,
+                  onChanged: (DateTime dateTime) {
+                    setState(() {
+                      _summaryStartDate = DateTime(dateTime.year, 1, 1);
+                      _summaryEndDate = DateTime(dateTime.year, 12, 31);
+                      _isDirty = true;
+                    });
+                    Navigator.pop(context);
+                  },
+                ),
+              ),
+            );
+          },
+        );
+        break;
+    }
   }
 }

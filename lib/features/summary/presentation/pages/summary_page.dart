@@ -3,6 +3,8 @@ import 'package:baishou/core/theme/app_theme.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:baishou/features/summary/data/repositories/summary_repository_impl.dart';
 
+import 'package:baishou/core/widgets/year_month_picker_sheet.dart';
+import 'package:baishou/core/widgets/year_picker_sheet.dart';
 import 'package:baishou/features/summary/presentation/widgets/summary_dashboard_view.dart';
 import 'package:baishou/features/summary/presentation/widgets/summary_list_view.dart';
 import 'package:baishou/features/summary/presentation/widgets/summary_raw_data_view.dart';
@@ -47,6 +49,7 @@ class SummaryPage extends ConsumerWidget {
   }
 }
 
+// _SummaryArchiveView 需要为每个标签页管理筛选器
 class _SummaryArchiveView extends StatefulWidget {
   const _SummaryArchiveView();
 
@@ -57,6 +60,13 @@ class _SummaryArchiveView extends StatefulWidget {
 class _SummaryArchiveViewState extends State<_SummaryArchiveView>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+
+  // 筛选状态
+  DateTime? _weeklyStartDate;
+  DateTime? _weeklyEndDate;
+  DateTime? _monthlyDate; // 年-月
+  DateTime? _quarterlyDate; // 年-季度
+  DateTime? _yearlyDate; // 年份
 
   @override
   void initState() {
@@ -95,14 +105,50 @@ class _SummaryArchiveViewState extends State<_SummaryArchiveView>
                 ],
               ),
             ),
+            // 筛选栏
+            _buildFilterBar(),
             Expanded(
               child: TabBarView(
                 controller: _tabController,
-                children: const [
-                  SummaryListView(type: SummaryType.weekly),
-                  SummaryListView(type: SummaryType.monthly),
-                  SummaryListView(type: SummaryType.quarterly),
-                  SummaryListView(type: SummaryType.yearly),
+                children: [
+                  SummaryListView(
+                    type: SummaryType.weekly,
+                    startDate: _weeklyStartDate,
+                    endDate: _weeklyEndDate,
+                  ),
+                  SummaryListView(
+                    type: SummaryType.monthly,
+                    startDate: _monthlyDate,
+                    endDate: _monthlyDate != null
+                        ? DateTime(
+                            _monthlyDate!.year,
+                            12,
+                            31,
+                            23,
+                            59,
+                            59,
+                          ) // 覆盖整年到最后一秒
+                        : null,
+                  ),
+                  SummaryListView(
+                    type: SummaryType.quarterly,
+                    startDate: _quarterlyDate, // 这里表示年份（1月1日）
+                    endDate: _quarterlyDate != null
+                        ? DateTime(
+                            _quarterlyDate!.year,
+                            12,
+                            31,
+                            23,
+                            59,
+                            59,
+                          ) // 覆盖整年到最后一秒
+                        : null,
+                  ),
+                  SummaryListView(
+                    type: SummaryType.yearly,
+                    startDate: null, // 无筛选
+                    endDate: null,
+                  ),
                 ],
               ),
             ),
@@ -121,8 +167,184 @@ class _SummaryArchiveViewState extends State<_SummaryArchiveView>
     );
   }
 
+  Widget _buildFilterBar() {
+    return AnimatedBuilder(
+      animation: _tabController,
+      builder: (context, _) {
+        final index = _tabController.index;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          color: Theme.of(context).cardColor.withOpacity(0.5),
+          child: Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: () => _pickDate(index),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _getFilterText(index),
+                          style: TextStyle(
+                            color: Theme.of(context).primaryColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Icon(
+                          Icons.calendar_month_outlined,
+                          size: 18,
+                          color: Colors.grey,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              if (_hasFilter(index))
+                IconButton(
+                  icon: const Icon(Icons.clear, size: 20),
+                  onPressed: () => _clearFilter(index),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickDate(int index) async {
+    final now = DateTime.now();
+    switch (index) {
+      case 0: // 周记 - 年月选择器 -> 按月筛选
+        final date = await showModalBottomSheet<DateTime>(
+          context: context,
+          backgroundColor: Colors.transparent,
+          builder: (context) =>
+              YearMonthPickerSheet(initialDate: _weeklyStartDate ?? now),
+        );
+        if (date != null) {
+          setState(() {
+            if (date.year == 0) {
+              _weeklyStartDate = null;
+              _weeklyEndDate = null;
+            } else {
+              _weeklyStartDate = date;
+              // 筛选该月内开始的所有周记
+              _weeklyEndDate = DateTime(date.year, date.month + 1, 0);
+            }
+          });
+        }
+        break;
+
+      case 1: // 月报 - 年份选择器 (原为年月)
+        // 用户反馈：月报筛选器应改为年份选择器。选择年份后显示该年所有月报。
+        final date = await showModalBottomSheet<DateTime>(
+          context: context,
+          backgroundColor: Colors.transparent,
+          builder: (context) =>
+              YearPickerSheet(initialDate: _monthlyDate ?? now),
+        );
+        if (date != null) {
+          setState(() {
+            if (date.year == 0) {
+              _monthlyDate = null;
+            } else {
+              _monthlyDate = date; // 这里表示该年的1月1日
+            }
+          });
+        }
+        break;
+
+      case 2: // 季报 - 年份选择器
+        final date = await showModalBottomSheet<DateTime>(
+          context: context,
+          backgroundColor: Colors.transparent,
+          builder: (context) =>
+              YearPickerSheet(initialDate: _quarterlyDate ?? now),
+        );
+        if (date != null) {
+          setState(() {
+            if (date.year == 0) {
+              _quarterlyDate = null;
+            } else {
+              _quarterlyDate = date; // 年份 1月1日
+            }
+          });
+        }
+        break;
+
+      case 3: // 年鉴 - 无筛选
+        // 什么都不做，或者显示 Toast “年鉴默认显示全部”
+        // 用户说“年鉴不需要筛选”。
+        break;
+    }
+  }
+
+  // ...
+
+  String _getFilterText(int index) {
+    switch (index) {
+      case 0: // 周记
+        if (_weeklyStartDate == null) return '筛选月份';
+        return '${_weeklyStartDate!.year}年 ${_weeklyStartDate!.month}月';
+      case 1: // 月报
+        if (_monthlyDate == null) return '筛选年份';
+        return '${_monthlyDate!.year}年';
+      case 2: // 季报
+        if (_quarterlyDate == null) return '筛选年份';
+        return '${_quarterlyDate!.year}年';
+      case 3: // 年鉴
+        return '全部年鉴';
+    }
+    return '';
+  }
+
+  bool _hasFilter(int index) {
+    switch (index) {
+      case 0:
+        return _weeklyStartDate != null;
+      case 1:
+        return _monthlyDate != null;
+      case 2:
+        return _quarterlyDate != null;
+      case 3:
+        return false; // 年鉴无筛选
+    }
+    return false;
+  }
+
+  void _clearFilter(int index) {
+    setState(() {
+      switch (index) {
+        case 0:
+          _weeklyStartDate = null;
+          _weeklyEndDate = null;
+          break;
+        case 1:
+          _monthlyDate = null;
+          break;
+        case 2:
+          _quarterlyDate = null;
+          break;
+        case 3:
+          _yearlyDate = null;
+          break;
+      }
+    });
+  }
+
   void _showAddSummaryDialog(BuildContext context) {
-    // Map index to type
+    // 将索引映射到类型
     final types = [
       SummaryType.weekly,
       SummaryType.monthly,
@@ -152,7 +374,7 @@ class __AddSummaryDialogState extends ConsumerState<_AddSummaryDialog> {
   final _contentController = TextEditingController();
   bool _isLoading = false;
 
-  // Selection states
+  // 选择状态
   int _selectedYear = DateTime.now().year;
   int _selectedMonth = DateTime.now().month;
   int _selectedQuarter = 1;
@@ -162,15 +384,15 @@ class __AddSummaryDialogState extends ConsumerState<_AddSummaryDialog> {
     super.initState();
     final now = DateTime.now();
 
-    // Calculate initial quarter
+    // 计算初始季度
     _selectedQuarter = (now.month / 3).ceil();
 
-    // Default range depends on type
+    // 默认范围取决于类型
     if (widget.fixedType == SummaryType.weekly) {
-      // Default to last week (Mon-Sun)
-      // Or just past 7 days. Standard week usually Mon-Sun.
-      // Let's use simple past 7 days for consistency with Raw Data default, or align to week boundaries?
-      // User said "Week is specific date range".
+      // 默认为上周（周一至周日）
+      // 或者仅过去7天。标准周通常是周一至周日。
+      // 为了与原始数据默认值一致，或者对齐到周边界，我们使用简单的过去7天？
+      // 用户说“周记是特定日期范围”。
       _dateRange = DateTimeRange(
         start: now.subtract(const Duration(days: 6)),
         end: now,
@@ -206,7 +428,7 @@ class __AddSummaryDialogState extends ConsumerState<_AddSummaryDialog> {
         end = DateTime(_selectedYear, 12, 31);
         break;
       case SummaryType.weekly:
-        // Handled by date picker
+        // 由日期选择器处理
         return;
     }
     setState(() {
@@ -283,12 +505,12 @@ class __AddSummaryDialogState extends ConsumerState<_AddSummaryDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Date Selector
+            // 日期选择器
             _buildDateSelector(),
 
             const SizedBox(height: 16),
 
-            // Content
+            // 内容
             TextField(
               controller: _contentController,
               maxLines: 10,
@@ -367,7 +589,7 @@ class __AddSummaryDialogState extends ConsumerState<_AddSummaryDialog> {
           const SizedBox(height: 8),
           Row(
             children: [
-              // Year Selector (Always present)
+              // 年份选择器（始终显示）
               Expanded(
                 child: DropdownButtonFormField<int>(
                   value: _selectedYear,
@@ -395,7 +617,7 @@ class __AddSummaryDialogState extends ConsumerState<_AddSummaryDialog> {
                 ),
               ),
 
-              // Month Selector
+              // 月份选择器
               if (widget.fixedType == SummaryType.monthly) ...[
                 const SizedBox(width: 16),
                 Expanded(
@@ -426,7 +648,7 @@ class __AddSummaryDialogState extends ConsumerState<_AddSummaryDialog> {
                 ),
               ],
 
-              // Quarter Selector
+              // 季度选择器
               if (widget.fixedType == SummaryType.quarterly) ...[
                 const SizedBox(width: 16),
                 Expanded(
