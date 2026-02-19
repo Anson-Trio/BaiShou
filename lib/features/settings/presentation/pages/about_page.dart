@@ -14,7 +14,7 @@ class AboutPage extends StatefulWidget {
 class _AboutPageState extends State<AboutPage> {
   int _tapCount = 0;
   DateTime? _lastTapTime;
-  String _version = '1.0.0';
+  String _version = '1.0.1';
   int _devTapCount = 0;
   DateTime? _devLastTapTime;
 
