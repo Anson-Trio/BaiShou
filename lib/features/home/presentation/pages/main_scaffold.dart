@@ -1,3 +1,5 @@
+import 'package:baishou/features/home/presentation/widgets/desktop_insights_sidebar.dart';
+import 'package:baishou/features/home/presentation/widgets/desktop_sidebar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -21,29 +23,72 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: widget.navigationShell,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: widget.navigationShell.currentIndex,
-        onDestinationSelected: _goBranch,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: '主页',
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 响应式阈值
+        final bool isDesktop = constraints.maxWidth >= 700;
+        final bool showInsights = constraints.maxWidth >= 1100;
+
+        if (isDesktop) {
+          return Scaffold(
+            backgroundColor: Theme.of(context).colorScheme.background,
+            body: Row(
+              children: [
+                // 左侧导航栏 (桌面端)
+                DesktopSidebar(navigationShell: widget.navigationShell),
+
+                // 主内容区域
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      // 在桌面端给主区域一个微妙的阴影或分界
+                      boxShadow: [
+                        if (Theme.of(context).brightness == Brightness.light)
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.02),
+                            blurRadius: 10,
+                            offset: const Offset(-5, 0),
+                          ),
+                      ],
+                    ),
+                    child: widget.navigationShell,
+                  ),
+                ),
+
+                // 右侧洞察栏 (宽屏桌面端)
+                if (showInsights) const DesktopInsightsSidebar(),
+              ],
+            ),
+          );
+        }
+
+        // 移动端布局
+        return Scaffold(
+          body: widget.navigationShell,
+          bottomNavigationBar: NavigationBar(
+            selectedIndex: widget.navigationShell.currentIndex,
+            onDestinationSelected: _goBranch,
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.timeline_outlined),
+                selectedIcon: Icon(Icons.timeline),
+                label: '时间轴',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.auto_stories_outlined),
+                selectedIcon: Icon(Icons.auto_stories),
+                label: '总结',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.settings_outlined),
+                selectedIcon: Icon(Icons.settings),
+                label: '设置',
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.analytics_outlined),
-            selectedIcon: Icon(Icons.analytics),
-            label: '统计',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: '设置',
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

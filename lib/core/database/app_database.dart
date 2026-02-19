@@ -1,14 +1,9 @@
-import 'dart:io';
-
 import 'package:baishou/core/database/tables/diaries.dart';
 import 'package:baishou/core/database/tables/summaries.dart';
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
+import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:sqlite3_flutter_libs/sqlite3_flutter_libs.dart';
 
 part 'app_database.g.dart';
 
@@ -25,8 +20,9 @@ class AppDatabase extends _$AppDatabase {
     return MigrationStrategy(
       onUpgrade: (m, from, to) async {
         if (from < 2) {
-          // Recreate diaries table to remove unique constraint on date
-          // Warning: This deletes existing diaries!
+          // 在版本 2 中，我们可能对日记表进行了调整
+          // 注意：m.deleteTable(diaries) 会删除所有现有数据，仅在开发初期使用
+          // 如果是生产环境，应该使用 m.addColumn 等方式进行增量更新
           await m.deleteTable('diaries');
           await m.createTable(diaries);
         }
@@ -35,24 +31,14 @@ class AppDatabase extends _$AppDatabase {
   }
 }
 
-/// 打开数据库连接
-LazyDatabase _openConnection() {
-  return LazyDatabase(() async {
-    // 获取存储路径
-    final dbFolder = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dbFolder.path, 'baishou.sqlite'));
-
-    // 针对 Android 的修复 (如果在 Android 上运行)
-    if (Platform.isAndroid) {
-      // await applyWorkaroundToOpenSqlite3OnOldAndroidVersions();
-    }
-
-    // 针对 Linux/Windows 的临时修复 (确保 sqlite3 库加载)
-    // 在纯 Dart 环境或某些桌面环境，可能需要显式加载动态库，
-    // 但使用 drift_flutter_libs 通常会自动处理。
-
-    return NativeDatabase.createInBackground(file);
-  });
+/// 使用 drift_flutter 打开数据库连接
+/// 它会自动根据平台（Mobile/Desktop/Web）选择最佳的存储和运行时实现
+QueryExecutor _openConnection() {
+  return driftDatabase(
+    name: 'baishou',
+    // 如果需要自定义存储位置或进行更复杂的配置，可以在这里添加参数
+    // drift_flutter 会自动处理 Web 端的 WASM 加载
+  );
 }
 
 /// 提供数据库实例

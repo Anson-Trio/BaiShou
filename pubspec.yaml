@@ -67,6 +67,7 @@ dependencies:
   network_info_plus: ^7.0.0
   uuid: ^4.5.2
   shelf_router: ^1.1.4
+  drift_flutter: ^0.2.8
 
 dev_dependencies:
   flutter_test:
