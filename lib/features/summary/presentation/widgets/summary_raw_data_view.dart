@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+/// 原始数据导出视图
+/// 提供按日期范围导出原始日记文本的功能，并支持一键复制到剪贴板。
 class SummaryRawDataView extends ConsumerStatefulWidget {
   const SummaryRawDataView({super.key});
 
@@ -40,7 +42,7 @@ class _SummaryRawDataViewState extends ConsumerState<SummaryRawDataView> {
 
   Future<void> _exportData() async {
     if (_dateRange == null) {
-      AppToast.show(context, '请先选择日期范围');
+      AppToast.showError(context, '请先选择日期范围');
       return;
     }
 
@@ -51,16 +53,16 @@ class _SummaryRawDataViewState extends ConsumerState<SummaryRawDataView> {
           .exportRawData(_dateRange!.start, _dateRange!.end);
 
       if (text.isEmpty) {
-        if (mounted) AppToast.show(context, '该范围内没有日记数据');
+        if (mounted) AppToast.showSuccess(context, '该范围内没有日记数据');
         return;
       }
 
       await Clipboard.setData(ClipboardData(text: text));
       if (mounted) {
-        AppToast.show(context, '原始数据已复制到剪贴板', icon: Icons.check);
+        AppToast.showSuccess(context, '原始数据已复制到剪贴板');
       }
     } catch (e) {
-      if (mounted) AppToast.show(context, '导出失败: $e');
+      if (mounted) AppToast.showError(context, '导出失败: $e');
     } finally {
       if (mounted) setState(() => _isExporting = false);
     }

@@ -13,20 +13,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+/// 日记/总结编辑器页面
+/// 支持日记记录（标题、内容、标签）以及对 AI 生成总结的查看与编辑。
 class DiaryEditorPage extends ConsumerStatefulWidget {
-  final int? diaryId;
-  final int? summaryId; // 新增：总结编辑模式
-  final DateTime? initialDate;
+  final int? diaryId; // 如果是非空，则进入日记编辑模式
+  final int? summaryId; // 如果是非空，则进入总结编辑模式，与 diaryId 互斥
+  final DateTime? initialDate; // 新建日记时的默认日期
 
   const DiaryEditorPage({
     super.key,
     this.diaryId,
     this.summaryId,
     this.initialDate,
-  }) : assert(
-         diaryId == null || summaryId == null,
-         'Cannot edit diary and summary at the same time',
-       );
+  }) : assert(diaryId == null || summaryId == null, '不能同时编辑日记和总结');
 
   @override
   ConsumerState<DiaryEditorPage> createState() => _DiaryEditorPageState();
@@ -43,9 +42,9 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
   late TextEditingController _tagInputController;
   final FocusNode _tagFocusNode = FocusNode();
 
-  bool _isDirty = false;
-  bool _isLoading = false;
-  bool _isPreview = false;
+  bool _isDirty = false; // 标记内容是否有未保存的更改
+  bool _isLoading = false; // 标记数据加载状态
+  bool _isPreview = false; // 标记是否处于 Markdown 预览模式
 
   // 编辑模式：false=日记，true=总结
   bool get _isSummaryMode => widget.summaryId != null;
@@ -75,10 +74,12 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
     }
   }
 
+  /// 标记内容已修改
   void _markDirty() {
     if (!_isDirty && !_isLoading) setState(() => _isDirty = true);
   }
 
+  /// 加载日记（日记编辑模式）
   Future<void> _loadDiary(int id) async {
     setState(() => _isLoading = true);
     try {
@@ -128,6 +129,8 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
     }
   }
 
+  /// 填充控制器内容
+  /// 将 fullContent 拆分为标题和正文，并加载标签。
   void _populateControllers(String fullContent, List<String> tags) {
     final splitIndex = fullContent.indexOf('\n');
     String title = '';
@@ -145,6 +148,7 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
     _tags.clear();
     _tags.addAll(tags.where((t) => t.trim().isNotEmpty));
 
+    // 填充后需要重置 _isDirty，因为 listener 会在赋值时触发 _markDirty
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) setState(() => _isDirty = false);
     });
@@ -160,6 +164,8 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
   }
 
   // ─── 标签管理 ─────────────────────────────────
+
+  /// 添加标签
   void _addTag(String text) {
     final tag = text.trim();
     if (tag.isNotEmpty && !_tags.contains(tag)) {
@@ -171,6 +177,7 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
     _tagInputController.clear();
   }
 
+  /// 移除标签
   void _removeTag(String tag) {
     setState(() {
       _tags.remove(tag);
@@ -179,6 +186,8 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
   }
 
   // ─── 工具栏操作 ────────────────────────────────
+
+  /// 在光标处插入 Markdown 文本
   void _insertText(String prefix, [String suffix = '']) {
     final text = _contentController.text;
     final selection = _contentController.selection;
@@ -210,6 +219,8 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
   }
 
   // ─── 日期和时间选择器 ────────────────────────────
+
+  /// 显示自定义日期时间选择器
   Future<void> _showDateTimePicker() async {
     await showModalBottomSheet(
       context: context,
@@ -234,6 +245,7 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
     );
   }
 
+  /// 合并日期和时间
   DateTime get _combinedDateTime => DateTime(
     _selectedDate.year,
     _selectedDate.month,
@@ -243,19 +255,22 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
   );
 
   // ─── 保存 ───────────────────────────────────────────
+
+  /// 执行保存操作
   Future<void> _save() async {
     final title = _titleController.text.trim();
     final body = _contentController.text.trim();
+    // 将标题和正文拼接保存，标题作为第一行
     final combinedContent = '$title\n$body'.trim();
 
     if (combinedContent.isEmpty) {
-      AppToast.show(context, '写点什么吧...', icon: Icons.edit_outlined);
+      AppToast.showSuccess(context, '写点什么吧...');
       return;
     }
 
     try {
       if (_isSummaryMode) {
-        // 总结模式：只保存内容
+        // 总结模式：只更新总结的正文内容和可能变动的日期范围
         final summary = await ref
             .read(summaryRepositoryProvider)
             .getSummaryById(widget.summaryId!);
@@ -271,7 +286,7 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
               );
         }
       } else {
-        // 日记模式：保存标题+内容+标签
+        // 日记模式：保存完整的日记实体
         await ref
             .read(diaryRepositoryProvider)
             .saveDiary(
@@ -284,16 +299,15 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
 
       if (mounted) {
         setState(() => _isDirty = false);
-        AppToast.show(context, '已保存 ✨');
-        context.pop();
+        AppToast.showSuccess(context, '已保存 ✨');
+        context.pop(); // 保存成功后返回上一页
       }
     } catch (e) {
       debugPrint('Error saving: $e');
       if (mounted) {
-        AppToast.show(
+        AppToast.showError(
           context,
-          '保存失败',
-          icon: Icons.error_outline,
+          '保存失败: $e',
           backgroundColor: Colors.red[900],
         );
       }
@@ -302,6 +316,7 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 准备日期显示字符串
     final dateStr = DateFormat('yyyy年MM月dd日').format(_selectedDate);
     final timeStr = _selectedTime.format(context);
     final weekDay = DateFormat('EEEE', 'zh_CN').format(_selectedDate);
@@ -470,6 +485,7 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
                     ],
                   ),
                 ),
+                // Markdown 格式化工具栏
                 MarkdownToolbar(
                   isPreview: _isPreview,
                   onTogglePreview: () {
@@ -486,6 +502,8 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
 
   // ─── 总结日期逻辑 ─────────────────────────────
 
+  /// 构建 AppBar 标题
+  /// 总结模式显示周期类型和日期范围；日记模式显示星期、时间和日期。
   Widget _buildAppBarTitle(BuildContext context) {
     if (_isSummaryMode && _summaryType != null) {
       String dateText = '';

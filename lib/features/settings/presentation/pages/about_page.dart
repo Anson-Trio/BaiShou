@@ -1,5 +1,5 @@
 import 'package:baishou/core/widgets/app_toast.dart';
-import 'package:baishou/features/settings/presentation/pages/debug_page.dart';
+import 'package:baishou/features/settings/presentation/pages/views/developer_options_view.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -43,11 +43,10 @@ class _AboutPageState extends State<AboutPage> {
 
     if (_tapCount == 5) {
       if (mounted) {
-        AppToast.show(
+        AppToast.showSuccess(
           context,
           '🌸樱&晓 永远爱着Anson❤️',
-          duration: const Duration(seconds: 3),
-        );
+          duration: const Duration(seconds: 3));
       }
       _tapCount = 0;
     }
@@ -118,12 +117,15 @@ class _AboutPageState extends State<AboutPage> {
               _devLastTapTime = now;
 
               if (_devTapCount == 7) {
-                AppToast.show(context, '再点 3 次进入开发者模式');
+                AppToast.showSuccess(context, '再点 3 次进入开发者模式');
               } else if (_devTapCount >= 10) {
                 _devTapCount = 0;
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const DebugPage()),
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        const Scaffold(body: DeveloperOptionsView()),
+                  ),
                 );
               }
             },

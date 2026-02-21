@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:baishou/features/home/presentation/widgets/desktop_insights_sidebar.dart';
 import 'package:baishou/features/home/presentation/widgets/desktop_sidebar.dart';
 import 'package:flutter/material.dart';
@@ -27,9 +29,16 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // 响应式阈值
-        final bool isDesktop = constraints.maxWidth >= 700;
+        // 响应式与设备类型判断
+        // 逻辑：Windows/Linux/macOS 始终显示桌面版；
+        // Android/iOS 根据屏幕宽度判断（手机 vs Pad）。
+        final bool isDesktopOS =
+            Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+        final bool isLargeScreen = constraints.maxWidth >= 700;
+        final bool isDesktop = isDesktopOS || isLargeScreen;
+
         final bool showInsights =
+            isDesktop &&
             constraints.maxWidth >= 1100 &&
             widget.navigationShell.currentIndex == 0;
 

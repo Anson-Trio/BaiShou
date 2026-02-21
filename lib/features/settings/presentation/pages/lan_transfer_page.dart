@@ -12,6 +12,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+/// 局域网传输页面
+/// 负责处理同一 WiFi 环境下设备间的数据同步与配对逻辑。
 class LanTransferPage extends ConsumerStatefulWidget {
   const LanTransferPage({super.key});
 
@@ -65,10 +67,10 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
       if (previous?.lastReceivedFile != next.lastReceivedFile &&
           next.lastReceivedFile != null) {
         if (mounted) {
-          AppToast.show(
+          AppToast.showSuccess(
             context,
             '已接收文件: ${next.lastReceivedFile!.path.split('/').last}',
-            icon: Icons.download_done,
+
             duration: const Duration(seconds: 4),
           );
         }
@@ -82,10 +84,10 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
 
       if (previous?.error != next.error && next.error != null) {
         if (mounted) {
-          AppToast.show(
+          AppToast.showError(
             context,
             next.error!,
-            icon: Icons.error_outline,
+
             // backgroundColor: Colors.red, // AppToast 会自动处理颜色，或者是默认样式
           );
         }
@@ -295,7 +297,7 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
 
       if (confirm == true) {
         if (context.mounted) {
-          AppToast.show(context, '正在生成并发送数据...');
+          AppToast.showSuccess(context, '正在生成并发送数据...');
         }
 
         // 执行 Push 发送
@@ -303,14 +305,14 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
 
         if (context.mounted) {
           if (success) {
-            AppToast.show(context, '已发送给 $nickname');
+            AppToast.showSuccess(context, '已发送给 $nickname');
           }
           // 错误信息已由 state 监听处理
         }
       }
     } else {
       if (context.mounted) {
-        AppToast.show(context, '无法获取设备IP', icon: Icons.error_outline);
+        AppToast.showError(context, '无法获取设备IP');
       }
     }
   }
@@ -392,7 +394,7 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
       if (result.success) {
         if (mounted) {
           ref.read(dataRefreshProvider.notifier).refresh();
-          AppToast.show(context, '导入成功！\n已自动创建快照备份。', icon: Icons.check_circle);
+          AppToast.showSuccess(context, '导入成功！\n已自动创建快照备份。');
         }
 
         if (result.configData != null) {
@@ -403,14 +405,14 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
         }
       } else {
         if (mounted) {
-          AppToast.show(context, '导入失败: ${result.error}', icon: Icons.error);
+          AppToast.showError(context, '导入失败: ${result.error}');
         }
       }
     } catch (e, stack) {
       debugPrint('UI: Error in _importFile: $e\n$stack');
       closeDialog();
       if (mounted) {
-        AppToast.show(context, '发生错误: $e', icon: Icons.error);
+        AppToast.showError(context, '发生错误: $e');
       }
     }
   }

@@ -20,16 +20,15 @@ class _DebugPageState extends ConsumerState<DebugPage> {
       if (repo is DiaryRepositoryImpl) {
         await repo.ensureInitialData(force: true);
         if (mounted) {
-          AppToast.show(
+          AppToast.showSuccess(
             context,
             '✅ 演示数据已加载',
-            duration: const Duration(seconds: 3),
-          );
+            duration: const Duration(seconds: 3));
         }
       }
     } catch (e) {
       if (mounted) {
-        AppToast.show(context, '❌ 加载失败: $e', icon: Icons.error_outline);
+        AppToast.showError(context, '❌ 加载失败: $e');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

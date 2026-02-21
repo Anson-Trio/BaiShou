@@ -68,6 +68,9 @@ dependencies:
   uuid: ^4.5.2
   shelf_router: ^1.1.4
   drift_flutter: ^0.2.8
+  minio: ^3.5.8
+  webdav_client: ^1.2.2
+  window_manager: ^0.5.1
 
 dev_dependencies:
   flutter_test:
@@ -100,6 +103,7 @@ flutter:
   assets:
     - assets/images/
     - assets/icon/
+    - assets/ai_provider_icon/
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
 

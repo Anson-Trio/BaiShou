@@ -43,7 +43,7 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        AppToast.show(context, '加载失败: $e');
+        AppToast.showError(context, '加载失败: $e');
       }
     }
   }
@@ -52,7 +52,7 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
     if (_result == null) return;
     await Clipboard.setData(ClipboardData(text: _result!.text));
     if (mounted) {
-      AppToast.show(context, '共同回忆已复制', icon: Icons.check);
+      AppToast.showSuccess(context, '共同回忆已复制');
     }
   }
 

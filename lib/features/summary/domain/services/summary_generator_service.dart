@@ -19,6 +19,8 @@ import 'package:baishou/core/models/ai_provider_model.dart';
 
 part 'summary_generator_service.g.dart';
 
+/// 总结生成服务
+/// 负责协调日记/总结仓库数据，并根据选定的 AI 供应商生成多维度的总结。
 class SummaryGeneratorService {
   final DiaryRepository _diaryRepo;
   final SummaryRepository _summaryRepo;
@@ -26,14 +28,9 @@ class SummaryGeneratorService {
 
   SummaryGeneratorService(this._diaryRepo, this._summaryRepo, this._ref);
 
-  /// 为给定的缺失项生成总结。
-  /// 返回状态消息/块的流，最后以最终的 Markdown 内容结束。
-  ///
-  /// 流程：
-  /// 1. 获取原始数据（周记用日记；月报/季报用总结）。
-  /// 2. 基于模板构建 Prompt。
-  /// 3. 调用 Gemini API。
-  /// 4. 返回结果。
+  /// 为特定的总结目标生成内容。
+  /// [target] 描述了要生成的总结类型和时间范围。
+  /// 返回一个字符串流，包含状态更新（以 "STATUS:" 开头）或最终生成的 Markdown。
   Stream<String> generate(MissingSummary target) async* {
     yield 'STATUS:正在读取数据...';
 
@@ -100,6 +97,7 @@ class SummaryGeneratorService {
     }
   }
 
+  /// 构建周记所需的上下文数据（日记列表）
   Future<String> _buildWeeklyContext(DateTime start, DateTime end) async {
     final diaries = await _diaryRepo.getDiariesInRange(start, end);
     if (diaries.isEmpty) return '';
@@ -116,11 +114,10 @@ class SummaryGeneratorService {
     return buffer.toString();
   }
 
+  /// 构建月报所需的上下文数据（周记列表）
   Future<String> _buildMonthlyContext(DateTime start, DateTime end) async {
     // 获取从指定开始日期之后的所有总结
-    // 注意：Repository 的 getSummaries(start, end) 是严格包含 (startDate >= start AND endDate <= end)
-    // 但周记可能跨月（例如1月30日-2月5日），根据 MissingSummaryDetector 的逻辑，它被分配给开始日期所在的月份。
-    // 因此，我们需要获取所有 startDate 在该月份内的周记。
+    // 获取所有 startDate 在该月份内的周记。
     final summaries = await _summaryRepo.getSummaries(start: start);
 
     final weeklies = summaries
@@ -142,8 +139,9 @@ class SummaryGeneratorService {
     return buffer.toString();
   }
 
+  /// 构建季报所需的上下文数据（月报列表）
   Future<String> _buildQuarterlyContext(DateTime start, DateTime end) async {
-    // 同上，放宽结束日期限制
+    // 获取 startDate 在该季度内的所有月报
     final summaries = await _summaryRepo.getSummaries(start: start);
     final monthlies = summaries
         .where((s) => s.type == SummaryType.monthly)
@@ -161,8 +159,8 @@ class SummaryGeneratorService {
     return buffer.toString();
   }
 
+  /// 构建年鉴所需的上下文数据（优先使用季报，回退至月报）
   Future<String> _buildYearlyContext(DateTime start, DateTime end) async {
-    // 同上
     final summaries = await _summaryRepo.getSummaries(start: start);
     // 优先使用季报
     final quarterlies = summaries
@@ -202,6 +200,7 @@ class SummaryGeneratorService {
 
   // _getWeeklyPrompt 已移除，改为从 lib/source/prompts/weekly_prompt.dart 导入
 
+  /// 统一的 API 调用入口
   Future<String> _callApi(
     String providerId,
     String modelId,
@@ -229,6 +228,7 @@ class SummaryGeneratorService {
     }
   }
 
+  /// 测试供应商连接
   Future<void> testConnection(AiProviderModel provider) async {
     const testPrompt = '你好！';
     const testData = '';
@@ -247,6 +247,8 @@ class SummaryGeneratorService {
     }
   }
 
+  /// 错误脱敏与汉化
+  /// 隐藏 API Key 并将常见的网络错误转换为用户友好的中文提示。
   String _sanitizeError(Object e) {
     var errorMsg = e.toString();
 
@@ -270,6 +272,7 @@ class SummaryGeneratorService {
     return errorMsg;
   }
 
+  /// 调用 Gemini API
   Future<String> _callGemini(
     String prompt,
     String data,
@@ -314,7 +317,7 @@ class SummaryGeneratorService {
       final json = jsonDecode(response.body);
 
       if (json['candidates'] == null || (json['candidates'] as List).isEmpty) {
-        // Check for promptFeedback if available
+        // 尝试获取 promptFeedback（如果内容被屏蔽）
         final feedback = json['promptFeedback'];
         throw Exception(
           'Gemini 返回无法生成内容 (Candidates Empty). Feedback: $feedback',
@@ -346,6 +349,7 @@ class SummaryGeneratorService {
     }
   }
 
+  /// 调用 OpenAI 兼容接口
   Future<String> _callOpenAi(
     String prompt,
     String data,
