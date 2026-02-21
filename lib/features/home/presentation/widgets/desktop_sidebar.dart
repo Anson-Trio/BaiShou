@@ -24,8 +24,10 @@ class DesktopSidebar extends ConsumerWidget {
     final theme = Theme.of(context);
     final userProfile = ref.watch(userProfileProvider);
 
+    final isSystemSettings = navigationShell.currentIndex == 2;
+
     return Container(
-      width: 260,
+      width: 230,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(
@@ -42,24 +44,12 @@ class DesktopSidebar extends ConsumerWidget {
             padding: const EdgeInsets.all(24.0),
             child: Row(
               children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: theme.colorScheme.primary.withOpacity(0.3),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.lock_person_rounded,
-                    color: Colors.white,
-                    size: 24,
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.asset(
+                    'assets/icon/icon.png',
+                    width: 40,
+                    height: 40,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -67,14 +57,14 @@ class DesktopSidebar extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '白守 BaiShou',
+                      '白守',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         letterSpacing: -0.5,
                       ),
                     ),
                     Text(
-                      '数据主权 & 记忆压缩',
+                      '留下你的珍贵回忆',
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.w500,
@@ -91,7 +81,7 @@ class DesktopSidebar extends ConsumerWidget {
           // 导航列表
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               children: [
                 _NavMenuItem(
                   icon: Icons.timeline_rounded,
@@ -106,28 +96,12 @@ class DesktopSidebar extends ConsumerWidget {
                   onTap: () => _goBranch(1),
                 ),
                 _NavMenuItem(
-                  icon: Icons.label_outline_rounded,
-                  label: '标签管理',
-                  isSelected: false, // 暂未实现
-                  onTap: () {},
-                ),
-                _NavMenuItem(
-                  icon: Icons.science_outlined,
-                  label: 'AI 实验室',
-                  isSelected: false, // 暂未实现
-                  onTap: () {},
-                ),
-                _NavMenuItem(
-                  icon: Icons.shield_moon_outlined,
-                  label: '数据安全',
-                  isSelected: false, // 暂未实现
-                  onTap: () {},
-                ),
-                _NavMenuItem(
                   icon: Icons.settings_outlined,
                   label: '系统设置',
-                  isSelected: navigationShell.currentIndex == 2,
-                  onTap: () => _goBranch(2),
+                  isSelected: false,
+                  onTap: () {
+                    context.push('/settings');
+                  },
                 ),
               ],
             ),
@@ -156,54 +130,6 @@ class DesktopSidebar extends ConsumerWidget {
       ),
       child: Column(
         children: [
-          // 存储进度条
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '本地加密存储',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    '65%',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: 0.65,
-                  minHeight: 6,
-                  backgroundColor: theme.colorScheme.surfaceVariant,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    theme.colorScheme.primary,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '12.5GB / 20GB (已加密)',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontSize: 10,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 24),
-
           // 用户信息
           Row(
             children: [
@@ -239,13 +165,6 @@ class DesktopSidebar extends ConsumerWidget {
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      '专业版用户', // 或是根据逻辑显示
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontSize: 10,
-                      ),
                     ),
                   ],
                 ),

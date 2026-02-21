@@ -9,6 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+/// 日记列表页面
+/// 使用 CustomScrollView 实现带有年份吸顶效果的高性能滚动列表。
 class DiaryListPage extends ConsumerStatefulWidget {
   const DiaryListPage({super.key});
 
@@ -18,6 +20,8 @@ class DiaryListPage extends ConsumerStatefulWidget {
 
 class _DiaryListPageState extends ConsumerState<DiaryListPage> {
   DateTime? _selectedMonth;
+  String _searchQuery = '';
+  bool _isSearching = false;
 
   @override
   Widget build(BuildContext context) {
@@ -31,15 +35,29 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: isDesktop
+        title: _isSearching && !isDesktop
+            ? TextField(
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: '搜索记忆...',
+                  border: InputBorder.none,
+                ),
+                onChanged: (val) => setState(() => _searchQuery = val),
+              )
+            : isDesktop
             ? _buildDesktopHeader(context)
             : _buildMobileTitle(context),
         actions: isDesktop
             ? null
             : [
                 IconButton(
-                  onPressed: () {}, // 搜索占位
-                  icon: const Icon(Icons.search),
+                  onPressed: () {
+                    setState(() {
+                      _isSearching = !_isSearching;
+                      if (!_isSearching) _searchQuery = '';
+                    });
+                  },
+                  icon: Icon(_isSearching ? Icons.close : Icons.search),
                 ),
               ],
       ),
@@ -66,6 +84,14 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
                   return d.date.year == _selectedMonth!.year &&
                       d.date.month == _selectedMonth!.month;
                 }).toList();
+              }
+
+              // 如果正在搜索，通过关键词筛选
+              if (_searchQuery.trim().isNotEmpty) {
+                final q = _searchQuery.trim().toLowerCase();
+                diaries = diaries
+                    .where((d) => d.content.toLowerCase().contains(q))
+                    .toList();
               }
 
               if (diaries.isEmpty) return _buildEmptyState(context);
@@ -236,6 +262,7 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
+                    onChanged: (val) => setState(() => _searchQuery = val),
                     decoration: InputDecoration(
                       hintText: '搜索记忆...',
                       hintStyle: theme.textTheme.bodySmall?.copyWith(
@@ -378,6 +405,7 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
     );
   }
 
+  /// 构建年份分割线
   Widget _buildYearDivider(BuildContext context, int year) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
@@ -412,7 +440,7 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
-                color: AppTheme.textSecondaryLight,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 letterSpacing: 2,
               ),
             ),
@@ -454,6 +482,8 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
   }
 }
 
+/// 日期吸顶头部委托
+/// 用于在 CustomScrollView 中显示吸顶的日期信息（月、日、星期）。
 class _DateHeaderDelegate extends SliverPersistentHeaderDelegate {
   final DateTime date;
   final bool isDesktop;
@@ -487,20 +517,32 @@ class _DateHeaderDelegate extends SliverPersistentHeaderDelegate {
             monthStr,
             style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w300),
           ),
-          const Text('月', style: TextStyle(fontSize: 16, color: Colors.grey)),
+          Text(
+            '月',
+            style: TextStyle(
+              fontSize: 16,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
           Text(
             dayStr,
             style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w300),
           ),
-          const Text('日', style: TextStyle(fontSize: 16, color: Colors.grey)),
+          Text(
+            '日',
+            style: TextStyle(
+              fontSize: 16,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
 
           const SizedBox(width: 8),
           Text(
             weekdayStr,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: Colors.grey,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
 

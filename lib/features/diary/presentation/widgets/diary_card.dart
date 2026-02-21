@@ -1,13 +1,14 @@
 import 'package:baishou/core/theme/app_theme.dart';
 import 'package:baishou/features/diary/domain/entities/diary.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+/// 日记卡片组件
+/// 在列表中展示单篇日记的摘要信息，包括日期、时间、内容预览以及标签。
 class DiaryCard extends StatelessWidget {
-  final Diary diary;
-  final VoidCallback? onDelete;
+  final Diary diary; // 日记实体数据
+  final VoidCallback? onDelete; // 删除操作的回调
 
   const DiaryCard({super.key, required this.diary, this.onDelete});
 
@@ -54,8 +55,7 @@ class DiaryCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: AppTheme
-                          .textSecondaryLight, // Use explicit colors or theme logic
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontFamily: 'Monospace',
                     ),
                   ),
@@ -108,42 +108,16 @@ class DiaryCard extends StatelessWidget {
               // 内容预览
               if (body.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                ShaderMask(
-                  shaderCallback: (rect) {
-                    return const LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Colors.black, Colors.transparent],
-                      stops: [0.6, 1.0],
-                    ).createShader(rect);
-                  },
-                  blendMode: BlendMode.dstIn,
-                  child: Container(
-                    constraints: const BoxConstraints(
-                      maxHeight: 120,
-                    ), // Max height ~4-5 lines
-                    child: MarkdownBody(
-                      data: body,
-                      styleSheet: MarkdownStyleSheet(
-                        p: TextStyle(
-                          fontSize: 14,
-                          height: 1.5,
-                          // text-slate-600 dark:text-slate-400
-                          color: Theme.of(
-                            context,
-                          ).textTheme.bodyMedium?.color?.withOpacity(0.8),
-                        ),
-                        // Adjust other markdown styles if needed for preview
-                        h1: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        h2: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+                Text(
+                  body,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.5,
+                    color: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.color?.withOpacity(0.8),
                   ),
                 ),
               ],
