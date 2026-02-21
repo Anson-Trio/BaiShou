@@ -6,9 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 /// 桌面端侧边栏组件
-/// 符合 "白守" 的数据主权与记忆压缩理念设计
+/// 实现多级导航、用户信息展示以及与应用核心理念（数据主权）一致的视觉风格。
 class DesktopSidebar extends ConsumerWidget {
-  final StatefulNavigationShell navigationShell;
+  final StatefulNavigationShell navigationShell; // 关联的 Shell 导航引用
 
   const DesktopSidebar({super.key, required this.navigationShell});
 
@@ -177,11 +177,12 @@ class DesktopSidebar extends ConsumerWidget {
   }
 }
 
+/// 侧边栏导航菜单项组件
 class _NavMenuItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
+  final IconData icon; // 图标
+  final String label; // 标签文案
+  final bool isSelected; // 是否处于选中状态
+  final VoidCallback onTap; // 点击回调
 
   const _NavMenuItem({
     required this.icon,

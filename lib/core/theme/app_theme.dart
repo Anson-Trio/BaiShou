@@ -29,6 +29,7 @@ class AppTheme {
       colorScheme: ColorScheme.fromSeed(
         seedColor: seedColor,
         brightness: Brightness.light,
+        surfaceTint: Colors.transparent,
         surface: Colors.white,
         background: backgroundLight,
       ),
@@ -59,6 +60,7 @@ class AppTheme {
       colorScheme: ColorScheme.fromSeed(
         seedColor: seedColor,
         brightness: Brightness.dark,
+        surfaceTint: Colors.transparent,
         surface: surfaceDark,
         background: backgroundDark,
         onSurface: Colors.white,

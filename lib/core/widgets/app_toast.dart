@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
+/// 全局吐司（Toast）工具类
+/// 使用 Overlay 实现在屏幕顶部滑出的轻量级通知。
 class AppToast {
   static OverlayEntry? _currentEntry;
 
+  /// 显示成功提示
   static void showSuccess(
     BuildContext context,
     String message, {
@@ -21,6 +24,7 @@ class AppToast {
     );
   }
 
+  /// 显示错误提示
   static void showError(
     BuildContext context,
     String message, {
@@ -39,6 +43,8 @@ class AppToast {
     );
   }
 
+  /// 通放显示方法
+  /// 管理 OverlayEntry 的生命周期，确保同一时间只有一个 Toast。
   static void show(
     BuildContext context,
     String message, {
@@ -47,6 +53,7 @@ class AppToast {
     Color? backgroundColor,
     Color? iconColor,
   }) {
+    // 移除之前的 Toast
     _currentEntry?.remove();
     _currentEntry = null;
 
@@ -122,6 +129,7 @@ class _ToastWidgetState extends State<_ToastWidget>
     Future.delayed(widget.duration, _dismiss);
   }
 
+  /// 触发消失动画并移除组件
   void _dismiss() {
     if (!mounted) return;
     _controller.reverse().then((_) {

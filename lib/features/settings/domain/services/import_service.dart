@@ -343,38 +343,74 @@ class ImportService {
     }
 
     // 恢复 AI 配置
-    final aiProvider = config['ai_provider'] as String?;
-    if (aiProvider != null) {
-      final provider = AiProvider.values.firstWhere(
-        (p) => p.name == aiProvider,
-        orElse: () => AiProvider.gemini,
-      );
-      await _apiConfig.setProvider(provider);
-    }
+    final aiProviderId = config['ai_provider'] as String?;
 
-    final geminiApiKey = config['gemini_api_key'] as String?;
-    if (geminiApiKey != null && geminiApiKey.isNotEmpty) {
-      await _apiConfig.setGeminiApiKey(geminiApiKey);
-    }
+    // Fallbacks for older import versions
+    if (aiProviderId == null || aiProviderId.isEmpty) {
+      final geminiKey = config['gemini_api_key'] as String?;
+      final openaiKey = config['openai_api_key'] as String?;
 
-    final geminiBaseUrl = config['gemini_base_url'] as String?;
-    if (geminiBaseUrl != null && geminiBaseUrl.isNotEmpty) {
-      await _apiConfig.setGeminiBaseUrl(geminiBaseUrl);
-    }
+      if (geminiKey != null && geminiKey.isNotEmpty) {
+        final existingGemini = _apiConfig.getProvider('gemini');
+        if (existingGemini != null) {
+          await _apiConfig.updateProvider(
+            existingGemini.copyWith(
+              apiKey: geminiKey,
+              baseUrl:
+                  config['gemini_base_url'] as String? ??
+                  existingGemini.baseUrl,
+              defaultDialogueModel:
+                  config['ai_model'] as String? ??
+                  existingGemini.defaultDialogueModel,
+              defaultNamingModel:
+                  config['ai_naming_model'] as String? ??
+                  existingGemini.defaultNamingModel,
+            ),
+          );
+          await _apiConfig.setActiveProviderId('gemini');
+        }
+      } else if (openaiKey != null && openaiKey.isNotEmpty) {
+        final existingOpenAI = _apiConfig.getProvider('openai');
+        if (existingOpenAI != null) {
+          await _apiConfig.updateProvider(
+            existingOpenAI.copyWith(
+              apiKey: openaiKey,
+              baseUrl:
+                  config['openai_base_url'] as String? ??
+                  existingOpenAI.baseUrl,
+              defaultDialogueModel:
+                  config['ai_model'] as String? ??
+                  existingOpenAI.defaultDialogueModel,
+              defaultNamingModel:
+                  config['ai_naming_model'] as String? ??
+                  existingOpenAI.defaultNamingModel,
+            ),
+          );
+          await _apiConfig.setActiveProviderId('openai');
+        }
+      }
+    } else {
+      // It's a newer version where we can just look up the active provider string ID directly
+      await _apiConfig.setActiveProviderId(aiProviderId);
+      final existingProvider = _apiConfig.getProvider(aiProviderId);
 
-    final openAiApiKey = config['openai_api_key'] as String?;
-    if (openAiApiKey != null && openAiApiKey.isNotEmpty) {
-      await _apiConfig.setOpenAiApiKey(openAiApiKey);
-    }
+      if (existingProvider != null) {
+        final importedApiKey = config['api_key'] as String?;
+        final importedBaseUrl = config['base_url'] as String?;
+        final importedAiModel = config['ai_model'] as String?;
+        final importedNamingModel = config['ai_naming_model'] as String?;
 
-    final openAiBaseUrl = config['openai_base_url'] as String?;
-    if (openAiBaseUrl != null && openAiBaseUrl.isNotEmpty) {
-      await _apiConfig.setOpenAiBaseUrl(openAiBaseUrl);
-    }
-
-    final aiModel = config['ai_model'] as String?;
-    if (aiModel != null && aiModel.isNotEmpty) {
-      await _apiConfig.setModel(aiModel);
+        await _apiConfig.updateProvider(
+          existingProvider.copyWith(
+            apiKey: importedApiKey ?? existingProvider.apiKey,
+            baseUrl: importedBaseUrl ?? existingProvider.baseUrl,
+            defaultDialogueModel:
+                importedAiModel ?? existingProvider.defaultDialogueModel,
+            defaultNamingModel:
+                importedNamingModel ?? existingProvider.defaultNamingModel,
+          ),
+        );
+      }
     }
 
     // 恢复头像（Base64 解码后保存到本地）

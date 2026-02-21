@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+/// 新手引导页面
+/// 向用户介绍应用核心理念（灵魂备份、记忆压缩）并引导其完成基础配置（如 API Key）。
 class OnboardingPage extends ConsumerStatefulWidget {
   const OnboardingPage({super.key});
 
@@ -27,8 +29,10 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   @override
   void initState() {
     super.initState();
-    final apiKey = ref.read(apiConfigServiceProvider).geminiApiKey;
-    _apiKeyController.text = apiKey;
+    final geminiProvider = ref
+        .read(apiConfigServiceProvider)
+        .getProvider('gemini');
+    _apiKeyController.text = geminiProvider?.apiKey ?? '';
   }
 
   void _nextPage() {
@@ -45,9 +49,13 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   Future<void> _finishOnboarding() async {
     // Save API Key if entered
     if (_apiKeyController.text.isNotEmpty) {
-      await ref
-          .read(apiConfigServiceProvider)
-          .setGeminiApiKey(_apiKeyController.text);
+      final configService = ref.read(apiConfigServiceProvider);
+      final geminiProvider = configService.getProvider('gemini');
+      if (geminiProvider != null) {
+        await configService.updateProvider(
+          geminiProvider.copyWith(apiKey: _apiKeyController.text),
+        );
+      }
     }
 
     // Mark onboarding as complete

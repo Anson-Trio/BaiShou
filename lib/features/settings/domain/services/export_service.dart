@@ -24,6 +24,8 @@ import 'package:path_provider/path_provider.dart';
 /// 备份包 schema 版本，每次修改格式时递增
 const int _kSchemaVersion = 1;
 
+/// 数据导出服务
+/// 负责将日记、总结以及用户配置打包成 ZIP 备份，支持 MD 与 JSON 双格式导出。
 class ExportService {
   final DiaryRepository _diaryRepository;
   final SummaryRepository _summaryRepository;
@@ -78,12 +80,12 @@ class ExportService {
       'theme_mode': _themeState.mode.index,
       'seed_color': _themeState.seedColor.toARGB32(),
       // AI 配置
-      'ai_provider': _apiConfig.provider.name,
-      'gemini_api_key': _apiConfig.geminiApiKey,
-      'gemini_base_url': _apiConfig.geminiBaseUrl,
-      'openai_api_key': _apiConfig.openAiApiKey,
-      'openai_base_url': _apiConfig.openAiBaseUrl,
-      'ai_model': _apiConfig.model,
+      'ai_provider': _apiConfig.activeProviderId,
+      'ai_model': _apiConfig.getActiveProvider()?.defaultDialogueModel ?? '',
+      'ai_naming_model':
+          _apiConfig.getActiveProvider()?.defaultNamingModel ?? '',
+      'api_key': _apiConfig.getActiveProvider()?.apiKey ?? '',
+      'base_url': _apiConfig.getActiveProvider()?.baseUrl ?? '',
     };
 
     // 头像：如果存在则以 Base64 编码写入
