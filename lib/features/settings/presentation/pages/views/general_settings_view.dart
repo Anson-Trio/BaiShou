@@ -622,6 +622,7 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
   Widget _buildAboutSection() {
     return Card(
       elevation: 0,
+      margin: const EdgeInsets.only(bottom: 16),
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),

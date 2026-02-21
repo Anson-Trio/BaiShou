@@ -21,8 +21,13 @@ class SummaryPage extends ConsumerWidget {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
+        backgroundColor: Colors.transparent,
         appBar: AppBar(
           title: const Text('AI 总结'),
+          centerTitle: false,
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
           bottom: const TabBar(
             tabs: [
               Tab(text: '仪表盘'),

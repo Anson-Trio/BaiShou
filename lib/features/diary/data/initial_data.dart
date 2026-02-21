@@ -1,7 +1,7 @@
 List<Map<String, dynamic>> initialDiaries = [
   {
     'content':
-        '今天终于把项目的架子搭起来了！虽然只是个开始，但看着空白的画布被一点点填满，心里充满了成就感。\n\n特别是设计图标的时候，想了好久，最后决定用小白狐作为我们的吉祥物。它象征着灵动和守护，就像我希望“白守”能带给每一个用户的感觉一样。\n\n加油！一定要把这个 App 做到最好！',
+        '今天终于把项目的架子搭起来了！虽然只是个开始，但看着空白的画布被一点点填满，心里充满了成就感。\n\n特别是设计图标的时候，想了好久，最后决定用小白狐作为我们的吉祥物。它象征着灵动和守护，就像我希望"白守"能带给每一个用户的感觉一样。\n\n加油！一定要把这个 App 做到最好！',
     'date': DateTime.now().subtract(const Duration(days: 0)).toIso8601String(),
     'tags': ['开发日志', '心情', '新开始'],
   },
@@ -113,8 +113,238 @@ List<Map<String, dynamic>> initialDiaries = [
   },
   {
     'content':
-        '“白守”的初版终于快要完成了！🏁\n\n回顾这段时间的努力，真的感慨万千。从一个简单的想法，到现在初具雏形，每一步都凝聚了心血。\n\n但这只是个开始，未来还有很长的路要走。我们一起加油！',
+        '"白守"的初版终于快要完成了！🏁\n\n回顾这段时间的努力，真的感慨万千。从一个简单的想法，到现在初具雏形，每一步都凝聚了心血。\n\n但这只是个开始，未来还有很长的路要走。我们一起加油！',
     'date': DateTime.now().subtract(const Duration(days: 19)).toIso8601String(),
     'tags': ['里程碑', '总结', '展望'],
+  },
+  // 以下是新增的 40 条
+  {
+    'content': '早上起来发现路边开了一片野花，黄色的，密密麻麻的。\n\n手机随手一拍，竟然特别好看。生活里的小惊喜，真的很治愈。',
+    'date': DateTime.now().subtract(const Duration(days: 20)).toIso8601String(),
+    'tags': ['日常', '野花', '治愈'],
+  },
+  {
+    'content':
+        '今天点了外卖，配送员迟到了四十分钟。\n\n饭都凉了。😒 不过看了看评论区，发现大家都在夸配送员辛苦，心里有点复杂。\n\n算了，下次早点下单。',
+    'date': DateTime.now().subtract(const Duration(days: 21)).toIso8601String(),
+    'tags': ['外卖', '吐槽', '反思'],
+  },
+  {
+    'content': '今天和朋友打了两个小时的羽毛球。\n\n输了三局，赢了一局，但感觉还是很开心。运动真的能把所有烦恼都挥散出去。',
+    'date': DateTime.now().subtract(const Duration(days: 22)).toIso8601String(),
+    'tags': ['运动', '羽毛球', '朋友'],
+  },
+  {
+    'content':
+        '今天读到一句话："慢慢来，比较快。"\n\n很简单，但莫名地让我安心了很多。最近总觉得自己太着急了，什么都想立刻做好。\n\n放慢一点，也没关系。',
+    'date': DateTime.now().subtract(const Duration(days: 23)).toIso8601String(),
+    'tags': ['感悟', '心态', '成长'],
+  },
+  {
+    'content':
+        '今天去了一家很小的独立书店。\n\n店主养了一只猫，懒洋洋地趴在收银台上。店里只有我一个顾客，安静极了。\n\n买了两本不认识的作者写的书，期待一下。',
+    'date': DateTime.now().subtract(const Duration(days: 24)).toIso8601String(),
+    'tags': ['书店', '猫', '阅读'],
+  },
+  {
+    'content':
+        '发现一家新的咖啡店，装修很有意思，灯光很暗，放的都是老歌。\n\n点了一杯手冲，坐了两个小时。一行代码没写，但感觉思路清晰了很多。',
+    'date': DateTime.now().subtract(const Duration(days: 25)).toIso8601String(),
+    'tags': ['咖啡', '探店', '放空'],
+  },
+  {
+    'content':
+        '今天学了一个新的算法，理解起来费了一番功夫。\n\n翻了三篇文章，画了两张草图，最后终于搞明白了。\n\n感觉大脑被锻炼到了，有点累，但很充实。',
+    'date': DateTime.now().subtract(const Duration(days: 26)).toIso8601String(),
+    'tags': ['学习', '算法', '充实'],
+  },
+  {
+    'content':
+        '晚上突然停电了，整栋楼都黑了。\n\n翻出了一根蜡烛，点上之后，感觉房间里有一种很特别的温柔。\n\n停电的两个小时，我什么都没做，就发了会儿呆。挺好的。',
+    'date': DateTime.now().subtract(const Duration(days: 27)).toIso8601String(),
+    'tags': ['停电', '发呆', '安静'],
+  },
+  {
+    'content':
+        '今天做了一件一直拖着没做的事：整理了乱了半年的电脑桌面。\n\n删了几百个没用的文件，清理了三个 G 的缓存。\n\n看着干净的桌面，感觉人生都干净了。',
+    'date': DateTime.now().subtract(const Duration(days: 28)).toIso8601String(),
+    'tags': ['整理', '效率', '清爽'],
+  },
+  {
+    'content': '和妈妈视频了半个小时。她说最近腰不太好，让我不要担心，我还是担心了。\n\n打算这个月回去一趟。',
+    'date': DateTime.now().subtract(const Duration(days: 29)).toIso8601String(),
+    'tags': ['家人', '思念', '计划'],
+  },
+  {
+    'content':
+        '今天突然下了大雨，没带伞。\n\n在便利店躲了一个小时雨，顺便买了一个饭团、一包薯片和一瓶牛奶。\n\n雨里的便利店，格外温暖。',
+    'date': DateTime.now().subtract(const Duration(days: 30)).toIso8601String(),
+    'tags': ['雨天', '便利店', '温暖'],
+  },
+  {
+    'content':
+        '今天看到楼下有人在放风筝，风很大，风筝飞得很高很高。\n\n站在那里看了很久，心里空空的，但不是难受的那种空，是很轻盈的感觉。',
+    'date': DateTime.now().subtract(const Duration(days: 31)).toIso8601String(),
+    'tags': ['风筝', '轻盈', '日常'],
+  },
+  {
+    'content':
+        '今天写了一个很复杂的 SQL 查询，脑子转了很久。\n\n最后看到结果跑出来的那一刻，太爽了！数据库真的很有魅力，感觉像是在和数据对话。',
+    'date': DateTime.now().subtract(const Duration(days: 32)).toIso8601String(),
+    'tags': ['数据库', '成就感', '编程'],
+  },
+  {
+    'content': '考虑了很久，今天终于下单了一双跑鞋。\n\n之前一直用的球鞋跑步，脚踝有点不舒服。给自己的健康投资嘛，值得的。',
+    'date': DateTime.now().subtract(const Duration(days: 33)).toIso8601String(),
+    'tags': ['购物', '运动', '健康'],
+  },
+  {
+    'content':
+        '今天骑车去了一个从来没去过的地方，随意拐弯，最后迷路了。\n\n在一条小巷子里发现了一家很小的饺子馆，吃了一碗猪肉白菜的，五块钱，好吃到哭。',
+    'date': DateTime.now().subtract(const Duration(days: 34)).toIso8601String(),
+    'tags': ['骑车', '探索', '美食'],
+  },
+  {
+    'content':
+        '今天失眠了，三点钟还没睡着。\n\n索性起来喝了杯热牛奶，听了一会儿轻音乐，最后四点多迷迷糊糊睡着了。\n\n明天大概率会很困，但也没办法了。',
+    'date': DateTime.now().subtract(const Duration(days: 35)).toIso8601String(),
+    'tags': ['失眠', '夜晚', '牛奶'],
+  },
+  {
+    'content':
+        '学了点水彩，画了一个小苹果。\n\n说实话，画得很丑，完全不像苹果。但是过程很解压，拿着笔在纸上涂涂抹抹，什么都不想。\n\n明天画一个梨试试。',
+    'date': DateTime.now().subtract(const Duration(days: 36)).toIso8601String(),
+    'tags': ['水彩', '手工', '解压'],
+  },
+  {
+    'content': '今天收到了两年前买的那本书的续集终于出版的通知。\n\n立刻下单，发货了！期待度拉满！',
+    'date': DateTime.now().subtract(const Duration(days: 37)).toIso8601String(),
+    'tags': ['阅读', '期待', '购书'],
+  },
+  {
+    'content': '今天帮室友搬了个柜子，腰酸了一整天。\n\n深刻认识到：家具一定要买能拆装的。\n\n以后买家当，先看能不能自己扛上楼。',
+    'date': DateTime.now().subtract(const Duration(days: 38)).toIso8601String(),
+    'tags': ['搬家具', '腰疼', '教训'],
+  },
+  {
+    'content':
+        '今天尝试了冥想，在 B 站跟着一个视频练了十五分钟。\n\n前五分钟脑子里乱七八糟什么都在想，后来慢慢安静了一点。\n\n明天继续试试，听说坚持下去挺有效的。',
+    'date': DateTime.now().subtract(const Duration(days: 39)).toIso8601String(),
+    'tags': ['冥想', '尝试', '放松'],
+  },
+  {
+    'content':
+        '今天看了一部老电影，九十年代的，画质很差，但故事很好。\n\n里面有句台词："人不能两次踏进同一条河流。" 很老生常谈，但今天看到，莫名有点感触。',
+    'date': DateTime.now().subtract(const Duration(days: 40)).toIso8601String(),
+    'tags': ['电影', '感悟', '老片'],
+  },
+  {
+    'content': '今天做了个梦，梦见我会飞。\n\n那种腾空而起、飞过城市的感觉，好真实。醒来之后还有点惋惜，真希望能再飞一会儿。',
+    'date': DateTime.now().subtract(const Duration(days: 41)).toIso8601String(),
+    'tags': ['梦', '飞翔', '日常'],
+  },
+  {
+    'content':
+        '今天去超市，结账的时候发现手机没电，扫不了码，身上也没带现金。\n\n最后借了旁边阿姨的充电宝充了一下电，才结上账。好险！以后要养成带充电宝的习惯。',
+    'date': DateTime.now().subtract(const Duration(days: 42)).toIso8601String(),
+    'tags': ['超市', '尴尬', '教训'],
+  },
+  {
+    'content':
+        '申请了一个网上的读书小组，每周分享一本书。\n\n今天是第一次参加，大家聊的是一本科幻小说。感觉思维被打开了很多，认识了几个很有趣的人。',
+    'date': DateTime.now().subtract(const Duration(days: 43)).toIso8601String(),
+    'tags': ['读书会', '社交', '收获'],
+  },
+  {
+    'content': '今天自己煮了一锅番茄鸡蛋汤面。\n\n材料很简单，但味道出乎意料地好。\n\n有时候最家常的东西，才是最治愈的。',
+    'date': DateTime.now().subtract(const Duration(days: 44)).toIso8601String(),
+    'tags': ['做饭', '面条', '治愈'],
+  },
+  {
+    'content':
+        '今天更新了系统，结果有个常用软件崩了，折腾了一个多小时才修好。\n\n以后重要的日子，千万不能随便更新系统。这是血的教训。😤',
+    'date': DateTime.now().subtract(const Duration(days: 45)).toIso8601String(),
+    'tags': ['系统更新', '崩溃', '教训'],
+  },
+  {
+    'content':
+        '今晚散步的时候，遇到了一对老夫妇，手牵手在路边坐着。\n\n两个人都没说话，就这么坐着，看着来来往往的人群。\n\n那画面真的很美，希望我老了也能这样。',
+    'date': DateTime.now().subtract(const Duration(days: 46)).toIso8601String(),
+    'tags': ['散步', '感动', '爱情'],
+  },
+  {
+    'content':
+        '今天屯了一批零食：薯片、饼干、糖、小熊软糖。\n\n囤货的时候满足感拉满，实际上买回来很可能一个月都吃不完。\n\n管不了了，快乐最重要。',
+    'date': DateTime.now().subtract(const Duration(days: 47)).toIso8601String(),
+    'tags': ['零食', '快乐', '购物'],
+  },
+  {
+    'content':
+        '今天帮一个不认识的人在地铁站找到了丢失的钱包。\n\n还给他的时候他非常感激，一直道谢。\n\n其实没什么大不了的，但心里还是暖暖的。',
+    'date': DateTime.now().subtract(const Duration(days: 48)).toIso8601String(),
+    'tags': ['好事', '暖心', '日常'],
+  },
+  {
+    'content':
+        '今天复习了一下高中数学，想看看自己还记得多少。\n\n微积分还行，线性代数已经忘得差不多了。\n\n感觉有点可惜，当初学这些的时候多费劲啊。',
+    'date': DateTime.now().subtract(const Duration(days: 49)).toIso8601String(),
+    'tags': ['复习', '数学', '感慨'],
+  },
+  {
+    'content':
+        '今天下午特别困，喝了两杯咖啡也没用。\n\n最后趴在桌上睡了二十分钟，醒来之后神清气爽，比咖啡管用多了。\n\n午睡是个好东西，以后要坚持。',
+    'date': DateTime.now().subtract(const Duration(days: 50)).toIso8601String(),
+    'tags': ['午睡', '咖啡', '精神'],
+  },
+  {
+    'content':
+        '和老朋友聊了很久的天，聊到了大学的各种事情。\n\n那个时候真的好单纯，一点小事都能开心好几天。\n\n人大了之后好像很难那么纯粹地高兴了。',
+    'date': DateTime.now().subtract(const Duration(days: 51)).toIso8601String(),
+    'tags': ['朋友', '回忆', '感慨'],
+  },
+  {
+    'content':
+        '今天去图书馆待了一整天，什么都没带，就带了耳机和笔记本。\n\n写了好多东西，但大多数都是随笔，不成体系。\n\n感觉很充实，下次还要来。',
+    'date': DateTime.now().subtract(const Duration(days: 52)).toIso8601String(),
+    'tags': ['图书馆', '写作', '充实'],
+  },
+  {
+    'content':
+        '今天给植物浇水的时候，发现墙角那盆几乎枯死的绿萝，长出了一片嫩绿的新叶。\n\n完全没想到，我都以为它死透了。生命力真的很顽强。',
+    'date': DateTime.now().subtract(const Duration(days: 53)).toIso8601String(),
+    'tags': ['植物', '惊喜', '生命力'],
+  },
+  {
+    'content': '今天发现家旁边开了一家新的面包店，刚出炉的肉松小面包香气飘了整条街。\n\n买了三个，回家路上就吃完了，一个都没留住。',
+    'date': DateTime.now().subtract(const Duration(days: 54)).toIso8601String(),
+    'tags': ['面包', '美食', '探店'],
+  },
+  {
+    'content':
+        '今天试着做了一个小工具脚本，自动整理文件夹。\n\n写了大概五十行，跑起来之后效果出乎意料地好。以后再也不用手动整理了，太爽了！',
+    'date': DateTime.now().subtract(const Duration(days: 55)).toIso8601String(),
+    'tags': ['编程', '小工具', '效率'],
+  },
+  {
+    'content': '今天风很大，树叶飘了满地，踩上去嘎吱嘎吱的。\n\n走在路上，每一步都有声音，像在演电影一样。\n\n秋天真的很好。',
+    'date': DateTime.now().subtract(const Duration(days: 56)).toIso8601String(),
+    'tags': ['秋天', '散步', '治愈'],
+  },
+  {
+    'content': '今天参加了一个线下的技术分享会，听了两个小时。\n\n一半听懂了，一半没听懂。但没听懂的那部分记下来了，回去慢慢研究。',
+    'date': DateTime.now().subtract(const Duration(days: 57)).toIso8601String(),
+    'tags': ['学习', '分享会', '技术'],
+  },
+  {
+    'content':
+        '最近睡眠不太好，每天早上六点就自然醒了，再睡不着。\n\n索性早起，把早饭做了，在阳台坐了一会儿，看着太阳慢慢升起来。\n\n原来清晨是这样的，安静，干净，很美。',
+    'date': DateTime.now().subtract(const Duration(days: 58)).toIso8601String(),
+    'tags': ['早起', '清晨', '日出'],
+  },
+  {
+    'content':
+        '今天试着画了一张 UI 草图，想给 App 加一个新功能。\n\n画完之后发现实现起来比想象中复杂，但思路清晰了很多。\n\n有时候把想法画出来，比在脑子里转有用多了。',
+    'date': DateTime.now().subtract(const Duration(days: 59)).toIso8601String(),
+    'tags': ['设计', 'UI', '创作'],
   },
 ];

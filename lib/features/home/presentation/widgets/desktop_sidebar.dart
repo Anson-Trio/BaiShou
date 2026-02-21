@@ -9,15 +9,14 @@ import 'package:go_router/go_router.dart';
 /// 实现多级导航、用户信息展示以及与应用核心理念（数据主权）一致的视觉风格。
 class DesktopSidebar extends ConsumerWidget {
   final StatefulNavigationShell navigationShell; // 关联的 Shell 导航引用
+  /// 切换分支的回调，由 MainScaffold 提供（含淡入淡出动画）
+  final void Function(int index) onBranchChange;
 
-  const DesktopSidebar({super.key, required this.navigationShell});
-
-  void _goBranch(int index) {
-    navigationShell.goBranch(
-      index,
-      initialLocation: index == navigationShell.currentIndex,
-    );
-  }
+  const DesktopSidebar({
+    super.key,
+    required this.navigationShell,
+    required this.onBranchChange,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -65,9 +64,9 @@ class DesktopSidebar extends ConsumerWidget {
                     ),
                     Text(
                       '留下你的珍贵回忆',
-                      style: theme.textTheme.labelSmall?.copyWith(
+                      style: theme.textTheme.labelMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -87,19 +86,19 @@ class DesktopSidebar extends ConsumerWidget {
                   icon: Icons.timeline,
                   label: '时间轴',
                   isSelected: navigationShell.currentIndex == 0,
-                  onTap: () => _goBranch(0),
+                  onTap: () => onBranchChange(0),
                 ),
                 _NavMenuItem(
                   icon: Icons.auto_stories_rounded,
                   label: '多维总结',
                   isSelected: navigationShell.currentIndex == 1,
-                  onTap: () => _goBranch(1),
+                  onTap: () => onBranchChange(1),
                 ),
                 _NavMenuItem(
                   icon: Icons.sync_rounded,
                   label: '数据同步',
                   isSelected: navigationShell.currentIndex == 2,
-                  onTap: () => _goBranch(2),
+                  onTap: () => onBranchChange(2),
                 ),
                 const SizedBox(height: 16),
                 const Padding(

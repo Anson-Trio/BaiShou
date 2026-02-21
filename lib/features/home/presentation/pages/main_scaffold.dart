@@ -57,7 +57,10 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
             body: Row(
               children: [
                 // 左侧导航栏 (桌面端)
-                DesktopSidebar(navigationShell: widget.navigationShell),
+                DesktopSidebar(
+                  navigationShell: widget.navigationShell,
+                  onBranchChange: _goBranch,
+                ),
 
                 // 主内容区域
                 Expanded(
