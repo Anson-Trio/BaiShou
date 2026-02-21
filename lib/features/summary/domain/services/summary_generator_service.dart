@@ -3,7 +3,6 @@ import 'package:baishou/core/database/tables/summaries.dart';
 import 'package:baishou/features/diary/data/repositories/diary_repository_impl.dart';
 import 'package:baishou/features/diary/domain/repositories/diary_repository.dart';
 import 'package:baishou/features/summary/data/repositories/summary_repository_impl.dart';
-import 'package:baishou/features/summary/domain/entities/summary.dart';
 import 'package:baishou/features/summary/domain/repositories/summary_repository.dart';
 import 'package:baishou/features/summary/domain/services/missing_summary_detector.dart'; // 用于 MissingSummary
 import 'package:baishou/source/prompts/monthly_prompt.dart';
@@ -16,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'package:baishou/core/services/api_config_service.dart';
+import 'package:baishou/core/models/ai_provider_model.dart';
 
 part 'summary_generator_service.g.dart';
 
@@ -39,7 +39,8 @@ class SummaryGeneratorService {
 
     // 获取当前配置的模型名称
     final apiConfig = _ref.read(apiConfigServiceProvider);
-    final modelName = apiConfig.model.isEmpty ? 'AI' : apiConfig.model;
+    final providerId = apiConfig.globalSummaryProviderId;
+    final modelName = apiConfig.globalSummaryModelId;
 
     String contextData = '';
     String promptTemplate = '';
@@ -83,7 +84,12 @@ class SummaryGeneratorService {
 
       yield 'STATUS:正在思考 ($modelName)...';
 
-      final generatedContent = await _callApi(promptTemplate, contextData);
+      final generatedContent = await _callApi(
+        providerId,
+        modelName,
+        promptTemplate,
+        contextData,
+      );
 
       yield generatedContent;
     } catch (e) {
@@ -196,32 +202,45 @@ class SummaryGeneratorService {
 
   // _getWeeklyPrompt 已移除，改为从 lib/source/prompts/weekly_prompt.dart 导入
 
-  Future<String> _callApi(String prompt, String data) async {
+  Future<String> _callApi(
+    String providerId,
+    String modelId,
+    String prompt,
+    String data,
+  ) async {
     final apiConfig = _ref.read(apiConfigServiceProvider);
-    final provider = apiConfig.provider;
-    final apiKey = apiConfig.apiKey;
+    final provider = apiConfig.getProvider(providerId);
+
+    if (provider == null) {
+      throw Exception('未找到对应的 AI 配置 ($providerId)。请在设置中重新选择全局模型。');
+    }
+
+    final apiKey = provider.apiKey;
 
     // 如果未配置 Key，抛出异常
     if (apiKey.isEmpty || apiKey == 'YOUR_API_KEY_HERE') {
       throw Exception('请先在"设置"中配置 API Key (Settings -> AI Config)');
     }
 
-    if (provider == AiProvider.gemini) {
-      return _callGemini(prompt, data, apiConfig);
+    if (provider.type == ProviderType.gemini) {
+      return _callGemini(prompt, data, provider, modelId);
     } else {
-      return _callOpenAi(prompt, data, apiConfig);
+      return _callOpenAi(prompt, data, provider, modelId);
     }
   }
 
-  Future<void> testConnection(ApiConfigService config) async {
+  Future<void> testConnection(AiProviderModel provider) async {
     const testPrompt = '你好！';
     const testData = '';
+    final testModel = provider.models.isNotEmpty
+        ? provider.models.first
+        : 'test-model';
 
     try {
-      if (config.provider == AiProvider.gemini) {
-        await _callGemini(testPrompt, testData, config);
+      if (provider.type == ProviderType.gemini) {
+        await _callGemini(testPrompt, testData, provider, testModel);
       } else {
-        await _callOpenAi(testPrompt, testData, config);
+        await _callOpenAi(testPrompt, testData, provider, testModel);
       }
     } catch (e) {
       throw Exception(_sanitizeError(e));
@@ -254,23 +273,21 @@ class SummaryGeneratorService {
   Future<String> _callGemini(
     String prompt,
     String data,
-    ApiConfigService config,
+    AiProviderModel provider,
+    String model,
   ) async {
-    final model = config.model;
     if (model.isEmpty) {
-      throw Exception(
-        '未配置模型名称。请在"设置"中配置模型名称 (Settings -> AI Config -> Model Name)',
-      );
+      throw Exception('未配置模型。请在"设置"中配置全局对话模型 (Settings -> AI Config -> 默认模型)');
     }
 
     // Gemini 允许 Base URL 为空，默认为官方 v1beta
     // 如果用户填了 Base URL（例如代理），则使用用户填的
-    final baseUrl = config.baseUrl.isNotEmpty
-        ? config.baseUrl
+    final baseUrl = provider.baseUrl.isNotEmpty
+        ? provider.baseUrl
         : 'https://generativelanguage.googleapis.com/v1beta';
 
     final uri = Uri.parse(
-      '$baseUrl/models/$model:generateContent?key=${config.apiKey}',
+      '$baseUrl/models/$model:generateContent?key=${provider.apiKey}',
     );
 
     final response = await http
@@ -282,11 +299,10 @@ class SummaryGeneratorService {
               {
                 'parts': [
                   {'text': prompt},
-                  {'text': data},
                 ],
               },
             ],
-            'generationConfig': {'temperature': 0.7, 'maxOutputTokens': 8192},
+            'generationConfig': {'maxOutputTokens': 8192},
           }),
         )
         .timeout(
@@ -333,16 +349,16 @@ class SummaryGeneratorService {
   Future<String> _callOpenAi(
     String prompt,
     String data,
-    ApiConfigService config,
+    AiProviderModel provider,
+    String model,
   ) async {
-    final model = config.model;
     if (model.isEmpty) {
       throw Exception(
-        '未配置模型名称。请在"设置"中配置模型名称 (Settings -> AI Config -> Model Name)',
+        '未配置模型。请在"设置"中配置全局对话模型 (Settings -> AI Config -> 默认对话模型)',
       );
     }
 
-    var baseUrl = config.baseUrl;
+    var baseUrl = provider.baseUrl;
     if (baseUrl.isEmpty) {
       throw Exception(
         '使用 OpenAI 兼容模式时，必须配置 Base URL (如 https://api.openai.com/v1)',
@@ -364,7 +380,7 @@ class SummaryGeneratorService {
           uri,
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${config.apiKey}',
+            'Authorization': 'Bearer ${provider.apiKey}',
           },
           body: jsonEncode({
             'model': model,
@@ -374,7 +390,6 @@ class SummaryGeneratorService {
                 'content': '$prompt\n\n$data', // 将 prompt 和 data 拼接
               },
             ],
-            'temperature': 0.7,
             'max_tokens': 8192,
           }),
         )
