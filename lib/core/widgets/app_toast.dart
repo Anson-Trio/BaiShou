@@ -1,9 +1,43 @@
 import 'package:flutter/material.dart';
 
-/// A custom toast overlay that slides in from the top-right corner.
-/// Tap to dismiss early.
 class AppToast {
   static OverlayEntry? _currentEntry;
+
+  static void showSuccess(
+    BuildContext context,
+    String message, {
+    Duration duration = const Duration(seconds: 3),
+    Color? backgroundColor,
+    IconData? icon,
+    Color? iconColor,
+  }) {
+    show(
+      context,
+      message,
+      duration: duration,
+      icon: icon ?? Icons.check_circle_outline,
+      iconColor: iconColor ?? Colors.green.shade600,
+      backgroundColor: backgroundColor,
+    );
+  }
+
+  static void showError(
+    BuildContext context,
+    String message, {
+    Duration duration = const Duration(seconds: 5),
+    Color? backgroundColor,
+    IconData? icon,
+    Color? iconColor,
+  }) {
+    show(
+      context,
+      message,
+      duration: duration,
+      icon: icon ?? Icons.error_outline,
+      iconColor: iconColor ?? Colors.red.shade600,
+      backgroundColor: backgroundColor,
+    );
+  }
 
   static void show(
     BuildContext context,
@@ -11,6 +45,7 @@ class AppToast {
     Duration duration = const Duration(seconds: 2),
     IconData? icon,
     Color? backgroundColor,
+    Color? iconColor,
   }) {
     _currentEntry?.remove();
     _currentEntry = null;
@@ -21,8 +56,9 @@ class AppToast {
     entry = OverlayEntry(
       builder: (context) => _ToastWidget(
         message: message,
-        icon: icon ?? Icons.check_circle_outline,
+        icon: icon ?? Icons.info_outline,
         backgroundColor: backgroundColor,
+        iconColor: iconColor,
         duration: duration,
         onDismiss: () {
           entry.remove();
@@ -40,6 +76,7 @@ class _ToastWidget extends StatefulWidget {
   final String message;
   final IconData icon;
   final Color? backgroundColor;
+  final Color? iconColor;
   final Duration duration;
   final VoidCallback onDismiss;
 
@@ -47,6 +84,7 @@ class _ToastWidget extends StatefulWidget {
     required this.message,
     required this.icon,
     this.backgroundColor,
+    this.iconColor,
     required this.duration,
     required this.onDismiss,
   });
@@ -150,7 +188,9 @@ class _ToastWidgetState extends State<_ToastWidget>
                     Icon(
                       widget.icon,
                       size: 18,
-                      color: Theme.of(context).colorScheme.primary,
+                      color:
+                          widget.iconColor ??
+                          Theme.of(context).colorScheme.primary,
                     ),
                     const SizedBox(width: 8),
                     Flexible(
