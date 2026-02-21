@@ -76,94 +76,27 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              var diaries = snapshot.data!;
+              final diaries = snapshot.data!;
 
-              // 如果已选择月份，则按月份筛选
-              if (_selectedMonth != null) {
-                diaries = diaries.where((d) {
-                  return d.date.year == _selectedMonth!.year &&
-                      d.date.month == _selectedMonth!.month;
-                }).toList();
-              }
+              // 性能优化：使用 helper 方法进行分组与筛选
+              final filteredDiaries = _getFilteredDiaries(diaries);
+              if (filteredDiaries.isEmpty) return _buildEmptyState(context);
 
-              // 如果正在搜索，通过关键词筛选
-              if (_searchQuery.trim().isNotEmpty) {
-                final q = _searchQuery.trim().toLowerCase();
-                diaries = diaries
-                    .where((d) => d.content.toLowerCase().contains(q))
-                    .toList();
-              }
-
-              if (diaries.isEmpty) return _buildEmptyState(context);
-
-              // 按日期分组
-              final grouped = groupBy(diaries, (Diary d) {
-                return DateTime(d.date.year, d.date.month, d.date.day);
-              });
-
-              final sortedDates = grouped.keys.toList()
+              final groupedData = _getGroupedDiaries(filteredDiaries);
+              final sortedDates = groupedData.keys.toList()
                 ..sort((a, b) => b.compareTo(a));
 
               return CustomScrollView(
                 physics: const BouncingScrollPhysics(),
                 slivers: [
                   const SliverToBoxAdapter(child: SizedBox(height: 10)),
-                  ...() {
-                    final List<Widget> slivers = [];
-                    int? lastYear;
-
-                    for (var date in sortedDates) {
-                      // 如果年份变化，插入年份分割线
-                      if (lastYear != null && date.year != lastYear) {
-                        slivers.add(
-                          SliverToBoxAdapter(
-                            child: _buildYearDivider(context, date.year),
-                          ),
-                        );
-                      }
-
-                      lastYear = date.year;
-
-                      final dayDiaries = grouped[date]!;
-                      slivers.add(
-                        SliverMainAxisGroup(
-                          slivers: [
-                            SliverPersistentHeader(
-                              pinned: true,
-                              delegate: _DateHeaderDelegate(
-                                date: date,
-                                isDesktop: isDesktop,
-                              ),
-                            ),
-                            SliverPadding(
-                              padding: EdgeInsets.only(
-                                left: isDesktop ? 40 : 20,
-                                bottom: 32,
-                              ),
-                              sliver: SliverList(
-                                delegate: SliverChildBuilderDelegate((
-                                  context,
-                                  index,
-                                ) {
-                                  final diary = dayDiaries[index];
-                                  return _buildTimelineItem(
-                                    context,
-                                    ref,
-                                    diary,
-                                    isDesktop,
-                                  );
-                                }, childCount: dayDiaries.length),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                    return slivers;
-                  }(),
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: 80),
-                  ), // Fab 占位空间
+                  ..._buildSlivers(
+                    context,
+                    groupedData,
+                    sortedDates,
+                    isDesktop,
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 80)),
                 ],
               );
             },
@@ -480,6 +413,76 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
       });
     }
   }
+
+  List<Diary> _getFilteredDiaries(List<Diary> allDiaries) {
+    var diaries = allDiaries;
+    if (_selectedMonth != null) {
+      diaries = diaries.where((d) {
+        return d.date.year == _selectedMonth!.year &&
+            d.date.month == _selectedMonth!.month;
+      }).toList();
+    }
+
+    if (_searchQuery.trim().isNotEmpty) {
+      final q = _searchQuery.trim().toLowerCase();
+      diaries = diaries
+          .where((d) => d.content.toLowerCase().contains(q))
+          .toList();
+    }
+    return diaries;
+  }
+
+  Map<DateTime, List<Diary>> _getGroupedDiaries(List<Diary> diaries) {
+    return groupBy(diaries, (Diary d) {
+      return DateTime(d.date.year, d.date.month, d.date.day);
+    });
+  }
+
+  List<Widget> _buildSlivers(
+    BuildContext context,
+    Map<DateTime, List<Diary>> grouped,
+    List<DateTime> sortedDates,
+    bool isDesktop,
+  ) {
+    final List<Widget> slivers = [];
+    int? lastYear;
+
+    for (var date in sortedDates) {
+      if (lastYear != null && date.year != lastYear) {
+        slivers.add(
+          SliverToBoxAdapter(child: _buildYearDivider(context, date.year)),
+        );
+      }
+      lastYear = date.year;
+
+      final dayDiaries = grouped[date]!;
+      slivers.add(
+        SliverMainAxisGroup(
+          slivers: [
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _DateHeaderDelegate(date: date, isDesktop: isDesktop),
+            ),
+            SliverPadding(
+              padding: EdgeInsets.only(left: isDesktop ? 40 : 20, bottom: 32),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => _buildTimelineItem(
+                    context,
+                    ref,
+                    dayDiaries[index],
+                    isDesktop,
+                  ),
+                  childCount: dayDiaries.length,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return slivers;
+  }
 }
 
 /// 日期吸顶头部委托
@@ -505,8 +508,8 @@ class _DateHeaderDelegate extends SliverPersistentHeaderDelegate {
     final weekdayStr = weekdays[date.weekday];
 
     return Container(
-      // 使用完全不透明的背景色，避免主题变更后渲染穿透
-      color: Theme.of(context).scaffoldBackgroundColor,
+      // 两端统一使用 surface 背景（移动端已包裹白色 Container）
+      color: Theme.of(context).colorScheme.surface,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       alignment: Alignment.centerLeft,
       child: Row(
@@ -577,7 +580,6 @@ class _DateHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(covariant _DateHeaderDelegate oldDelegate) {
-    // 始终返回 true，确保主题变更时日期头会重新绘制（更新背景色）
-    return true;
+    return oldDelegate.date != date || oldDelegate.isDesktop != isDesktop;
   }
 }

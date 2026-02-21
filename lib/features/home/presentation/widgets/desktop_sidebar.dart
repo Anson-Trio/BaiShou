@@ -81,10 +81,10 @@ class DesktopSidebar extends ConsumerWidget {
           // 导航列表
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 0),
               children: [
                 _NavMenuItem(
-                  icon: Icons.timeline_rounded,
+                  icon: Icons.timeline,
                   label: '时间轴',
                   isSelected: navigationShell.currentIndex == 0,
                   onTap: () => _goBranch(0),
@@ -96,12 +96,22 @@ class DesktopSidebar extends ConsumerWidget {
                   onTap: () => _goBranch(1),
                 ),
                 _NavMenuItem(
+                  icon: Icons.sync_rounded,
+                  label: '数据同步',
+                  isSelected: navigationShell.currentIndex == 2,
+                  onTap: () => _goBranch(2),
+                ),
+                const SizedBox(height: 16),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Divider(),
+                ),
+                const SizedBox(height: 16),
+                _NavMenuItem(
                   icon: Icons.settings_outlined,
-                  label: '系统设置',
+                  label: '全局设置',
                   isSelected: false,
-                  onTap: () {
-                    context.push('/settings');
-                  },
+                  onTap: () => context.push('/settings'),
                 ),
               ],
             ),
@@ -178,11 +188,12 @@ class DesktopSidebar extends ConsumerWidget {
 }
 
 /// 侧边栏导航菜单项组件
+/// 采用与系统设置页面一致的左侧边框指示器风格，消除点击闪烁。
 class _NavMenuItem extends StatelessWidget {
-  final IconData icon; // 图标
-  final String label; // 标签文案
-  final bool isSelected; // 是否处于选中状态
-  final VoidCallback onTap; // 点击回调
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
 
   const _NavMenuItem({
     required this.icon,
@@ -193,42 +204,49 @@ class _NavMenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: InkWell(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: GestureDetector(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? theme.colorScheme.primaryContainer
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: 22,
-                color: isSelected
-                    ? theme.colorScheme.onPrimaryContainer
-                    : theme.colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 16),
-              Text(
-                label,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  color: isSelected
-                      ? theme.colorScheme.onPrimaryContainer
-                      : theme.colorScheme.onSurfaceVariant,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? colorScheme.primaryContainer.withOpacity(0.4)
+                  : Colors.transparent,
+              border: Border(
+                left: BorderSide(
+                  color: isSelected ? colorScheme.primary : Colors.transparent,
+                  width: 4,
                 ),
               ),
-            ],
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 20,
+                  color: isSelected
+                      ? colorScheme.primary
+                      : colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    color: isSelected
+                        ? colorScheme.primary
+                        : colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

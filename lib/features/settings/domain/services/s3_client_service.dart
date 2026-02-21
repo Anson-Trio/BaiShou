@@ -142,4 +142,31 @@ class S3ClientService {
 
     return records;
   }
+
+  /// 删除指定的对象
+  Future<void> deleteObject(String filename) async {
+    final client = _createClient();
+    String targetPath = basePath;
+    if (!targetPath.endsWith('/')) targetPath += '/';
+    if (targetPath.startsWith('/')) targetPath = targetPath.substring(1);
+    final objectName = '$targetPath$filename';
+
+    await client.removeObject(bucket, objectName);
+  }
+
+  /// 重命名对象 (S3 没有直接 rename，通常通过 copy + delete 实现)
+  Future<void> renameObject(String oldFilename, String newFilename) async {
+    final client = _createClient();
+    String targetPath = basePath;
+    if (!targetPath.endsWith('/')) targetPath += '/';
+    if (targetPath.startsWith('/')) targetPath = targetPath.substring(1);
+
+    final oldObjectName = '$targetPath$oldFilename';
+    final newObjectName = '$targetPath$newFilename';
+
+    // 1. 复制对象到新位置
+    await client.copyObject(bucket, newObjectName, '$bucket/$oldObjectName');
+    // 2. 删除旧对象
+    await client.removeObject(bucket, oldObjectName);
+  }
 }

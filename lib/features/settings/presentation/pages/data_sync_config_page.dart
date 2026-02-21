@@ -109,75 +109,108 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      backgroundColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+      backgroundColor: colorScheme.background,
       appBar: AppBar(
         title: const Text('数据同步配置'),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '选择同步目标',
-              style: textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth < 500;
+          final padding = isMobile ? 16.0 : 32.0;
+
+          return SingleChildScrollView(
+            padding: EdgeInsets.all(padding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: _buildTargetCard(
-                    index: 0,
-                    icon: Icons.folder_outlined,
-                    title: '本地存储',
-                    description: '备份到设备本地目录',
+                Text(
+                  '选择同步目标',
+                  style: textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildTargetCard(
-                    index: 1,
-                    icon: Icons.cloud_outlined,
-                    title: 'S3 对象存储',
-                    description: '兼容 AWS S3 的云存储服务',
+                const SizedBox(height: 16),
+                if (isMobile)
+                  Column(
+                    children: [
+                      _buildTargetCard(
+                        index: 0,
+                        icon: Icons.folder_outlined,
+                        title: '本地存储',
+                        description: '备份到设备本地目录',
+                      ),
+                      const SizedBox(height: 12),
+                      _buildTargetCard(
+                        index: 1,
+                        icon: Icons.cloud_outlined,
+                        title: 'S3 对象存储',
+                        description: '兼容 AWS S3 的云存储服务',
+                      ),
+                      const SizedBox(height: 12),
+                      _buildTargetCard(
+                        index: 2,
+                        icon: Icons.public_outlined,
+                        title: 'WebDAV',
+                        description: '通用网络文件存储协议',
+                      ),
+                    ],
+                  )
+                else
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTargetCard(
+                          index: 0,
+                          icon: Icons.folder_outlined,
+                          title: '本地存储',
+                          description: '备份到设备本地目录',
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildTargetCard(
+                          index: 1,
+                          icon: Icons.cloud_outlined,
+                          title: 'S3 对象存储',
+                          description: '兼容 AWS S3 的云存储服务',
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildTargetCard(
+                          index: 2,
+                          icon: Icons.public_outlined,
+                          title: 'WebDAV',
+                          description: '通用网络文件存储协议',
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildTargetCard(
-                    index: 2,
-                    icon: Icons.public_outlined,
-                    title: 'WebDAV',
-                    description: '通用网络文件存储协议',
+                const SizedBox(height: 32),
+                Container(
+                  padding: EdgeInsets.all(isMobile ? 16 : 32),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: colorScheme.outlineVariant.withOpacity(0.4),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.02),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
+                  child: _buildConfigForm(isMobile: isMobile),
                 ),
               ],
             ),
-            const SizedBox(height: 32),
-            Container(
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: colorScheme.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: colorScheme.outlineVariant.withOpacity(0.4),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.02),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: _buildConfigForm(),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -263,34 +296,70 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
     );
   }
 
-  Widget _buildConfigForm() {
+  Widget _buildConfigForm({bool isMobile = false}) {
     if (_selectedTarget == 0) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.symmetric(vertical: 64),
-          child: Text('本地存储不需要额外配置。点击左上角返回即可。'),
+          padding: const EdgeInsets.symmetric(vertical: 64),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('本地存储不需要额外配置。保存后生效。'),
+              const SizedBox(height: 16),
+              FilledButton.tonal(
+                onPressed: _saveConfig,
+                child: const Text('设为本地同步目标'),
+              ),
+            ],
+          ),
         ),
       );
     } else if (_selectedTarget == 1) {
-      return _buildS3ConfigForm();
+      return _buildS3ConfigForm(isMobile: isMobile);
     } else if (_selectedTarget == 2) {
-      return _buildWebDavConfigForm();
+      return _buildWebDavConfigForm(isMobile: isMobile);
     }
     return const SizedBox.shrink();
   }
 
-  Widget _buildS3ConfigForm() {
+  Widget _buildS3ConfigForm({bool isMobile = false}) {
+    Widget buildRow(List<Widget> children) {
+      if (isMobile) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: children
+              .map(
+                (c) => Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: c,
+                ),
+              )
+              .toList(),
+        );
+      }
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children:
+            children
+                .expand((c) => [Expanded(child: c), const SizedBox(width: 16)])
+                .toList()
+              ..removeLast(),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'S3 存储配置',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            Flexible(
+              child: Text(
+                'S3 存储配置',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
             ),
             FilledButton.tonal(
               onPressed: _saveConfig,
@@ -299,104 +368,98 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
           ],
         ),
         const SizedBox(height: 32),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 2,
-              child: _buildFormField(
-                title: 'Endpoint 服务地址',
-                controller: _endpointController,
-                icon: Icons.api_outlined,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              flex: 1,
-              child: _buildFormField(
-                title: 'Region 区域名',
-                controller: _regionController,
-                icon: Icons.map_outlined,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 2,
-              child: _buildFormField(
-                title: 'Bucket 存储桶',
-                controller: _bucketController,
-                icon: Icons.data_usage_outlined,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              flex: 3,
-              child: _buildFormField(
-                title: 'Path 子路径',
-                controller: _pathController,
-                icon: Icons.folder_open_outlined,
-              ),
-            ),
-          ],
-        ),
+        buildRow([
+          _buildFormField(
+            title: 'Endpoint 服务地址',
+            controller: _endpointController,
+            icon: Icons.api_outlined,
+          ),
+          _buildFormField(
+            title: 'Region 区域名',
+            controller: _regionController,
+            icon: Icons.map_outlined,
+          ),
+        ]),
+        if (!isMobile) const SizedBox(height: 16),
+        buildRow([
+          _buildFormField(
+            title: 'Bucket 存储桶',
+            controller: _bucketController,
+            icon: Icons.data_usage_outlined,
+          ),
+          _buildFormField(
+            title: 'Path 子路径',
+            controller: _pathController,
+            icon: Icons.folder_open_outlined,
+          ),
+        ]),
         const SizedBox(height: 24),
         const Divider(),
         const SizedBox(height: 24),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: _buildFormField(
-                title: 'Access Key (AK)',
-                controller: _akController,
-                icon: Icons.vpn_key_outlined,
-                obscure: _isObscure,
-                trailing: IconButton(
-                  icon: Icon(
-                    _isObscure ? Icons.visibility : Icons.visibility_off,
-                  ),
-                  onPressed: () => setState(() => _isObscure = !_isObscure),
-                ),
-              ),
+        buildRow([
+          _buildFormField(
+            title: 'Access Key (AK)',
+            controller: _akController,
+            icon: Icons.vpn_key_outlined,
+            obscure: _isObscure,
+            trailing: IconButton(
+              icon: Icon(_isObscure ? Icons.visibility : Icons.visibility_off),
+              onPressed: () => setState(() => _isObscure = !_isObscure),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildFormField(
-                title: 'Secret Key (SK)',
-                controller: _skController,
-                icon: Icons.key_outlined,
-                obscure: _isObscure,
-                trailing: IconButton(
-                  icon: Icon(
-                    _isObscure ? Icons.visibility : Icons.visibility_off,
-                  ),
-                  onPressed: () => setState(() => _isObscure = !_isObscure),
-                ),
-              ),
+          ),
+          _buildFormField(
+            title: 'Secret Key (SK)',
+            controller: _skController,
+            icon: Icons.key_outlined,
+            obscure: _isObscure,
+            trailing: IconButton(
+              icon: Icon(_isObscure ? Icons.visibility : Icons.visibility_off),
+              onPressed: () => setState(() => _isObscure = !_isObscure),
             ),
-          ],
-        ),
+          ),
+        ]),
       ],
     );
   }
 
-  Widget _buildWebDavConfigForm() {
+  Widget _buildWebDavConfigForm({bool isMobile = false}) {
+    Widget buildRow(List<Widget> children) {
+      if (isMobile) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: children
+              .map(
+                (c) => Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: c,
+                ),
+              )
+              .toList(),
+        );
+      }
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children:
+            children
+                .expand((c) => [Expanded(child: c), const SizedBox(width: 16)])
+                .toList()
+              ..removeLast(),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'WebDAV 存储配置',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            Flexible(
+              child: Text(
+                'WebDAV 存储配置',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
             ),
             FilledButton.tonal(
               onPressed: _saveConfig,
@@ -405,58 +468,38 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
           ],
         ),
         const SizedBox(height: 32),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 5,
-              child: _buildFormField(
-                title: 'Server URL 服务地址',
-                controller: _webdavUrlController,
-                icon: Icons.api_outlined,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              flex: 3,
-              child: _buildFormField(
-                title: 'Path 子路径',
-                controller: _webdavPathController,
-                icon: Icons.folder_open_outlined,
-              ),
-            ),
-          ],
-        ),
+        buildRow([
+          _buildFormField(
+            title: 'Server URL 服务地址',
+            controller: _webdavUrlController,
+            icon: Icons.api_outlined,
+          ),
+          _buildFormField(
+            title: 'Path 子路径',
+            controller: _webdavPathController,
+            icon: Icons.folder_open_outlined,
+          ),
+        ]),
         const SizedBox(height: 24),
         const Divider(),
         const SizedBox(height: 24),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: _buildFormField(
-                title: 'Username 用户名',
-                controller: _webdavUserController,
-                icon: Icons.person_outline,
-              ),
+        buildRow([
+          _buildFormField(
+            title: 'Username 用户名',
+            controller: _webdavUserController,
+            icon: Icons.person_outline,
+          ),
+          _buildFormField(
+            title: 'Password 密码',
+            controller: _webdavPwdController,
+            icon: Icons.key_outlined,
+            obscure: _isObscure,
+            trailing: IconButton(
+              icon: Icon(_isObscure ? Icons.visibility : Icons.visibility_off),
+              onPressed: () => setState(() => _isObscure = !_isObscure),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildFormField(
-                title: 'Password 密码',
-                controller: _webdavPwdController,
-                icon: Icons.key_outlined,
-                obscure: _isObscure,
-                trailing: IconButton(
-                  icon: Icon(
-                    _isObscure ? Icons.visibility : Icons.visibility_off,
-                  ),
-                  onPressed: () => setState(() => _isObscure = !_isObscure),
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ]),
       ],
     );
   }

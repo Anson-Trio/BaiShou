@@ -1,9 +1,11 @@
 import 'package:baishou/core/theme/app_theme.dart';
+import 'package:baishou/core/services/api_config_service.dart';
 import 'package:baishou/core/services/data_refresh_notifier.dart';
 import 'package:baishou/features/summary/domain/services/missing_summary_detector.dart';
 import 'package:baishou/features/summary/domain/services/summary_generator_service.dart';
 import 'package:baishou/features/summary/data/repositories/summary_repository_impl.dart';
-import 'package:baishou/features/summary/presentation/providers/generation_state_service.dart'; // Import service
+import 'package:baishou/features/summary/presentation/providers/generation_state_service.dart';
+import 'package:baishou/features/settings/presentation/pages/settings_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -163,13 +165,50 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
     );
   }
 
+  /// 检查模型是否已配置，未配置则弹窗引导用户跳转设置
+  bool _checkModelConfigured() {
+    final apiConfig = ref.read(apiConfigServiceProvider);
+    final providerId = apiConfig.globalSummaryProviderId;
+    final modelId = apiConfig.globalSummaryModelId;
+
+    if (providerId.isEmpty || modelId.isEmpty) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('模型未配置'),
+          content: const Text('你还没有配置 AI 模型，无法生成总结。\n是否跳转到模型配置页面？'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SettingsPage()),
+                );
+              },
+              child: const Text('去配置'),
+            ),
+          ],
+        ),
+      );
+      return false;
+    }
+    return true;
+  }
+
   Future<void> _batchGenerate(List<MissingSummary> items) async {
+    if (!_checkModelConfigured()) return;
     for (final item in items) {
       _generate(item);
     }
   }
 
   Future<void> _generate(MissingSummary item) async {
+    if (!_checkModelConfigured()) return;
     final key = item.label;
     final service = GenerationStateService();
     // 提前获取必要服务，避免跨 async gap 使用 ref

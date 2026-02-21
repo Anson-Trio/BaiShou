@@ -25,6 +25,15 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     );
   }
 
+  /// 将 Shell Branch 索引映射为移动端底栏索引
+  /// Branch 0 → Nav 0 (时间轴), Branch 1 → Nav 1 (总结), Branch 3 → Nav 2 (设置)
+  int _getMobileNavIndex() {
+    final branchIndex = widget.navigationShell.currentIndex;
+    if (branchIndex == 3) return 2; // 设置
+    if (branchIndex <= 1) return branchIndex;
+    return 0; // 默认回到时间轴（branch 2 是桌面端专用的同步页）
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -78,10 +87,20 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
 
         // 移动端布局
         return Scaffold(
-          body: widget.navigationShell,
+          body: Container(
+            color: Theme.of(context).colorScheme.surface,
+            child: widget.navigationShell,
+          ),
           bottomNavigationBar: NavigationBar(
-            selectedIndex: widget.navigationShell.currentIndex,
-            onDestinationSelected: _goBranch,
+            selectedIndex: _getMobileNavIndex(),
+            onDestinationSelected: (index) {
+              // 移动端映射：0=时间轴, 1=总结, 2=设置(branch 3)
+              if (index == 2) {
+                _goBranch(3); // 设置页面位于 branch 3
+              } else {
+                _goBranch(index);
+              }
+            },
             destinations: const [
               NavigationDestination(
                 icon: Icon(Icons.timeline_outlined),
@@ -92,6 +111,11 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
                 icon: Icon(Icons.auto_stories_outlined),
                 selectedIcon: Icon(Icons.auto_stories),
                 label: '总结',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.settings_outlined),
+                selectedIcon: Icon(Icons.settings),
+                label: '设置',
               ),
             ],
           ),

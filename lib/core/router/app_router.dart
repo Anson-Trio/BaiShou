@@ -4,6 +4,7 @@ import 'package:baishou/features/home/presentation/pages/main_scaffold.dart';
 import 'package:baishou/features/onboarding/data/providers/onboarding_provider.dart';
 import 'package:baishou/features/onboarding/presentation/pages/onboarding_page.dart';
 
+import 'package:baishou/features/settings/presentation/pages/data_sync_page.dart';
 import 'package:baishou/features/settings/presentation/pages/settings_page.dart';
 import 'package:baishou/features/summary/presentation/pages/summary_page.dart';
 import 'package:flutter/material.dart';
@@ -89,6 +90,23 @@ GoRouter goRouter(Ref ref) {
               GoRoute(
                 path: '/summary',
                 builder: (context, state) => const SummaryPage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/sync',
+                builder: (context, state) => const DataSyncPage(),
+              ),
+            ],
+          ),
+          // Branch 3: 设置页（移动端用）
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/settings-mobile',
+                builder: (context, state) => const SettingsPage(),
               ),
             ],
           ),

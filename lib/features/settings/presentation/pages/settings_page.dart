@@ -80,7 +80,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildMobileLayout(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: colorScheme.surfaceContainerHighest,
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(title: const Text('系统设置'), centerTitle: true),
       body: ListView(
         children: [

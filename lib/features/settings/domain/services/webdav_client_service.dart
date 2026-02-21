@@ -139,4 +139,31 @@ class WebDavClientService {
 
     return records;
   }
+
+  /// 删除文件
+  Future<void> delete(String filename) async {
+    final client = _createClient();
+    String targetPath = basePath;
+    if (!targetPath.endsWith('/')) targetPath += '/';
+    final remotePath = '$targetPath$filename';
+
+    await client.remove(remotePath);
+  }
+
+  /// 重命名/移动文件
+  Future<void> rename(String oldFilename, String newFilename) async {
+    final client = _createClient();
+    String targetPath = basePath;
+    if (!targetPath.endsWith('/')) targetPath += '/';
+    final oldPath = '$targetPath$oldFilename';
+    final newPath = '$targetPath$newFilename';
+
+    // 如果 client.move 不存在，尝试 copy + remove
+    try {
+      await client.copy(oldPath, newPath, false); // Add overwrite param
+      await client.remove(oldPath);
+    } catch (e) {
+      throw Exception('重命名 WebDAV 文件失败: $e');
+    }
+  }
 }
