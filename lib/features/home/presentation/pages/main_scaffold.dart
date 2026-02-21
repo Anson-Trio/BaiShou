@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+/// 主级架构视图
+/// 负责分发移动端（底部导航）与桌面端（侧边栏）布局，切换不同的功能分支。
 class MainScaffold extends ConsumerStatefulWidget {
   final StatefulNavigationShell navigationShell;
 
@@ -27,7 +29,9 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
       builder: (context, constraints) {
         // 响应式阈值
         final bool isDesktop = constraints.maxWidth >= 700;
-        final bool showInsights = constraints.maxWidth >= 1100;
+        final bool showInsights =
+            constraints.maxWidth >= 1100 &&
+            widget.navigationShell.currentIndex == 0;
 
         if (isDesktop) {
           return Scaffold(
@@ -79,11 +83,6 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
                 icon: Icon(Icons.auto_stories_outlined),
                 selectedIcon: Icon(Icons.auto_stories),
                 label: '总结',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.settings_outlined),
-                selectedIcon: Icon(Icons.settings),
-                label: '设置',
               ),
             ],
           ),
