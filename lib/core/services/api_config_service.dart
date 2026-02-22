@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 
 import 'package:baishou/core/models/ai_provider_model.dart';
 import 'package:baishou/core/providers/shared_preferences_provider.dart';
+import 'package:baishou/core/clients/ai_client.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -45,7 +46,7 @@ class ApiConfigService {
           id: 'gemini',
           name: 'Google Gemini',
           type: ProviderType.gemini,
-          baseUrl: 'https://generativelanguage.googleapis.com',
+          baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
           models: [],
           defaultDialogueModel: '',
           defaultNamingModel: '',
@@ -224,52 +225,10 @@ class ApiConfigService {
   }
 
   /// 从远程 API 自动获取供应商支持的模型列表 (类似于 Cherry Studio)
-  /// 支持大多数标准的 OpenAI 兼容接口 /models 端点
   Future<List<String>> fetchAvailableModels(AiProviderModel provider) async {
-    if (provider.apiKey.isEmpty) {
-      throw Exception('未填写 API Key，无法获取模型。');
-    }
-    if (provider.baseUrl.isEmpty) {
-      throw Exception('未填写 API 地址，无法获取模型。');
-    }
-
-    // 格式化 Base URL，确保它不会以 /chat/completions 结尾，而是指向根路径以访问 /models
-    var baseUrlStr = provider.baseUrl;
-    if (baseUrlStr.endsWith('/')) {
-      baseUrlStr = baseUrlStr.substring(0, baseUrlStr.length - 1);
-    }
-
-    // 大多数供应商（Deepseek, OpenAI, Kimi, GLM）都遵循标准的 /models API
-    final uri = Uri.parse('$baseUrlStr/models');
-
     try {
-      final response = await http
-          .get(
-            uri,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ${provider.apiKey}',
-            },
-          )
-          .timeout(const Duration(seconds: 15));
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        if (data.containsKey('data') && data['data'] is List) {
-          final List<dynamic> modelsList = data['data'];
-          final List<String> result = [];
-          for (var model in modelsList) {
-            if (model is Map && model.containsKey('id')) {
-              result.add(model['id'].toString());
-            }
-          }
-          return result;
-        } else {
-          throw Exception('响应数据格式错误：未找到 "data" 列表字段。');
-        }
-      } else {
-        throw Exception('HTTP 错误 ${response.statusCode}: ${response.body}');
-      }
+      final client = AiClientFactory.createClient(provider);
+      return await client.fetchAvailableModels();
     } catch (e) {
       throw Exception('获取模型列表失败: $e');
     }

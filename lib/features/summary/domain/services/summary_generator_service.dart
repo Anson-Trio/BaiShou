@@ -16,6 +16,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'package:baishou/core/services/api_config_service.dart';
 import 'package:baishou/core/models/ai_provider_model.dart';
+import 'package:baishou/core/clients/ai_client.dart';
 
 part 'summary_generator_service.g.dart';
 
@@ -198,8 +199,6 @@ class SummaryGeneratorService {
     return buffer.toString();
   }
 
-  // _getWeeklyPrompt 已移除，改为从 lib/source/prompts/weekly_prompt.dart 导入
-
   /// 统一的 API 调用入口
   Future<String> _callApi(
     String providerId,
@@ -221,27 +220,29 @@ class SummaryGeneratorService {
       throw Exception('请先在"设置"中配置 API Key (Settings -> AI Config)');
     }
 
-    if (provider.type == ProviderType.gemini) {
-      return _callGemini(prompt, data, provider, modelId);
-    } else {
-      return _callOpenAi(prompt, data, provider, modelId);
+    if (modelId.isEmpty) {
+      throw Exception('未配置模型。请在"设置"中配置对话模型 (Settings -> AI Config -> 默认模型)');
+    }
+
+    // 通过 Factory 实例化特定 Client 并发起请求
+    try {
+      final client = AiClientFactory.createClient(provider);
+      // 这里的 Prompt 由业务侧拼接好传给 Client，因为部分底层 API (如 Gemini Native) 不支持单独传 system role
+      final combinedPrompt = '$prompt\n\n$data';
+      return await client.generateContent(
+        prompt: combinedPrompt,
+        modelId: modelId,
+      );
+    } catch (e) {
+      throw Exception(_sanitizeError(e));
     }
   }
 
   /// 测试供应商连接
   Future<void> testConnection(AiProviderModel provider) async {
-    const testPrompt = '你好！';
-    const testData = '';
-    final testModel = provider.models.isNotEmpty
-        ? provider.models.first
-        : 'test-model';
-
     try {
-      if (provider.type == ProviderType.gemini) {
-        await _callGemini(testPrompt, testData, provider, testModel);
-      } else {
-        await _callOpenAi(testPrompt, testData, provider, testModel);
-      }
+      final client = AiClientFactory.createClient(provider);
+      await client.testConnection();
     } catch (e) {
       throw Exception(_sanitizeError(e));
     }
@@ -263,168 +264,13 @@ class SummaryGeneratorService {
     if (errorMsg.contains('SocketException') ||
         errorMsg.contains('Connection refused') ||
         errorMsg.contains('Connection timed out') ||
-        errorMsg.contains('信号灯超时')) {
+        errorMsg.contains('连接超时')) {
       errorMsg = '网络连接失败。请检查网络设置或配置国内可用的 API Base URL (反向代理)。\n原始错误: $errorMsg';
     } else if (errorMsg.contains('HandshakeException')) {
       errorMsg = 'SSL 握手失败。请检查网络或代理设置。\n原始错误: $errorMsg';
     }
 
     return errorMsg;
-  }
-
-  /// 调用 Gemini API
-  Future<String> _callGemini(
-    String prompt,
-    String data,
-    AiProviderModel provider,
-    String model,
-  ) async {
-    if (model.isEmpty) {
-      throw Exception('未配置模型。请在"设置"中配置全局对话模型 (Settings -> AI Config -> 默认模型)');
-    }
-
-    // Gemini 允许 Base URL 为空，默认为官方 v1beta
-    // 如果用户填了 Base URL（例如代理），则使用用户填的
-    final baseUrl = provider.baseUrl.isNotEmpty
-        ? provider.baseUrl
-        : 'https://generativelanguage.googleapis.com/v1beta';
-
-    final uri = Uri.parse(
-      '$baseUrl/models/$model:generateContent?key=${provider.apiKey}',
-    );
-
-    final response = await http
-        .post(
-          uri,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'contents': [
-              {
-                'parts': [
-                  {'text': prompt},
-                ],
-              },
-            ],
-            'generationConfig': {'maxOutputTokens': 8192},
-          }),
-        )
-        .timeout(
-          const Duration(seconds: 60),
-          onTimeout: () => throw Exception('请求超时，请检查网络'),
-        );
-
-    if (response.statusCode == 200) {
-      final json = jsonDecode(response.body);
-
-      if (json['candidates'] == null || (json['candidates'] as List).isEmpty) {
-        // 尝试获取 promptFeedback（如果内容被屏蔽）
-        final feedback = json['promptFeedback'];
-        throw Exception(
-          'Gemini 返回无法生成内容 (Candidates Empty). Feedback: $feedback',
-        );
-      }
-
-      final candidate = json['candidates'][0];
-      final finishReason = candidate['finishReason'];
-
-      if (candidate['content'] == null) {
-        throw Exception('Gemini 生成内容为空. FinishReason: $finishReason');
-      }
-
-      final parts = candidate['content']['parts'] as List?;
-      if (parts == null || parts.isEmpty) {
-        throw Exception('Gemini 生成内容部分为空. FinishReason: $finishReason');
-      }
-
-      final text = parts[0]['text'] as String?;
-      if (text == null || text.isEmpty) {
-        throw Exception('Gemini 生成文本为空字符串. FinishReason: $finishReason');
-      }
-
-      return text;
-    } else {
-      throw Exception(
-        'Gemini API 错误: ${response.statusCode} - ${response.body}',
-      );
-    }
-  }
-
-  /// 调用 OpenAI 兼容接口
-  Future<String> _callOpenAi(
-    String prompt,
-    String data,
-    AiProviderModel provider,
-    String model,
-  ) async {
-    if (model.isEmpty) {
-      throw Exception(
-        '未配置模型。请在"设置"中配置全局对话模型 (Settings -> AI Config -> 默认对话模型)',
-      );
-    }
-
-    var baseUrl = provider.baseUrl;
-    if (baseUrl.isEmpty) {
-      throw Exception(
-        '使用 OpenAI 兼容模式时，必须配置 Base URL (如 https://api.openai.com/v1)',
-      );
-    }
-    // 移除末尾斜杠
-    if (baseUrl.endsWith('/')) {
-      baseUrl = baseUrl.substring(0, baseUrl.length - 1);
-    }
-    // 自动补全 /chat/completions 如果没填
-    if (!baseUrl.endsWith('/chat/completions')) {
-      baseUrl = '$baseUrl/chat/completions';
-    }
-
-    final uri = Uri.parse(baseUrl);
-
-    final response = await http
-        .post(
-          uri,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${provider.apiKey}',
-          },
-          body: jsonEncode({
-            'model': model,
-            'messages': [
-              {
-                'role': 'user',
-                'content': '$prompt\n\n$data', // 将 prompt 和 data 拼接
-              },
-            ],
-            'max_tokens': 8192,
-          }),
-        )
-        .timeout(
-          const Duration(seconds: 60),
-          onTimeout: () => throw Exception('请求超时，请检查网络'),
-        );
-
-    if (response.statusCode == 200) {
-      final json = jsonDecode(utf8.decode(response.bodyBytes));
-
-      if (json['choices'] == null || (json['choices'] as List).isEmpty) {
-        throw Exception('AI返回无法生成内容 (Choices Empty)');
-      }
-
-      final choice = json['choices'][0];
-      final finishReason = choice['finish_reason'];
-
-      if (choice['message'] == null) {
-        throw Exception('AI生成消息为空. FinishReason: $finishReason');
-      }
-
-      final content = choice['message']['content'] as String?;
-      if (content == null || content.isEmpty) {
-        throw Exception('AI生成内容为空字符串. FinishReason: $finishReason');
-      }
-
-      return content;
-    } else {
-      throw Exception('AI API 错误: ${response.statusCode} - ${response.body}');
-    }
   }
 }
 

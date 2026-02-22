@@ -143,7 +143,7 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
   }
 
   /// 重置当前供应商的 API 地址为出厂默认值，并清空 API Key
-  Future<void> _resetCurrentProvider() async {
+  Future<void> _resetCurrentProvider({StateSetter? setModalState}) async {
     final currentIdx = _providers.indexWhere(
       (p) => p.id == _selectedProviderId,
     );
@@ -157,7 +157,7 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
           defaultUrl = 'https://api.openai.com/v1';
           break;
         case ProviderType.gemini:
-          defaultUrl = 'https://generativelanguage.googleapis.com';
+          defaultUrl = 'https://generativelanguage.googleapis.com/v1beta';
           break;
         case ProviderType.anthropic:
           defaultUrl = 'https://api.anthropic.com';
@@ -179,13 +179,14 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
         _baseUrlController.text = defaultUrl;
         _apiKeyController.text = '';
       });
+      setModalState?.call(() {});
 
       AppToast.showSuccess(context, '已恢复默认地址并清空 API Key，请点击保存');
     }
   }
 
   /// 测试当前配置是否能成功连接
-  Future<void> _testConnection() async {
+  Future<void> _testConnection({StateSetter? setModalState}) async {
     if (_apiKeyController.text.isEmpty) {
       AppToast.showError(context, '请先填写 API Key 并保存');
       return;
@@ -205,6 +206,7 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
     }
 
     setState(() => _isTesting = true);
+    setModalState?.call(() {});
 
     try {
       final currentIdx = _providers.indexWhere(
@@ -230,18 +232,22 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
         AppToast.showError(context, '连接失败: $e');
       }
     } finally {
-      if (mounted) setState(() => _isTesting = false);
+      if (mounted) {
+        setState(() => _isTesting = false);
+        setModalState?.call(() {});
+      }
     }
   }
 
   /// 从远程服务器获取模型列表
-  Future<void> _fetchModels() async {
+  Future<void> _fetchModels({StateSetter? setModalState}) async {
     if (_apiKeyController.text.isEmpty) {
       AppToast.showError(context, '请先填写 API Key');
       return;
     }
 
     setState(() => _isFetchingModels = true);
+    setModalState?.call(() {});
 
     try {
       final currentIdx = _providers.indexWhere(
@@ -259,10 +265,14 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
         if (mounted) {
           setState(() {
             _providers[currentIdx] = _providers[currentIdx].copyWith(
+              baseUrl: _baseUrlController.text,
+              apiKey: _apiKeyController.text,
               models: models,
             );
           });
-          // 自动保存获取到的模型列表
+          setModalState?.call(() {});
+
+          // 自动保存获取到的模型列表以及当前的地址/Key配置
           await service.updateProvider(_providers[currentIdx]);
           AppToast.showSuccess(context, '成功获取并保存模型列表');
         }
@@ -272,7 +282,10 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
         AppToast.showError(context, '获取模型失败: $e');
       }
     } finally {
-      if (mounted) setState(() => _isFetchingModels = false);
+      if (mounted) {
+        setState(() => _isFetchingModels = false);
+        setModalState?.call(() {});
+      }
     }
   }
 
@@ -533,19 +546,22 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
               ),
               Row(
                 children: [
-                  TextButton.icon(
-                    onPressed: _testConnection,
+                  OutlinedButton.icon(
                     icon: _isTesting
                         ? const SizedBox(
                             width: 14,
                             height: 14,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Icon(Icons.wifi_tethering, size: 16),
-                    label: const Text('验证'),
-                    style: TextButton.styleFrom(
+                        : const Icon(Icons.bolt_rounded, size: 16),
+                    label: const Text('连接测试'),
+                    onPressed: _isTesting
+                        ? null
+                        : () => _testConnection(setModalState: setModalState),
+                    style: OutlinedButton.styleFrom(
                       foregroundColor: colorScheme.primary,
                       padding: const EdgeInsets.symmetric(horizontal: 12),
+                      side: BorderSide(color: colorScheme.primary),
                     ),
                   ),
                 ],
@@ -566,7 +582,10 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
                     _isObscure ? Icons.visibility : Icons.visibility_off,
                     size: 18,
                   ),
-                  onPressed: () => setState(() => _isObscure = !_isObscure),
+                  onPressed: () {
+                    setState(() => _isObscure = !_isObscure);
+                    setModalState?.call(() {});
+                  },
                   color: colorScheme.onSurfaceVariant,
                 ),
               ],
@@ -594,7 +613,8 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
                 ),
               ),
               TextButton(
-                onPressed: _resetCurrentProvider,
+                onPressed: () =>
+                    _resetCurrentProvider(setModalState: setModalState),
                 style: TextButton.styleFrom(
                   foregroundColor: colorScheme.onSurfaceVariant,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -636,7 +656,9 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
                 ],
               ),
               OutlinedButton.icon(
-                onPressed: _isFetchingModels ? null : _fetchModels,
+                onPressed: _isFetchingModels
+                    ? null
+                    : () => _fetchModels(setModalState: setModalState),
                 icon: _isFetchingModels
                     ? const SizedBox(
                         width: 14,
