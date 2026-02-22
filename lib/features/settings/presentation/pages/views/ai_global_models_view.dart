@@ -170,7 +170,7 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
     return Container(
       color: Theme.of(context).colorScheme.surface,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -189,6 +189,20 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
                 ),
               ],
             ),
+
+            const SizedBox(height: 24),
+
+            _buildDefaultModelSection(
+              title: '记忆总结模型',
+              icon: Icons.compress_rounded,
+              description: '优化用于长文本摘要和记忆提取的系统模型，处理大段上下文时使用。',
+              value: _globalSummaryModel,
+              items: allModels,
+              onChanged: (val) {
+                setState(() => _globalSummaryModel = val);
+              },
+            ),
+
             const SizedBox(height: 32),
 
             _buildDefaultModelSection(
@@ -212,19 +226,6 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
               items: allModels,
               onChanged: (val) {
                 setState(() => _globalNamingModel = val);
-              },
-            ),
-
-            const SizedBox(height: 24),
-
-            _buildDefaultModelSection(
-              title: '记忆总结模型',
-              icon: Icons.compress_rounded,
-              description: '优化用于长文本摘要和记忆提取的系统模型，处理大段上下文时使用。',
-              value: _globalSummaryModel,
-              items: allModels,
-              onChanged: (val) {
-                setState(() => _globalSummaryModel = val);
               },
             ),
           ],

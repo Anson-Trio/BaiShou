@@ -30,7 +30,7 @@ class AnthropicClient implements AiClient {
     try {
       final response = await http
           .get(uri, headers: _headers)
-          .timeout(const Duration(seconds: 30));
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);

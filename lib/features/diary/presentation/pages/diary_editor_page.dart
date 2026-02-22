@@ -260,9 +260,10 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
     final title = _titleController.text.trim();
     final body = _contentController.text.trim();
     // 将标题和正文拼接保存，标题作为第一行
-    final combinedContent = '$title\n$body'.trim();
+    // 注意：只 trimRight()，保留当 title 为空时的首个 \n，避免正文被当成标题解析
+    final combinedContent = '$title\n${body.trimRight()}';
 
-    if (combinedContent.isEmpty) {
+    if (combinedContent.trim().isEmpty) {
       AppToast.showSuccess(context, '写点什么吧...');
       return;
     }

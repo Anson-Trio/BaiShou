@@ -34,9 +34,7 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadConfig();
-    });
+    _loadConfig();
   }
 
   void _loadConfig() {

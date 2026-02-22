@@ -173,9 +173,6 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
         case ProviderType.kimi:
           defaultUrl = 'https://api.moonshot.cn/v1';
           break;
-        case ProviderType.glm:
-          defaultUrl = 'https://open.bigmodel.cn/api/paas/v4';
-          break;
         default:
           defaultUrl = '';
       }
@@ -324,12 +321,6 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
       case ProviderType.kimi:
         return Image.asset(
           'assets/ai_provider_icon/moonshot.png',
-          width: size,
-          height: size,
-        );
-      case ProviderType.glm:
-        return Image.asset(
-          'assets/ai_provider_icon/zai.png',
           width: size,
           height: size,
         );

@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'package:baishou/features/settings/presentation/pages/views/ai_global_models_view.dart';
 import 'package:baishou/features/settings/presentation/pages/views/ai_model_services_view.dart';
-import 'package:baishou/features/settings/presentation/pages/views/general_settings_view.dart';
 import 'package:baishou/features/settings/presentation/pages/data_sync_page.dart';
+import 'package:baishou/features/settings/presentation/pages/views/general_settings_view.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -79,76 +79,83 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget _buildMobileLayout(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      backgroundColor: colorScheme.surface,
-      appBar: AppBar(title: const Text('系统设置'), centerTitle: true),
-      body: ListView(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.settings_outlined),
-            title: const Text('常规设置'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => Scaffold(
-                    appBar: AppBar(title: const Text('常规设置')),
-                    body: const GeneralSettingsView(),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        context.go('/');
+      },
+      child: Scaffold(
+        backgroundColor: colorScheme.surface,
+        appBar: AppBar(title: const Text('系统设置'), centerTitle: true),
+        body: ListView(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.settings_outlined),
+              title: const Text('常规设置'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => Scaffold(
+                      appBar: AppBar(title: const Text('常规设置')),
+                      body: const GeneralSettingsView(),
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.cloud_queue_outlined),
-            title: const Text('模型服务'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => Scaffold(
-                    appBar: AppBar(title: const Text('模型服务')),
-                    body: const AiModelServicesView(),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.cloud_queue_outlined),
+              title: const Text('模型服务'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => Scaffold(
+                      appBar: AppBar(title: const Text('模型服务')),
+                      body: const AiModelServicesView(),
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.star_border_rounded),
-            title: const Text('全局模型'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => Scaffold(
-                    appBar: AppBar(title: const Text('全局模型')),
-                    body: const AiGlobalModelsView(),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.star_border_rounded),
+              title: const Text('全局模型'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => Scaffold(
+                      appBar: AppBar(title: const Text('全局模型')),
+                      body: const AiGlobalModelsView(),
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.sync_rounded),
-            title: const Text('数据同步'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => Scaffold(
-                    appBar: AppBar(title: const Text('数据同步')),
-                    body: const DataSyncPage(),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.sync_rounded),
+              title: const Text('数据同步'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => Scaffold(
+                      appBar: AppBar(title: const Text('数据同步')),
+                      body: const DataSyncPage(),
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
-        ],
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

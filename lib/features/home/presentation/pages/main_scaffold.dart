@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:baishou/features/home/presentation/widgets/desktop_insights_sidebar.dart';
 import 'package:baishou/features/home/presentation/widgets/desktop_sidebar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -46,11 +45,6 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         final bool isLargeScreen = constraints.maxWidth >= 700;
         final bool isDesktop = isDesktopOS || isLargeScreen;
 
-        final bool showInsights =
-            isDesktop &&
-            constraints.maxWidth >= 1100 &&
-            widget.navigationShell.currentIndex == 0;
-
         if (isDesktop) {
           return Scaffold(
             backgroundColor: Theme.of(context).colorScheme.surface,
@@ -80,9 +74,6 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
                     child: widget.navigationShell,
                   ),
                 ),
-
-                // 右侧洞察栏 (宽屏桌面端)
-                if (showInsights) const DesktopInsightsSidebar(),
               ],
             ),
           );

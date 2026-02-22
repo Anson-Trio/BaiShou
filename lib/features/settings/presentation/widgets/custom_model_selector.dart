@@ -200,13 +200,6 @@ class CustomModelSelector extends StatelessWidget {
                           width: 20,
                           height: 20,
                         );
-                      } else if (providerIdLower.contains('zhipu') ||
-                          providerIdLower.contains('glm')) {
-                        providerIconWidget = Image.asset(
-                          'assets/ai_provider_icon/zai.png',
-                          width: 20,
-                          height: 20,
-                        );
                       } else {
                         providerIconWidget = Icon(
                           Icons.cloud_outlined,

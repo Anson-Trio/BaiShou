@@ -5,6 +5,7 @@ import 'package:archive/archive.dart';
 import 'package:archive/archive_io.dart';
 
 import 'package:baishou/core/services/api_config_service.dart';
+import 'package:baishou/features/settings/domain/services/data_sync_config_service.dart';
 import 'package:baishou/core/theme/theme_service.dart';
 import 'package:baishou/features/diary/domain/entities/diary.dart';
 import 'package:baishou/features/diary/domain/repositories/diary_repository.dart';
@@ -29,6 +30,7 @@ class ExportService {
   final DiaryRepository _diaryRepository;
   final SummaryRepository _summaryRepository;
   final ApiConfigService _apiConfig;
+  final DataSyncConfigService _dataSyncConfig;
   final UserProfile _userProfile;
   final AppThemeState _themeState;
 
@@ -36,11 +38,13 @@ class ExportService {
     required DiaryRepository diaryRepository,
     required SummaryRepository summaryRepository,
     required ApiConfigService apiConfig,
+    required DataSyncConfigService dataSyncConfig,
     required UserProfile userProfile,
     required AppThemeState themeState,
   }) : _diaryRepository = diaryRepository,
        _summaryRepository = summaryRepository,
        _apiConfig = apiConfig,
+       _dataSyncConfig = dataSyncConfig,
        _userProfile = userProfile,
        _themeState = themeState;
 
@@ -78,13 +82,37 @@ class ExportService {
       'nickname': _userProfile.nickname,
       'theme_mode': _themeState.mode.index,
       'seed_color': _themeState.seedColor.toARGB32(),
-      // AI 配置
+      // AI 新架构配置
+      'ai_providers_list': _apiConfig
+          .getProviders()
+          .map((p) => p.toMap())
+          .toList(),
+      'global_dialogue_provider_id': _apiConfig.globalDialogueProviderId,
+      'global_dialogue_model_id': _apiConfig.globalDialogueModelId,
+      'global_naming_provider_id': _apiConfig.globalNamingProviderId,
+      'global_naming_model_id': _apiConfig.globalNamingModelId,
+      'global_summary_provider_id': _apiConfig.globalSummaryProviderId,
+      'global_summary_model_id': _apiConfig.globalSummaryModelId,
+      // 保留旧字段以便向下兼容
       'ai_provider': _apiConfig.activeProviderId,
       'ai_model': _apiConfig.getActiveProvider()?.defaultDialogueModel ?? '',
       'ai_naming_model':
           _apiConfig.getActiveProvider()?.defaultNamingModel ?? '',
       'api_key': _apiConfig.getActiveProvider()?.apiKey ?? '',
       'base_url': _apiConfig.getActiveProvider()?.baseUrl ?? '',
+
+      // 数据同步服务配置 (WebDAV, S3 等)
+      'sync_target': _dataSyncConfig.syncTarget.index,
+      'webdav_url': _dataSyncConfig.webdavUrl,
+      'webdav_username': _dataSyncConfig.webdavUsername,
+      'webdav_password': _dataSyncConfig.webdavPassword,
+      'webdav_path': _dataSyncConfig.webdavPath,
+      's3_endpoint': _dataSyncConfig.s3Endpoint,
+      's3_access_key': _dataSyncConfig.s3AccessKey,
+      's3_secret_key': _dataSyncConfig.s3SecretKey,
+      's3_bucket': _dataSyncConfig.s3Bucket,
+      's3_region': _dataSyncConfig.s3Region,
+      's3_path': _dataSyncConfig.s3Path,
     };
 
     // 头像：如果存在则以 Base64 编码写入
@@ -227,6 +255,7 @@ final exportServiceProvider = Provider<ExportService>((ref) {
     diaryRepository: ref.watch(diaryRepositoryProvider),
     summaryRepository: ref.watch(summaryRepositoryProvider),
     apiConfig: ref.watch(apiConfigServiceProvider),
+    dataSyncConfig: ref.watch(dataSyncConfigServiceProvider),
     userProfile: ref.watch(userProfileProvider),
     themeState: ref.watch(themeProvider),
   );

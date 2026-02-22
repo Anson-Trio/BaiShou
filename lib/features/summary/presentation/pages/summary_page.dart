@@ -11,6 +11,7 @@ import 'package:baishou/features/summary/presentation/widgets/summary_list_view.
 import 'package:baishou/features/summary/presentation/widgets/summary_raw_data_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 /// 总结主页面
 /// 聚合了数据仪表盘（各维度总结）与原始数据导出两个核心子视图。
@@ -28,31 +29,38 @@ class SummaryPage extends ConsumerWidget {
 
     return DefaultTabController(
       length: 3,
-      child: SafeArea(
-        top: isMobile,
-        bottom: false,
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            title: const Text('AI 总结'),
-            centerTitle: false,
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          context.go('/');
+        },
+        child: SafeArea(
+          top: isMobile,
+          bottom: false,
+          child: Scaffold(
             backgroundColor: Colors.transparent,
-            surfaceTintColor: Colors.transparent,
-            elevation: 0,
-            bottom: const TabBar(
-              tabs: [
-                Tab(text: '仪表盘'),
-                Tab(text: '原始数据'),
-                Tab(text: '历史归档'),
+            appBar: AppBar(
+              title: const Text('AI 总结'),
+              centerTitle: false,
+              backgroundColor: Colors.transparent,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+              bottom: const TabBar(
+                tabs: [
+                  Tab(text: '仪表盘'),
+                  Tab(text: '原始数据'),
+                  Tab(text: '历史归档'),
+                ],
+              ),
+            ),
+            body: const TabBarView(
+              children: [
+                SummaryDashboardView(),
+                SummaryRawDataView(),
+                _SummaryArchiveView(),
               ],
             ),
-          ),
-          body: const TabBarView(
-            children: [
-              SummaryDashboardView(),
-              SummaryRawDataView(),
-              _SummaryArchiveView(),
-            ],
           ),
         ),
       ),

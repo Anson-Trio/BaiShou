@@ -16,7 +16,9 @@ class DiaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     // 提取标题（第一行）和内容（其余部分）
     final lines = diary.content.split('\n');
-    final String title = lines.isNotEmpty ? lines.first : '无标题';
+    final String title = (lines.isNotEmpty && lines.first.trim().isNotEmpty)
+        ? lines.first
+        : '无标题';
     final String body = lines.length > 1
         ? lines
               .sublist(1)
