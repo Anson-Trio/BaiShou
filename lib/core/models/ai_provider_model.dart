@@ -12,6 +12,7 @@ class AiProviderModel {
   final String defaultDialogueModel;
   final String defaultNamingModel;
   final bool isEnabled;
+  final List<String> enabledModels;
   final String? notes;
 
   AiProviderModel({
@@ -24,6 +25,7 @@ class AiProviderModel {
     this.defaultDialogueModel = '',
     this.defaultNamingModel = '',
     this.isEnabled = true,
+    this.enabledModels = const [],
     this.notes,
   });
 
@@ -37,6 +39,7 @@ class AiProviderModel {
     String? defaultDialogueModel,
     String? defaultNamingModel,
     bool? isEnabled,
+    List<String>? enabledModels,
     String? notes,
   }) {
     return AiProviderModel(
@@ -49,6 +52,7 @@ class AiProviderModel {
       defaultDialogueModel: defaultDialogueModel ?? this.defaultDialogueModel,
       defaultNamingModel: defaultNamingModel ?? this.defaultNamingModel,
       isEnabled: isEnabled ?? this.isEnabled,
+      enabledModels: enabledModels ?? this.enabledModels,
       notes: notes ?? this.notes,
     );
   }
@@ -64,6 +68,7 @@ class AiProviderModel {
       'defaultDialogueModel': defaultDialogueModel,
       'defaultNamingModel': defaultNamingModel,
       'isEnabled': isEnabled,
+      'enabledModels': enabledModels,
       'notes': notes,
     };
   }
@@ -84,6 +89,7 @@ class AiProviderModel {
       defaultNamingModel:
           map['defaultNamingModel'] ?? map['defaultModel'] ?? '',
       isEnabled: map['isEnabled'] ?? true,
+      enabledModels: List<String>.from(map['enabledModels'] ?? []),
       notes: map['notes'],
     );
   }

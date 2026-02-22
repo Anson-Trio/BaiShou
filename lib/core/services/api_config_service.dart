@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 
 import 'package:baishou/core/models/ai_provider_model.dart';
 import 'package:baishou/core/providers/shared_preferences_provider.dart';
@@ -214,6 +213,7 @@ class ApiConfigService {
     for (var p in providers) {
       if (!p.isEnabled) continue; // 仅返回已启用的供应商模型
       for (var m in p.models) {
+        if (!p.enabledModels.contains(m)) continue; // 仅返回用户已主动开启的模型
         result.add({
           'provider_id': p.id,
           'provider_name': p.name,
