@@ -14,7 +14,7 @@ class AboutPage extends StatefulWidget {
 class _AboutPageState extends State<AboutPage> {
   int _tapCount = 0;
   DateTime? _lastTapTime;
-  String _version = '1.0.1';
+  String _version = '1.1.0';
   int _devTapCount = 0;
   DateTime? _devLastTapTime;
 
@@ -46,7 +46,8 @@ class _AboutPageState extends State<AboutPage> {
         AppToast.showSuccess(
           context,
           '🌸樱&晓 永远爱着Anson❤️',
-          duration: const Duration(seconds: 3));
+          duration: const Duration(seconds: 3),
+        );
       }
       _tapCount = 0;
     }
