@@ -1,24 +1,28 @@
 import 'dart:io';
 
-import 'package:baishou/core/services/data_refresh_notifier.dart';
 import 'package:baishou/core/theme/theme_service.dart';
-import 'package:baishou/features/settings/domain/services/export_service.dart';
-import 'package:baishou/features/settings/domain/services/import_service.dart';
 import 'package:baishou/features/settings/domain/services/user_profile_service.dart';
 import 'package:baishou/features/settings/presentation/pages/about_page.dart';
-import 'package:baishou/features/settings/presentation/pages/lan_transfer_page.dart';
-import 'package:baishou/core/widgets/app_toast.dart';
+import 'package:baishou/features/settings/presentation/pages/lan_transfer_page.dart'
+    as baishou_lan;
+import 'package:baishou/features/settings/domain/services/export_service.dart'
+    as baishou_export;
+import 'package:baishou/features/settings/domain/services/import_service.dart'
+    as baishou_import;
+import 'package:baishou/core/services/data_refresh_notifier.dart'
+    as baishou_refresh;
 import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:baishou/features/settings/presentation/pages/privacy_policy_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// 常规设置视图
-/// 整合了个人资料编辑、外观主题切换、数据备份/恢复管理以及关于信息入口。
+/// 整合了个人资料编辑、外观主题切换以及关于信息入口。
 class GeneralSettingsView extends ConsumerStatefulWidget {
   const GeneralSettingsView({super.key});
 
@@ -28,41 +32,15 @@ class GeneralSettingsView extends ConsumerStatefulWidget {
 }
 
 class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
-  bool _isImporting = false;
-
   @override
   Widget build(BuildContext context) {
-    return Stack(
+    return ListView(
+      padding: const EdgeInsets.all(32),
       children: [
-        ListView(
-          padding: const EdgeInsets.all(32),
-          children: [
-            _buildProfileSection(),
-            _buildAppearanceSection(),
-            _buildDataSection(),
-            _buildAboutSection(),
-          ],
-        ),
-        // 导入时的全屏遮罩
-        if (_isImporting)
-          Container(
-            color: Colors.black54,
-            child: const Center(
-              child: Card(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(width: 16),
-                      Text('正在导入...'),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
+        _buildProfileSection(),
+        _buildAppearanceSection(),
+        _buildDataManagementSection(),
+        _buildAboutSection(),
       ],
     );
   }
@@ -332,7 +310,7 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
     }
   }
 
-  Widget _buildDataSection() {
+  Widget _buildDataManagementSection() {
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 16),
@@ -343,82 +321,120 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
       ),
       child: Column(
         children: [
-          ListTile(
-            leading: const Icon(Icons.download_outlined),
-            title: const Text('导出数据'),
-            subtitle: const Text('导出完整备份（含日记、总结、配置）'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () async {
-              try {
-                final file = await ref
-                    .read(exportServiceProvider)
-                    .exportToZip(share: false);
-                if (!mounted) return;
-                if (file != null) {
-                  AppToast.showSuccess(context, '导出成功');
-                }
-              } catch (e) {
-                if (mounted) {
-                  AppToast.showError(context, '导出失败: $e');
-                }
-              }
-            },
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.upload_outlined),
-            title: const Text('导入数据'),
-            subtitle: const Text('从备份 ZIP 恢复日记、总结和配置'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _importBackup(),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.wifi_tethering_outlined),
-            title: const Text('局域网传输'),
-            subtitle: const Text('在同一网络下的设备间同步'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const LanTransferPage(),
-                ),
-              );
-            },
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.restore_outlined),
-            title: const Text('恢复快照'),
-            subtitle: const Text('恢复到导入前的数据状态'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _restoreFromSnapshot(),
+          ExpansionTile(
+            leading: const Icon(Icons.storage_outlined),
+            title: const Text('数据管理'),
+            subtitle: const Text('导出、导入数据或局域网快传'),
+            children: [
+              ListTile(
+                leading: const Icon(Icons.download_outlined),
+                title: const Text('导出数据至本地'),
+                subtitle: const Text('生成一份包含所有内容的 ZIP 备份文件'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: _exportData,
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.upload_file_outlined),
+                title: const Text('从外部 ZIP 导入'),
+                subtitle: const Text('选择本地 ZIP 文件覆盖恢复数据'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: _importData,
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.history),
+                title: const Text('从快照恢复'),
+                subtitle: const Text('从本地历史快照中选择一个进行恢复'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: _restoreFromSnapshot,
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.wifi_protected_setup_outlined),
+                title: const Text('局域网传输'),
+                subtitle: const Text('在同一 Wi-Fi 下快速互传整个数据库'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const baishou_lan.LanTransferPage(),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Future<void> _importBackup() async {
+  Future<void> _exportData() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('正在导出数据...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final exportService = ref.read(baishou_export.exportServiceProvider);
+      final exportFile = await exportService.exportToZip(share: false);
+
+      if (mounted) {
+        Navigator.pop(context); // 关掉 loading
+        if (exportFile != null) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('导出成功'),
+              content: Text('备份 ZIP 文件已保存在:\n${exportFile.path}'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('好的'),
+                ),
+              ],
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // 关掉 loading
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('导出失败: $e')));
+      }
+    }
+  }
+
+  Future<void> _importData() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['zip'],
-      dialogTitle: '选择备份文件',
     );
 
     if (result == null || result.files.single.path == null) return;
-    final zipFile = File(result.files.single.path!);
+
+    final file = File(result.files.single.path!);
 
     if (!mounted) return;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('导入备份'),
-        content: const Text(
-          '导入将覆盖当前所有数据并恢复配置（含 API Key、主题、头像）。\n\n导入前会自动创建快照，可用于恢复。\n\n确认继续？',
-        ),
+        title: const Text('确认恢复'),
+        content: const Text('恢复快照将覆盖当前所有数据。\n\n确认继续？'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -426,7 +442,7 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('导入'),
+            child: const Text('恢复'),
           ),
         ],
       ),
@@ -434,83 +450,91 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
 
     if (confirmed != true || !mounted) return;
 
-    setState(() => _isImporting = true);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('正在恢复数据...'),
+          ],
+        ),
+      ),
+    );
 
     try {
       final importResult = await ref
-          .read(importServiceProvider)
-          .importFromZip(zipFile);
+          .read(baishou_import.importServiceProvider)
+          .importFromZip(file);
 
       if (!mounted) return;
-
-      if (importResult.success && importResult.configData != null) {
-        await ref
-            .read(importServiceProvider)
-            .restoreConfig(importResult.configData!);
-      }
-
-      if (!mounted) return;
-      setState(() => _isImporting = false);
+      Navigator.pop(context); // 关掉 loading
 
       if (importResult.success) {
-        ref.read(dataRefreshProvider.notifier).refresh();
-        AppToast.showSuccess(
-          context,
-          '导入成功：${importResult.diariesImported} 条日记，'
-          '${importResult.summariesImported} 条总结'
-          '${importResult.profileRestored ? "，配置已恢复" : ""}'
-          '${importResult.snapshotPath != null ? "\n已创建恢复快照" : ""}',
-          duration: const Duration(seconds: 4),
+        if (importResult.configData != null) {
+          await ref
+              .read(baishou_import.importServiceProvider)
+              .restoreConfig(importResult.configData!);
+        }
+
+        if (!mounted) return;
+        ref.read(baishou_refresh.dataRefreshProvider.notifier).refresh();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '快照恢复成功：${importResult.diariesImported} 条日记，'
+              '${importResult.summariesImported} 条总结',
+            ),
+          ),
         );
       } else {
-        AppToast.showError(context, importResult.error ?? '导入失败');
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(importResult.error ?? '恢复失败')));
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isImporting = false);
-        AppToast.showError(context, '导入失败: $e');
+        Navigator.pop(context); // 关掉 loading
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('恢复失败: $e')));
       }
     }
   }
 
+  /// 从本地 snapshots/ 目录列出历史快照，让用户选择后恢复
   Future<void> _restoreFromSnapshot() async {
     final appDir = await getApplicationDocumentsDirectory();
     final snapshotDir = Directory('${appDir.path}/snapshots');
 
     if (!snapshotDir.existsSync()) {
-      if (mounted) {
-        AppToast.showSuccess(context, '暂无可用快照');
-      }
+      if (mounted) AppToast.show(context, '暂无可用快照');
       return;
     }
 
-    final allFiles = snapshotDir
-        .listSync()
-        .whereType<File>()
-        .where((f) => f.path.endsWith('.zip'))
-        .toList();
+    final allFiles =
+        snapshotDir
+            .listSync()
+            .whereType<File>()
+            .where((f) => f.path.endsWith('.zip'))
+            .toList()
+          ..sort((a, b) => b.path.compareTo(a.path));
 
-    allFiles.sort((a, b) => b.path.compareTo(a.path));
-
+    // 保留最新 10 个，清理旧的
     if (allFiles.length > 10) {
       for (var i = 10; i < allFiles.length; i++) {
         try {
-          if (allFiles[i].existsSync()) {
-            allFiles[i].deleteSync();
-            debugPrint('Deleted old snapshot: ${allFiles[i].path}');
-          }
-        } catch (e) {
-          debugPrint('Failed to delete old snapshot: $e');
-        }
+          allFiles[i].deleteSync();
+        } catch (_) {}
       }
     }
 
     final snapshots = allFiles.take(10).toList();
 
     if (snapshots.isEmpty) {
-      if (mounted) {
-        AppToast.showSuccess(context, '暂无可用快照');
-      }
+      if (mounted) AppToast.show(context, '暂无可用快照');
       return;
     }
 
@@ -527,8 +551,8 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
             shrinkWrap: true,
             itemCount: snapshots.length,
             itemBuilder: (context, index) {
-              final file = snapshots[index];
-              final name = file.path.split('/').last;
+              final f = snapshots[index];
+              final name = f.path.split(Platform.pathSeparator).last;
               final timeMatch = RegExp(r'(\d{8})_(\d{6})').firstMatch(name);
               String displayTime = name;
               if (timeMatch != null) {
@@ -538,7 +562,7 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
                     '${d.substring(0, 4)}-${d.substring(4, 6)}-${d.substring(6, 8)} '
                     '${t.substring(0, 2)}:${t.substring(2, 4)}:${t.substring(4, 6)}';
               }
-              final fileSize = file.lengthSync();
+              final fileSize = f.lengthSync();
               final sizeStr = fileSize > 1024 * 1024
                   ? '${(fileSize / 1024 / 1024).toStringAsFixed(1)} MB'
                   : '${(fileSize / 1024).toStringAsFixed(0)} KB';
@@ -546,7 +570,7 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
                 leading: const Icon(Icons.history),
                 title: Text(displayTime),
                 subtitle: Text(sizeStr),
-                onTap: () => Navigator.pop(ctx, file),
+                onTap: () => Navigator.pop(ctx, f),
               );
             },
           ),
@@ -582,26 +606,36 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
 
     if (confirmed != true || !mounted) return;
 
-    setState(() => _isImporting = true);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('正在恢复数据...'),
+          ],
+        ),
+      ),
+    );
 
     try {
       final importResult = await ref
-          .read(importServiceProvider)
+          .read(baishou_import.importServiceProvider)
           .importFromZip(selected);
 
       if (!mounted) return;
-
-      if (importResult.success && importResult.configData != null) {
-        await ref
-            .read(importServiceProvider)
-            .restoreConfig(importResult.configData!);
-      }
-
-      if (!mounted) return;
-      setState(() => _isImporting = false);
+      Navigator.pop(context); // 关掉 loading
 
       if (importResult.success) {
-        ref.read(dataRefreshProvider.notifier).refresh();
+        if (importResult.configData != null) {
+          await ref
+              .read(baishou_import.importServiceProvider)
+              .restoreConfig(importResult.configData!);
+        }
+        if (!mounted) return;
+        ref.read(baishou_refresh.dataRefreshProvider.notifier).refresh();
         AppToast.showSuccess(
           context,
           '快照恢复成功：${importResult.diariesImported} 条日记，'
@@ -613,7 +647,7 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isImporting = false);
+        Navigator.pop(context);
         AppToast.showError(context, '恢复失败: $e');
       }
     }
