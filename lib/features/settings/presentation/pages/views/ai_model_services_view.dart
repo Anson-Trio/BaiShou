@@ -86,19 +86,27 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
     }
 
     if (isMobile) {
-      // 移动端跳转到详细配置页
+      // 移动端跳转到详细配置页（使用当前 context，确保配置页能读写父级 state）
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) {
-            final colorScheme = Theme.of(context).colorScheme;
-            return Scaffold(
-              appBar: AppBar(title: const Text('模型配置')),
-              body: _buildConfigFormContainer(colorScheme),
-            );
-          },
+          builder: (ctx) => StatefulBuilder(
+            builder: (ctx2, setModalState) {
+              final colorScheme = Theme.of(ctx2).colorScheme;
+              return Scaffold(
+                appBar: AppBar(title: const Text('模型配置')),
+                body: _buildConfigFormContainer(
+                  colorScheme,
+                  setModalState: setModalState,
+                ),
+              );
+            },
+          ),
         ),
-      );
+      ).then((_) {
+        // 返回后刷新列表页，确保 isEnabled 状态她同步
+        _loadProviderConfig();
+      });
     }
   }
 
@@ -268,49 +276,49 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
   }
 
   /// 获取供应商对应的图标资源
-  Widget _getProviderIcon(ProviderType type) {
+  Widget _getProviderIcon(ProviderType type, {double size = 20}) {
     switch (type) {
       case ProviderType.openai:
         return Image.asset(
           'assets/ai_provider_icon/openai.png',
-          width: 20,
-          height: 20,
+          width: size,
+          height: size,
         );
       case ProviderType.gemini:
         return Image.asset(
           'assets/ai_provider_icon/gemini-color.png',
-          width: 20,
-          height: 20,
+          width: size,
+          height: size,
         );
       case ProviderType.anthropic:
         return Image.asset(
           'assets/ai_provider_icon/claude-color.png',
-          width: 20,
-          height: 20,
+          width: size,
+          height: size,
         );
       case ProviderType.deepseek:
         return Image.asset(
           'assets/ai_provider_icon/deepseek-color.png',
-          width: 20,
-          height: 20,
+          width: size,
+          height: size,
         );
       case ProviderType.kimi:
         return Image.asset(
           'assets/ai_provider_icon/moonshot.png',
-          width: 20,
-          height: 20,
+          width: size,
+          height: size,
         );
       case ProviderType.glm:
         return Image.asset(
           'assets/ai_provider_icon/zai.png',
-          width: 20,
-          height: 20,
+          width: size,
+          height: size,
         );
       default:
         return Icon(
           Icons.cloud_outlined,
           color: Colors.grey.shade700,
-          size: 20,
+          size: size,
         );
     }
   }
@@ -425,7 +433,7 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
     );
   }
 
-  Widget _buildRightConfigPanel() {
+  Widget _buildRightConfigPanel({StateSetter? setModalState}) {
     final activeProvider = _providers.firstWhere(
       (p) => p.id == _selectedProviderId,
       orElse: () => _providers.first,
@@ -444,41 +452,33 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
         children: [
           // Header
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-
-                    child: Center(child: _getProviderIcon(activeProvider.type)),
-                  ),
-                  const SizedBox(width: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            activeProvider.name,
-                            style: Theme.of(context).textTheme.headlineSmall
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                        ],
+              _getProviderIcon(activeProvider.type, size: 48),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      activeProvider.name,
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '配置并管理大语言模型服务',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
                       ),
-                      const SizedBox(height: 4),
-                      const SizedBox(height: 4),
-                      Text(
-                        '配置并管理大语言模型服务',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 16),
               Switch(
                 value: activeProvider.isEnabled,
                 onChanged: (val) async {
@@ -491,6 +491,8 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
                     setState(() {
                       _providers[idx] = provider;
                     });
+                    // 如果在通用的移动端详情页打开，同步刷新该页面的 state
+                    setModalState?.call(() {});
                   }
                 },
                 activeColor: colorScheme.primary,
@@ -709,17 +711,24 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            _getProviderIcon(activeProvider.type),
-                            const SizedBox(width: 12),
-                            Text(
-                              activeProvider.models[index],
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w500,
+                        Expanded(
+                          child: Row(
+                            children: [
+                              _getProviderIcon(activeProvider.type),
+                              const SizedBox(width: 12),
+                              Flexible(
+                                child: Text(
+                                  activeProvider.models[index],
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 2,
+                                ),
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 12),
+                            ],
+                          ),
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -750,13 +759,19 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
     );
   }
 
-  Widget _buildConfigFormContainer(ColorScheme colorScheme) {
+  Widget _buildConfigFormContainer(
+    ColorScheme colorScheme, {
+    StateSetter? setModalState,
+  }) {
     return Container(
       color: colorScheme.surface,
       child: Stack(
         children: [
           Positioned.fill(
-            child: Form(key: _formKey, child: _buildRightConfigPanel()),
+            child: Form(
+              key: _formKey,
+              child: _buildRightConfigPanel(setModalState: setModalState),
+            ),
           ),
           Positioned(
             bottom: 0,

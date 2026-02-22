@@ -22,6 +22,13 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
   DateTime? _selectedMonth;
   String _searchQuery = '';
   bool _isSearching = false;
+  final _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,18 +93,28 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
               final sortedDates = groupedData.keys.toList()
                 ..sort((a, b) => b.compareTo(a));
 
-              return CustomScrollView(
-                physics: const BouncingScrollPhysics(),
-                slivers: [
-                  const SliverToBoxAdapter(child: SizedBox(height: 10)),
-                  ..._buildSlivers(
-                    context,
-                    groupedData,
-                    sortedDates,
-                    isDesktop,
-                  ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 80)),
-                ],
+              return GestureDetector(
+                onDoubleTap: () {
+                  _scrollController.animateTo(
+                    0,
+                    duration: const Duration(milliseconds: 400),
+                    curve: Curves.easeOut,
+                  );
+                },
+                child: CustomScrollView(
+                  controller: _scrollController,
+                  physics: const BouncingScrollPhysics(),
+                  slivers: [
+                    const SliverToBoxAdapter(child: SizedBox(height: 10)),
+                    ..._buildSlivers(
+                      context,
+                      groupedData,
+                      sortedDates,
+                      isDesktop,
+                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 80)),
+                  ],
+                ),
               );
             },
           ),

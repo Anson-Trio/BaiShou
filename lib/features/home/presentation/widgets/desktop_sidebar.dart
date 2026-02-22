@@ -9,7 +9,7 @@ import 'package:go_router/go_router.dart';
 /// 实现多级导航、用户信息展示以及与应用核心理念（数据主权）一致的视觉风格。
 class DesktopSidebar extends ConsumerWidget {
   final StatefulNavigationShell navigationShell; // 关联的 Shell 导航引用
-  /// 切换分支的回调，由 MainScaffold 提供（含淡入淡出动画）
+  /// 切换分支的回调
   final void Function(int index) onBranchChange;
 
   const DesktopSidebar({
@@ -211,8 +211,7 @@ class _NavMenuItem extends StatelessWidget {
         onTap: onTap,
         child: MouseRegion(
           cursor: SystemMouseCursors.click,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
+          child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             decoration: BoxDecoration(
               color: isSelected

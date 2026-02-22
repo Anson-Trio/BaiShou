@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:baishou/core/database/app_database.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:baishou/features/diary/data/repositories/diary_repository_impl.dart';
 import 'package:flutter/material.dart';
@@ -29,7 +30,8 @@ class _DeveloperOptionsViewState extends ConsumerState<DeveloperOptionsView> {
           AppToast.showSuccess(
             context,
             '✅ 演示数据已加载',
-            duration: const Duration(seconds: 3));
+            duration: const Duration(seconds: 3),
+          );
         }
       }
     } catch (e) {
@@ -68,23 +70,30 @@ class _DeveloperOptionsViewState extends ConsumerState<DeveloperOptionsView> {
     setState(() => _isClearing = true);
 
     try {
-      // 1. Clear SharedPreferences
+      // 1. 关闭数据库连接（释放 Windows 文件句柄，解决「另一个程序正在访问」）
+      await ref.read(appDatabaseProvider).close();
+
+      // 2. 清除 SharedPreferences（配置、引导状态等）
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
 
-      // 2. Clear Database & Files
+      // 3. 删除 SQLite 数据库文件及附属文件（WAL / SHM）
       final appDir = await getApplicationDocumentsDirectory();
-
-      final dbFile = File('${appDir.path}/baishou.sqlite');
-      if (dbFile.existsSync()) {
-        dbFile.deleteSync();
+      final dbBasePath = '${appDir.path}/baishou.sqlite';
+      for (final suffix in ['', '-wal', '-shm']) {
+        final file = File('$dbBasePath$suffix');
+        if (file.existsSync()) {
+          file.deleteSync();
+        }
       }
 
+      // 4. 删除快照目录
       final snapshotDir = Directory('${appDir.path}/snapshots');
       if (snapshotDir.existsSync()) {
         snapshotDir.deleteSync(recursive: true);
       }
 
+      // 5. 删除图片目录
       final imagesDir = Directory('${appDir.path}/images');
       if (imagesDir.existsSync()) {
         imagesDir.deleteSync(recursive: true);

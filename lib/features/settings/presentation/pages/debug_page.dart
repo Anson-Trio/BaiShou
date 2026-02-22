@@ -22,8 +22,9 @@ class _DebugPageState extends ConsumerState<DebugPage> {
         if (mounted) {
           AppToast.showSuccess(
             context,
-            '✅ 演示数据已加载',
-            duration: const Duration(seconds: 3));
+            ' 演示数据已加载',
+            duration: const Duration(seconds: 3),
+          );
         }
       }
     } catch (e) {
