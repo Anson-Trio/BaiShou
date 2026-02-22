@@ -83,8 +83,6 @@ class OpenAiClient implements AiClient {
               'messages': [
                 {'role': 'user', 'content': prompt},
               ],
-              'temperature': 0.5,
-              'max_tokens': 1024,
             }),
           )
           .timeout(const Duration(seconds: 30));

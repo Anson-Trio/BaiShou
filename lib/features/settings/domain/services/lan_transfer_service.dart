@@ -230,7 +230,7 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
       );
     });
 
-    return router;
+    return router.call;
   }
 
   /// 消费待导入文件信号 (UI 处理完弹窗后调用)
