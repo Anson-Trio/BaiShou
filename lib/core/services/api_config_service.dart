@@ -77,15 +77,6 @@ class ApiConfigService {
           defaultDialogueModel: '',
           defaultNamingModel: '',
         ),
-        AiProviderModel(
-          id: 'glm',
-          name: 'Zhipu GLM',
-          type: ProviderType.glm,
-          baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
-          models: [],
-          defaultDialogueModel: '',
-          defaultNamingModel: '',
-        ),
       ];
 
       _saveProviders(defaultProviders);

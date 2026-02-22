@@ -20,7 +20,7 @@ class SyncRecordItem extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     String filename = record.filename;
-    DateTime lastModified = record.lastModified;
+    DateTime lastModified = record.lastModified.toLocal();
     int size = record.sizeInBytes ?? 0;
 
     final sizeMb = (size / (1024 * 1024)).toStringAsFixed(2);

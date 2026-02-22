@@ -34,7 +34,7 @@ class OpenAiClient implements AiClient {
     try {
       final response = await http
           .get(uri, headers: _headers)
-          .timeout(const Duration(seconds: 30));
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final decodedBody = utf8.decode(response.bodyBytes);
@@ -85,7 +85,7 @@ class OpenAiClient implements AiClient {
               ],
             }),
           )
-          .timeout(const Duration(seconds: 30));
+          .timeout(const Duration(seconds: 120));
 
       if (response.statusCode == 200) {
         // UTF8 解码解决中文乱码问题

@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-enum ProviderType { openai, anthropic, gemini, deepseek, kimi, glm, custom }
+enum ProviderType { openai, anthropic, gemini, deepseek, kimi, custom }
 
 class AiProviderModel {
   final String id;

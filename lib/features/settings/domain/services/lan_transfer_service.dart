@@ -6,7 +6,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
-import 'package:network_info_plus/network_info_plus.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:shelf/shelf.dart';
@@ -88,20 +87,37 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
       // 1. 启动 HTTP 服务器
       final handler = _createRouter();
 
-      // shared: true 允许同一端口被多次绑定（解决退出后端口未释放的问题）
-      const port = 31004;
+      // 使用端口 0 让操作系统自动分配可用端口，彻底解决端口死锁和僵尸分配冲突问题
       _server = await shelf_io.serve(
         handler,
         InternetAddress.anyIPv4,
-        port,
+        0,
         shared: true,
       );
+      final port = _server!.port;
 
-      // 获取本机 IP
-      final info = NetworkInfo();
-      final ip = await info.getWifiIP();
+      // 2. 获取本机所有 IPv4 地址
+      // 不再依赖可能获取到错误接口（例如蜂窝网络或 VPN）的 NetworkInfo
+      // 我们直接读取底层网卡的所有 IPv4 地址
+      final interfaces = await NetworkInterface.list(
+        includeLinkLocal: false,
+        type: InternetAddressType.IPv4,
+      );
 
-      state = state.copyWith(serverIp: ip, serverPort: port);
+      final validIps = interfaces
+          .expand((i) => i.addresses)
+          .map((a) => a.address)
+          .where((ip) => ip != '127.0.0.1')
+          .toList();
+
+      // 最多取前 4 个 IP，拼成逗号分隔符存进 mDNS（太长超限制）
+      final ipString = validIps.isNotEmpty
+          ? validIps.take(4).join(',')
+          : 'Unknown';
+      // 用第一个 IP 用于自身 UI 状态的展示和二维码生成
+      final displayIp = validIps.isNotEmpty ? validIps.first : 'Unknown';
+
+      state = state.copyWith(serverIp: displayIp, serverPort: port);
 
       // 2. 启动 mDNS 广播
       // 服务名称包含昵称和 UUID 前缀，防止冲突
@@ -130,8 +146,8 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
         type: _serviceType,
         port: port,
         attributes: {
-          'nickname': userProfile.nickname, // 属性里保留完整昵称，如果出错再考虑截断
-          'ip': ip ?? 'Unknown',
+          'nickname': userProfile.nickname,
+          'ip': ipString,
           'device_type': deviceType,
         },
       );
@@ -275,10 +291,25 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
           // 发现服务，尝试解析
           await _discovery!.serviceResolver.resolveService(event.service);
         } else if (event is BonsoirDiscoveryServiceResolvedEvent) {
-          // 解析成功，添加到列表
+          // 解析成功，获取设备的 IP 地址
           final service = event.service;
-          // 避免重复添加 (基于名称)
-          if (!state.discoveredServices.any((s) => s.name == service.name)) {
+          final currentIp = service.attributes['ip'];
+
+          // 使用设备的 IP 地址进行去重，防止同一台设备因为重启改变了服务名称（UUID后缀）
+          // 导致被识别为多个设备，从而在 UI 上堆叠并引发崩溃
+          final existingIndex = state.discoveredServices.indexWhere(
+            (s) => s.attributes['ip'] == currentIp,
+          );
+
+          if (existingIndex != -1) {
+            // 如果已存在该 IP 的设备，可能是重启了服务，用新服务实例替换旧的
+            final updatedServices = List<BonsoirService>.from(
+              state.discoveredServices,
+            );
+            updatedServices[existingIndex] = service;
+            state = state.copyWith(discoveredServices: updatedServices);
+          } else {
+            // 全新的设备 IP，添加到列表
             state = state.copyWith(
               discoveredServices: [...state.discoveredServices, service],
             );
@@ -308,11 +339,38 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
     state = state.copyWith(isDiscovering: false, discoveredServices: []);
   }
 
+  // --- 辅助方法：快速寻找真正连通的局域网 IP ---
+
+  /// 对传递过来的多个可能存在的局域网 IP (由逗号分隔的主机字符串) 进行测速探路
+  /// 选出能够正常响应 GET /info 测速连接的一个 IP 地址
+  Future<String?> _findReachableIp(String hostStr, int port) async {
+    final hosts = hostStr.split(',');
+    if (hosts.isEmpty || hosts.first == 'Unknown') return null;
+
+    for (final host in hosts) {
+      try {
+        final response = await http
+            .get(Uri.parse('http://$host:$port/info'))
+            .timeout(const Duration(seconds: 3));
+        if (response.statusCode == 200) return host;
+      } catch (_) {
+        // 如果测不通或者超时，安静地跳过去测试下一个节点
+      }
+    }
+    return null;
+  }
+
   // --- 发送文件 (Push 模式) ---
 
   /// 主动发送文件给指定设备 (Push)
-  Future<bool> sendFileTo(String host, int port) async {
+  Future<bool> sendFileTo(String hostStr, int port) async {
     try {
+      // 提早进行快速探路 PING，找出现阶段能通过路由器的那个 IP，防止阻塞死等
+      final reachableHost = await _findReachableIp(hostStr, port);
+      if (reachableHost == null) {
+        throw TimeoutException('无法连接到接收端，所有可能尝试的 IP 均超时或被拒绝');
+      }
+
       final exportService = ref.read(exportServiceProvider);
       // 1. 生成 Zip，不调用系统分享 (share: true 表示生成临时文件不弹窗)
       final zipFile = await exportService.exportToZip(share: true);
@@ -322,16 +380,18 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
       final bytes = await zipFile.readAsBytes();
 
       // 3. 发送 POST 请求
-      final uri = Uri.parse('http://$host:$port/upload');
-      final response = await http.post(
-        uri,
-        body: bytes,
-        headers: {
-          'Content-Type': 'application/octet-stream',
-          'Content-Disposition':
-              'attachment; filename="${path.basename(zipFile.path)}"',
-        },
-      );
+      final uri = Uri.parse('http://$reachableHost:$port/upload');
+      final response = await http
+          .post(
+            uri,
+            body: bytes,
+            headers: {
+              'Content-Type': 'application/octet-stream',
+              'Content-Disposition':
+                  'attachment; filename="${path.basename(zipFile.path)}"',
+            },
+          )
+          .timeout(const Duration(seconds: 20));
 
       if (response.statusCode == 200) {
         return true;
@@ -339,16 +399,27 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
         throw Exception('发送失败: ${response.statusCode} ${response.body}');
       }
     } catch (e) {
-      state = state.copyWith(error: '文件发送失败: $e');
+      if (e is TimeoutException) {
+        state = state.copyWith(error: '连接超时，请检查设备是否在同一局域网内且未开启 AP 隔离');
+      } else {
+        state = state.copyWith(error: '文件发送失败: $e');
+      }
       return false;
     }
   }
 
   // --- 下载文件 (Pull 模式 - 用于扫码或备用) ---
 
-  Future<File?> downloadFile(String host, int port) async {
+  Future<File?> downloadFile(String hostStr, int port) async {
     try {
-      final response = await http.get(Uri.parse('http://$host:$port/download'));
+      final reachableHost = await _findReachableIp(hostStr, port);
+      if (reachableHost == null) {
+        throw TimeoutException('无法连接到接收端，所有尝试的 IP 均超时或被拒绝');
+      }
+
+      final response = await http
+          .get(Uri.parse('http://$reachableHost:$port/download'))
+          .timeout(const Duration(seconds: 20));
       if (response.statusCode == 200) {
         final dir = await getApplicationDocumentsDirectory();
         final contentDisposition = response.headers['content-disposition'];
@@ -375,7 +446,11 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
         throw Exception('Download failed with status: ${response.statusCode}');
       }
     } catch (e) {
-      state = state.copyWith(error: '下载失败: $e');
+      if (e is TimeoutException) {
+        state = state.copyWith(error: '下载超时，请检查设备连接');
+      } else {
+        state = state.copyWith(error: '下载失败: $e');
+      }
       return null;
     }
   }

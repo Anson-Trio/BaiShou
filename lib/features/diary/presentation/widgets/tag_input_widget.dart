@@ -46,13 +46,13 @@ class TagInputWidget extends StatelessWidget {
         ),
         // 新标签输入
         SizedBox(
-          width: 120,
+          width: 160,
           child: TextField(
             controller: controller,
             focusNode: focusNode,
             style: const TextStyle(fontSize: 13, color: AppTheme.primary),
             decoration: InputDecoration(
-              hintText: '添加标签...',
+              hintText: '使用换行添加标签哦...',
               hintStyle: TextStyle(fontSize: 13, color: Colors.grey[400]),
               border: InputBorder.none,
               isDense: true,

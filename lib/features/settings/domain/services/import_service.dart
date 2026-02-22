@@ -6,10 +6,12 @@ import 'package:archive/archive_io.dart';
 import 'package:baishou/core/database/tables/summaries.dart';
 import 'package:baishou/core/services/api_config_service.dart';
 import 'package:baishou/core/theme/theme_service.dart';
+import 'package:baishou/core/models/ai_provider_model.dart';
 import 'package:baishou/features/diary/data/repositories/diary_repository_impl.dart';
 import 'package:baishou/features/diary/domain/entities/diary.dart';
 import 'package:baishou/features/diary/domain/repositories/diary_repository.dart';
 import 'package:baishou/features/settings/domain/services/export_service.dart';
+import 'package:baishou/features/settings/domain/services/data_sync_config_service.dart';
 import 'package:baishou/features/settings/domain/services/user_profile_service.dart';
 import 'package:baishou/features/summary/data/repositories/summary_repository_impl.dart';
 import 'package:baishou/features/summary/domain/entities/summary.dart';
@@ -110,6 +112,7 @@ class ImportService {
   final UserProfileNotifier _profileNotifier;
   final ThemeNotifier _themeNotifier;
   final ApiConfigService _apiConfig;
+  final DataSyncConfigService _dataSyncConfig;
 
   ImportService({
     required DiaryRepository diaryRepository,
@@ -118,12 +121,14 @@ class ImportService {
     required UserProfileNotifier profileNotifier,
     required ThemeNotifier themeNotifier,
     required ApiConfigService apiConfig,
+    required DataSyncConfigService dataSyncConfig,
   }) : _diaryRepository = diaryRepository,
        _summaryRepository = summaryRepository,
        _exportService = exportService,
        _profileNotifier = profileNotifier,
        _themeNotifier = themeNotifier,
-       _apiConfig = apiConfig;
+       _apiConfig = apiConfig,
+       _dataSyncConfig = dataSyncConfig;
 
   /// 从 ZIP 文件导入备份（覆盖模式：先自动创建快照，再清空数据，最后写入）
   Future<ImportResult> importFromZip(File zipFile) async {
@@ -343,74 +348,174 @@ class ImportService {
     }
 
     // 恢复 AI 配置
-    final aiProviderId = config['ai_provider'] as String?;
+    final aiProvidersList = config['ai_providers_list'] as List<dynamic>?;
 
-    // Fallbacks for older import versions
-    if (aiProviderId == null || aiProviderId.isEmpty) {
-      final geminiKey = config['gemini_api_key'] as String?;
-      final openaiKey = config['openai_api_key'] as String?;
+    if (aiProvidersList != null) {
+      // 1. 导入多供应商新架构数据
+      for (final pMap in aiProvidersList) {
+        var provider = AiProviderModel.fromMap(pMap as Map<String, dynamic>);
 
-      if (geminiKey != null && geminiKey.isNotEmpty) {
-        final existingGemini = _apiConfig.getProvider('gemini');
-        if (existingGemini != null) {
-          await _apiConfig.updateProvider(
-            existingGemini.copyWith(
-              apiKey: geminiKey,
-              baseUrl:
-                  config['gemini_base_url'] as String? ??
-                  existingGemini.baseUrl,
-              defaultDialogueModel:
-                  config['ai_model'] as String? ??
-                  existingGemini.defaultDialogueModel,
-              defaultNamingModel:
-                  config['ai_naming_model'] as String? ??
-                  existingGemini.defaultNamingModel,
-            ),
-          );
-          await _apiConfig.setActiveProviderId('gemini');
+        // 避免在一端配置好而另一端为空时互相覆盖置空
+        final existingProvider = _apiConfig.getProvider(provider.id);
+        if (existingProvider != null) {
+          final shouldKeepUrl =
+              provider.baseUrl.isEmpty && existingProvider.baseUrl.isNotEmpty;
+          final shouldKeepKey =
+              provider.apiKey.isEmpty && existingProvider.apiKey.isNotEmpty;
+
+          if (shouldKeepUrl || shouldKeepKey) {
+            provider = provider.copyWith(
+              baseUrl: shouldKeepUrl
+                  ? existingProvider.baseUrl
+                  : provider.baseUrl,
+              apiKey: shouldKeepKey ? existingProvider.apiKey : provider.apiKey,
+            );
+          }
         }
-      } else if (openaiKey != null && openaiKey.isNotEmpty) {
-        final existingOpenAI = _apiConfig.getProvider('openai');
-        if (existingOpenAI != null) {
-          await _apiConfig.updateProvider(
-            existingOpenAI.copyWith(
-              apiKey: openaiKey,
-              baseUrl:
-                  config['openai_base_url'] as String? ??
-                  existingOpenAI.baseUrl,
-              defaultDialogueModel:
-                  config['ai_model'] as String? ??
-                  existingOpenAI.defaultDialogueModel,
-              defaultNamingModel:
-                  config['ai_naming_model'] as String? ??
-                  existingOpenAI.defaultNamingModel,
-            ),
-          );
-          await _apiConfig.setActiveProviderId('openai');
-        }
+
+        await _apiConfig.updateProvider(provider);
       }
-    } else {
-      // It's a newer version where we can just look up the active provider string ID directly
-      await _apiConfig.setActiveProviderId(aiProviderId);
-      final existingProvider = _apiConfig.getProvider(aiProviderId);
 
-      if (existingProvider != null) {
-        final importedApiKey = config['api_key'] as String?;
-        final importedBaseUrl = config['base_url'] as String?;
-        final importedAiModel = config['ai_model'] as String?;
-        final importedNamingModel = config['ai_naming_model'] as String?;
-
-        await _apiConfig.updateProvider(
-          existingProvider.copyWith(
-            apiKey: importedApiKey ?? existingProvider.apiKey,
-            baseUrl: importedBaseUrl ?? existingProvider.baseUrl,
-            defaultDialogueModel:
-                importedAiModel ?? existingProvider.defaultDialogueModel,
-            defaultNamingModel:
-                importedNamingModel ?? existingProvider.defaultNamingModel,
-          ),
+      // 2. 恢复新的全局默认模型设定
+      final globalDialogueProviderId =
+          config['global_dialogue_provider_id'] as String?;
+      final globalDialogueModelId =
+          config['global_dialogue_model_id'] as String?;
+      if (globalDialogueProviderId != null && globalDialogueModelId != null) {
+        await _apiConfig.setGlobalDialogueModel(
+          globalDialogueProviderId,
+          globalDialogueModelId,
         );
       }
+
+      final globalNamingProviderId =
+          config['global_naming_provider_id'] as String?;
+      final globalNamingModelId = config['global_naming_model_id'] as String?;
+      if (globalNamingProviderId != null && globalNamingModelId != null) {
+        await _apiConfig.setGlobalNamingModel(
+          globalNamingProviderId,
+          globalNamingModelId,
+        );
+      }
+
+      final globalSummaryProviderId =
+          config['global_summary_provider_id'] as String?;
+      final globalSummaryModelId = config['global_summary_model_id'] as String?;
+      if (globalSummaryProviderId != null && globalSummaryModelId != null) {
+        await _apiConfig.setGlobalSummaryModel(
+          globalSummaryProviderId,
+          globalSummaryModelId,
+        );
+      }
+
+      // 3. 恢复兜底活跃供应商
+      final aiProviderId = config['ai_provider'] as String?;
+      if (aiProviderId != null && aiProviderId.isNotEmpty) {
+        await _apiConfig.setActiveProviderId(aiProviderId);
+      }
+    } else {
+      // 兼容旧版本数据导入的逻辑
+      final aiProviderId = config['ai_provider'] as String?;
+
+      // Fallbacks for older import versions
+      if (aiProviderId == null || aiProviderId.isEmpty) {
+        final geminiKey = config['gemini_api_key'] as String?;
+        final openaiKey = config['openai_api_key'] as String?;
+
+        if (geminiKey != null && geminiKey.isNotEmpty) {
+          final existingGemini = _apiConfig.getProvider('gemini');
+          if (existingGemini != null) {
+            await _apiConfig.updateProvider(
+              existingGemini.copyWith(
+                apiKey: geminiKey,
+                baseUrl:
+                    config['gemini_base_url'] as String? ??
+                    existingGemini.baseUrl,
+                defaultDialogueModel:
+                    config['ai_model'] as String? ??
+                    existingGemini.defaultDialogueModel,
+                defaultNamingModel:
+                    config['ai_naming_model'] as String? ??
+                    existingGemini.defaultNamingModel,
+              ),
+            );
+            await _apiConfig.setActiveProviderId('gemini');
+          }
+        } else if (openaiKey != null && openaiKey.isNotEmpty) {
+          final existingOpenAI = _apiConfig.getProvider('openai');
+          if (existingOpenAI != null) {
+            await _apiConfig.updateProvider(
+              existingOpenAI.copyWith(
+                apiKey: openaiKey,
+                baseUrl:
+                    config['openai_base_url'] as String? ??
+                    existingOpenAI.baseUrl,
+                defaultDialogueModel:
+                    config['ai_model'] as String? ??
+                    existingOpenAI.defaultDialogueModel,
+                defaultNamingModel:
+                    config['ai_naming_model'] as String? ??
+                    existingOpenAI.defaultNamingModel,
+              ),
+            );
+            await _apiConfig.setActiveProviderId('openai');
+          }
+        }
+      } else {
+        // It's a newer version where we can just look up the active provider string ID directly
+        await _apiConfig.setActiveProviderId(aiProviderId);
+        final existingProvider = _apiConfig.getProvider(aiProviderId);
+
+        if (existingProvider != null) {
+          final importedApiKey = config['api_key'] as String?;
+          final importedBaseUrl = config['base_url'] as String?;
+          final importedAiModel = config['ai_model'] as String?;
+          final importedNamingModel = config['ai_naming_model'] as String?;
+
+          await _apiConfig.updateProvider(
+            existingProvider.copyWith(
+              apiKey: importedApiKey ?? existingProvider.apiKey,
+              baseUrl: importedBaseUrl ?? existingProvider.baseUrl,
+              defaultDialogueModel:
+                  importedAiModel ?? existingProvider.defaultDialogueModel,
+              defaultNamingModel:
+                  importedNamingModel ?? existingProvider.defaultNamingModel,
+            ),
+          );
+        }
+      }
+    }
+
+    // --- 恢复数据同步服务配置 (WebDAV, S3 等) ---
+    final syncTargetIndex = config['sync_target'] as int?;
+    if (syncTargetIndex != null &&
+        syncTargetIndex >= 0 &&
+        syncTargetIndex < 3) {
+      // 这里的 3 暂时代替 SyncTarget.values.length，因为 SyncTarget 枚举没有直接被这里强依赖
+      // 或者我们可以安全地使用索引，由于我们在 ImportService 开头导入了 data_sync_config_service
+      await _dataSyncConfig.setSyncTarget(SyncTarget.values[syncTargetIndex]);
+    }
+
+    final webdavUrl = config['webdav_url'] as String?;
+    if (webdavUrl != null) {
+      await _dataSyncConfig.saveWebdavConfig(
+        url: webdavUrl,
+        username: config['webdav_username'] as String? ?? '',
+        password: config['webdav_password'] as String? ?? '',
+        path: config['webdav_path'] as String? ?? '/baishou_backup',
+      );
+    }
+
+    final s3Endpoint = config['s3_endpoint'] as String?;
+    if (s3Endpoint != null) {
+      await _dataSyncConfig.saveS3Config(
+        endpoint: s3Endpoint,
+        region: config['s3_region'] as String? ?? '',
+        bucket: config['s3_bucket'] as String? ?? '',
+        path: config['s3_path'] as String? ?? '/baishou_backup',
+        accessKey: config['s3_access_key'] as String? ?? '',
+        secretKey: config['s3_secret_key'] as String? ?? '',
+      );
     }
 
     // 恢复头像（Base64 解码后保存到本地）
@@ -447,5 +552,6 @@ final importServiceProvider = Provider<ImportService>((ref) {
     profileNotifier: ref.watch(userProfileProvider.notifier),
     themeNotifier: ref.watch(themeProvider.notifier),
     apiConfig: ref.watch(apiConfigServiceProvider),
+    dataSyncConfig: ref.watch(dataSyncConfigServiceProvider),
   );
 });
