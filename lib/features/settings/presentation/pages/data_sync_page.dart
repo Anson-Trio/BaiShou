@@ -7,6 +7,8 @@ import 'package:baishou/features/settings/domain/services/data_sync_service.dart
 import 'package:baishou/features/settings/domain/services/s3_client_service.dart';
 import 'package:baishou/features/settings/domain/services/webdav_client_service.dart';
 import 'package:baishou/features/settings/presentation/pages/data_sync_config_page.dart';
+import 'package:baishou/features/settings/presentation/widgets/sync_stat_card.dart';
+import 'package:baishou/features/settings/presentation/widgets/sync_record_item.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -156,8 +158,7 @@ class _DataSyncPageState extends ConsumerState<DataSyncPage> {
                   builder: (context, constraints) {
                     final isMobile = constraints.maxWidth < 500;
                     final cards = [
-                      _buildStatCard(
-                        context,
+                      SyncStatCard(
                         title: '同步目标',
                         value: config.syncTarget.name.toUpperCase(),
                         icon: config.syncTarget == SyncTarget.s3
@@ -167,15 +168,13 @@ class _DataSyncPageState extends ConsumerState<DataSyncPage> {
                                   : Icons.folder),
                         color: Colors.blue.shade600,
                       ),
-                      _buildStatCard(
-                        context,
+                      SyncStatCard(
                         title: '备份总大小',
                         value: sizeString,
                         icon: Icons.storage_outlined,
                         color: Colors.green.shade600,
                       ),
-                      _buildStatCard(
-                        context,
+                      SyncStatCard(
                         title: '备份数量',
                         value: '${_records.length} 个',
                         icon: Icons.sync_alt_outlined,
@@ -333,7 +332,13 @@ class _DataSyncPageState extends ConsumerState<DataSyncPage> {
                     separatorBuilder: (context, index) =>
                         const Divider(height: 1),
                     itemBuilder: (context, index) {
-                      return _buildRecordItem(context, _records[index]);
+                      final record = _records[index];
+                      return SyncRecordItem(
+                        record: record,
+                        onRestore: () => _restoreRecord(record),
+                        onRename: () => _renameRecord(record),
+                        onDelete: () => _deleteRecord(record),
+                      );
                     },
                   ),
               ],
@@ -420,8 +425,9 @@ class _DataSyncPageState extends ConsumerState<DataSyncPage> {
       ),
     );
 
-    if (newName == null || newName.isEmpty || newName == record.filename)
+    if (newName == null || newName.isEmpty || newName == record.filename) {
       return;
+    }
 
     final config = ref.read(dataSyncConfigServiceProvider);
     try {
@@ -516,127 +522,5 @@ class _DataSyncPageState extends ConsumerState<DataSyncPage> {
     }
   }
 
-  Widget _buildStatCard(
-    BuildContext context, {
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.5)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecordItem(BuildContext context, dynamic record) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    String filename = record.filename;
-    DateTime lastModified = record.lastModified;
-    int size = record.sizeInBytes;
-
-    final sizeMb = (size / (1024 * 1024)).toStringAsFixed(2);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.check_circle_outline,
-              size: 20,
-              color: Colors.green.shade600,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '备份文件: $filename',
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${lastModified.year}-${lastModified.month.toString().padLeft(2, '0')}-${lastModified.day.toString().padLeft(2, '0')} ${lastModified.hour.toString().padLeft(2, '0')}:${lastModified.minute.toString().padLeft(2, '0')} • 大小: $sizeMb MB',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          PopupMenuButton<String>(
-            icon: Icon(Icons.more_vert, color: colorScheme.onSurfaceVariant),
-            onSelected: (val) {
-              if (val == 'restore') _restoreRecord(record);
-              if (val == 'rename') _renameRecord(record);
-              if (val == 'delete') _deleteRecord(record);
-            },
-            itemBuilder: (ctx) => [
-              const PopupMenuItem(value: 'restore', child: Text('还原此备份')),
-              const PopupMenuItem(value: 'rename', child: Text('重命名')),
-              const PopupMenuItem(
-                value: 'delete',
-                child: Text('删除', style: TextStyle(color: Colors.red)),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  // --- 列表项构建已交由 SyncRecordItem 处理 ---
 }

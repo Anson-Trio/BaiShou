@@ -1,5 +1,7 @@
 import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:baishou/features/settings/domain/services/data_sync_config_service.dart';
+import 'package:baishou/features/settings/presentation/widgets/config_form_field.dart';
+import 'package:baishou/features/settings/presentation/widgets/sync_target_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -109,7 +111,7 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      backgroundColor: colorScheme.background,
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
         title: const Text('数据同步配置'),
         backgroundColor: Colors.transparent,
@@ -221,78 +223,17 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
     required String title,
     required String description,
   }) {
-    final isSelected = _selectedTarget == index;
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return InkWell(
+    return SyncTargetCard(
+      index: index,
+      icon: icon,
+      title: title,
+      description: description,
+      isSelected: _selectedTarget == index,
       onTap: () {
         setState(() {
           _selectedTarget = index;
         });
       },
-      borderRadius: BorderRadius.circular(16),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? colorScheme.primaryContainer.withOpacity(0.4)
-              : colorScheme.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected
-                ? colorScheme.primary
-                : colorScheme.outlineVariant.withOpacity(0.5),
-            width: isSelected ? 2 : 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: isSelected
-                  ? colorScheme.primary.withOpacity(0.1)
-                  : Colors.black.withOpacity(0.02),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 32,
-              color: isSelected
-                  ? colorScheme.primary
-                  : colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: isSelected
-                          ? FontWeight.bold
-                          : FontWeight.w600,
-                      color: isSelected ? colorScheme.primary : null,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (isSelected)
-              Icon(Icons.check_circle, color: colorScheme.primary),
-          ],
-        ),
-      ),
     );
   }
 
@@ -369,12 +310,12 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
         ),
         const SizedBox(height: 32),
         buildRow([
-          _buildFormField(
+          ConfigFormField(
             title: 'Endpoint 服务地址',
             controller: _endpointController,
             icon: Icons.api_outlined,
           ),
-          _buildFormField(
+          ConfigFormField(
             title: 'Region 区域名',
             controller: _regionController,
             icon: Icons.map_outlined,
@@ -382,12 +323,12 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
         ]),
         if (!isMobile) const SizedBox(height: 16),
         buildRow([
-          _buildFormField(
+          ConfigFormField(
             title: 'Bucket 存储桶',
             controller: _bucketController,
             icon: Icons.data_usage_outlined,
           ),
-          _buildFormField(
+          ConfigFormField(
             title: 'Path 子路径',
             controller: _pathController,
             icon: Icons.folder_open_outlined,
@@ -397,7 +338,7 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
         const Divider(),
         const SizedBox(height: 24),
         buildRow([
-          _buildFormField(
+          ConfigFormField(
             title: 'Access Key (AK)',
             controller: _akController,
             icon: Icons.vpn_key_outlined,
@@ -407,7 +348,7 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
               onPressed: () => setState(() => _isObscure = !_isObscure),
             ),
           ),
-          _buildFormField(
+          ConfigFormField(
             title: 'Secret Key (SK)',
             controller: _skController,
             icon: Icons.key_outlined,
@@ -469,12 +410,12 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
         ),
         const SizedBox(height: 32),
         buildRow([
-          _buildFormField(
+          ConfigFormField(
             title: 'Server URL 服务地址',
             controller: _webdavUrlController,
             icon: Icons.api_outlined,
           ),
-          _buildFormField(
+          ConfigFormField(
             title: 'Path 子路径',
             controller: _webdavPathController,
             icon: Icons.folder_open_outlined,
@@ -484,12 +425,12 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
         const Divider(),
         const SizedBox(height: 24),
         buildRow([
-          _buildFormField(
+          ConfigFormField(
             title: 'Username 用户名',
             controller: _webdavUserController,
             icon: Icons.person_outline,
           ),
-          _buildFormField(
+          ConfigFormField(
             title: 'Password 密码',
             controller: _webdavPwdController,
             icon: Icons.key_outlined,
@@ -504,56 +445,5 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
     );
   }
 
-  Widget _buildFormField({
-    required String title,
-    required TextEditingController controller,
-    required IconData icon,
-    bool obscure = false,
-    Widget? trailing,
-  }) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: Theme.of(
-            context,
-          ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          obscureText: obscure,
-          style: const TextStyle(fontSize: 14, fontFamily: 'monospace'),
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
-            prefixIcon: Icon(
-              icon,
-              size: 20,
-              color: colorScheme.onSurfaceVariant,
-            ),
-            suffixIcon: trailing,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 14,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(
-                color: colorScheme.outlineVariant.withOpacity(0.5),
-              ),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(
-                color: colorScheme.outlineVariant.withOpacity(0.5),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  // --- 表单项构建已交由 ConfigFormField 处理 ---
 }

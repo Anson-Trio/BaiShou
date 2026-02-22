@@ -1,7 +1,4 @@
 import 'dart:io';
-import 'dart:math';
-import 'dart:ui';
-
 import 'package:baishou/core/services/data_refresh_notifier.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:baishou/features/settings/domain/services/import_service.dart';
@@ -10,6 +7,8 @@ import 'package:bonsoir/bonsoir.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:baishou/features/settings/presentation/widgets/radar_background.dart';
+import 'package:baishou/features/settings/presentation/widgets/sync_floating_bubble.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 /// 局域网传输页面
@@ -140,7 +139,7 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
           // 1. 雷达背景
           Positioned.fill(
             child: CustomPaint(
-              painter: _RadarPainter(
+              painter: RadarPainter(
                 animation: _radarController,
                 color: primary,
               ),
@@ -148,7 +147,7 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
           ),
 
           // 2. 中心节点 (自己)
-          Center(child: _PulseCore(color: primary)),
+          Center(child: PulseCore(color: primary)),
 
           // 3. 浮动气泡 (发现的设备)
           if (state.discoveredServices.isEmpty && state.isDiscovering)
@@ -196,7 +195,7 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
 
             return Align(
               alignment: Alignment(offset.dx, offset.dy),
-              child: _FloatingBubble(
+              child: SyncFloatingBubble(
                 animation: _floatController,
                 delay: index * 0.5, // 错开浮动动画
                 service: service,
@@ -205,7 +204,7 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
                 },
               ),
             );
-          }).toList(),
+          }),
 
           // 4. 扫码按钮 (底部)
           Positioned(
@@ -418,203 +417,7 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
   }
 }
 
-class _RadarPainter extends CustomPainter {
-  final Animation<double> animation;
-  final Color color;
-
-  _RadarPainter({required this.animation, required this.color})
-    : super(repaint: animation);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-
-    final paint = Paint()
-      ..color = color.withOpacity(0.1)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
-
-    // 绘制固定圆环
-    canvas.drawCircle(center, 100, paint);
-    canvas.drawCircle(center, 200, paint);
-    canvas.drawCircle(center, 300, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _PulseCore extends StatefulWidget {
-  final Color color;
-  const _PulseCore({required this.color});
-
-  @override
-  State<_PulseCore> createState() => _PulseCoreState();
-}
-
-class _PulseCoreState extends State<_PulseCore>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
-    _animation = Tween<double>(
-      begin: 1.0,
-      end: 1.2,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, child) {
-        return Container(
-          width: 80 * _animation.value,
-          height: 80 * _animation.value,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: widget.color.withOpacity(0.1),
-          ),
-          child: Center(
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: widget.color,
-                boxShadow: [
-                  BoxShadow(
-                    color: widget.color.withOpacity(0.4),
-                    blurRadius: 12,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: const Icon(Icons.cell_tower, color: Colors.white),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _FloatingBubble extends StatelessWidget {
-  final AnimationController animation;
-  final double delay;
-  final BonsoirService service;
-  final VoidCallback onTap;
-
-  const _FloatingBubble({
-    required this.animation,
-    required this.delay,
-    required this.service,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: animation,
-      builder: (context, child) {
-        // 基于 delay 增加相位偏移
-        final value = sin((animation.value * 2 * pi) + delay);
-        final dy = value * 10; // 上下浮动 10px
-
-        return Transform.translate(
-          offset: Offset(0, dy),
-          child: GestureDetector(
-            onTap: onTap,
-            // 毛玻璃气泡效果
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(999),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                child: Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: Colors.white.withOpacity(0.4)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Theme.of(context).primaryColor.withOpacity(0.08),
-                        blurRadius: 32,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).primaryColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Icon(
-                          _getIconForName(),
-                          size: 24,
-                          color: Theme.of(context).primaryColor,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        service.attributes['nickname'] ?? service.name,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).textTheme.bodyLarge?.color,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  IconData _getIconForName() {
-    // 1. 优先使用广播中携带的设备类型
-    final deviceType = service.attributes['device_type'];
-    if (deviceType == 'mobile') return Icons.smartphone;
-    if (deviceType == 'desktop') return Icons.computer;
-
-    // 2. 降级使用名称匹配
-    final name = service.name.toLowerCase();
-    if (name.contains('macbook') ||
-        name.contains('desktop') ||
-        name.contains('pc'))
-      return Icons.computer;
-    if (name.contains('iphone') ||
-        name.contains('phone') ||
-        name.contains('android'))
-      return Icons.smartphone;
-    if (name.contains('ipad') || name.contains('tablet'))
-      return Icons.tablet_mac;
-    return Icons.devices;
-  }
-}
+// --- UI 组件分离至 `radar_background.dart` 与 `sync_floating_bubble.dart` ---
 
 class _QRScanPage extends ConsumerWidget {
   const _QRScanPage();
