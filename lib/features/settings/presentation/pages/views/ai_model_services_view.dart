@@ -40,12 +40,14 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
     });
   }
 
-  /// 从 ApiConfigService 加载所有供应商配置
   void _loadProviderConfig() {
     final service = ref.read(apiConfigServiceProvider);
     setState(() {
       _providers = service.getProviders();
-      _selectedProviderId = service.activeProviderId;
+      // 如果当前选中的供应商在列表中不存在，才回退到活跃供应商
+      if (!_providers.any((p) => p.id == _selectedProviderId)) {
+        _selectedProviderId = service.activeProviderId;
+      }
     });
     _populateControllersForSelected();
   }
