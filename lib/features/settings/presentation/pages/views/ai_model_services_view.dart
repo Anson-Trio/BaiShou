@@ -2,6 +2,9 @@ import 'dart:io';
 import 'package:baishou/core/services/api_config_service.dart';
 import 'package:baishou/features/summary/domain/services/summary_generator_service.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
+import 'package:baishou/features/settings/presentation/widgets/provider_config_form.dart';
+import 'package:baishou/features/settings/presentation/widgets/provider_list_panel.dart';
+import 'package:baishou/features/settings/presentation/widgets/provider_model_list.dart';
 import 'package:baishou/core/models/ai_provider_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -337,116 +340,7 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
     }
   }
 
-  /// 通用文本输入框构建器
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String hint,
-    required IconData icon,
-    bool obscureText = false,
-    Widget? trailing,
-  }) {
-    return TextFormField(
-      controller: controller,
-      obscureText: obscureText,
-      style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
-      decoration: InputDecoration(
-        hintText: hint,
-        filled: true,
-        fillColor: Theme.of(
-          context,
-        ).colorScheme.surfaceContainerHighest.withOpacity(0.3),
-        prefixIcon: Icon(icon, size: 20),
-        suffixIcon: trailing,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: Theme.of(
-              context,
-            ).colorScheme.outlineVariant.withOpacity(0.5),
-          ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: Theme.of(
-              context,
-            ).colorScheme.outlineVariant.withOpacity(0.5),
-          ),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
-      ),
-    );
-  }
-
-  /// 构建左侧供应商列表项
-  Widget _buildProviderListItem(AiProviderModel p, bool isMobile) {
-    // 移动端仅作为入口列表，不需要高亮选中态
-    final isSelected = !isMobile && _selectedProviderId == p.id;
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: InkWell(
-        onTap: () => _handleProviderTap(p.id, isMobile),
-        borderRadius: BorderRadius.circular(12),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? colorScheme.primaryContainer.withOpacity(0.4)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isSelected
-                  ? colorScheme.primary.withOpacity(0.3)
-                  : Colors.transparent,
-            ),
-          ),
-          child: Row(
-            children: [
-              SizedBox(width: 32, height: 32, child: _getProviderIcon(p.type)),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  p.name,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                    color: isSelected
-                        ? colorScheme.primary
-                        : colorScheme.onSurface,
-                  ),
-                ),
-              ),
-              // 启用状态标签
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: p.isEnabled
-                      ? Colors.green.withOpacity(0.1)
-                      : Colors.orange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  p.isEnabled ? 'ON' : 'OFF',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: p.isEnabled
-                        ? Colors.green.shade700
-                        : Colors.orange.shade700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  // --- 已交由 ProviderListPanel 接管 ---
 
   Widget _buildRightConfigPanel({StateSetter? setModalState}) {
     final activeProvider = _providers.firstWhere(
@@ -510,274 +404,41 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
                     setModalState?.call(() {});
                   }
                 },
-                activeColor: colorScheme.primary,
+                activeThumbColor: colorScheme.primary,
               ),
             ],
           ),
 
           const SizedBox(height: 32),
 
-          // Connection Settings Section
-          Row(
-            children: [
-              Icon(Icons.link, size: 20, color: colorScheme.onSurfaceVariant),
-              const SizedBox(width: 8),
-              Text(
-                '连接设置',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // API Key
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'API 密钥',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-              Row(
-                children: [
-                  OutlinedButton.icon(
-                    icon: _isTesting
-                        ? const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.bolt_rounded, size: 16),
-                    label: const Text('连接测试'),
-                    onPressed: _isTesting
-                        ? null
-                        : () => _testConnection(setModalState: setModalState),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: colorScheme.primary,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      side: BorderSide(color: colorScheme.primary),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          _buildTextField(
-            controller: _apiKeyController,
-            hint: '输入您的 API Key',
-            icon: Icons.vpn_key_outlined,
-            obscureText: _isObscure,
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: Icon(
-                    _isObscure ? Icons.visibility : Icons.visibility_off,
-                    size: 18,
-                  ),
-                  onPressed: () {
-                    setState(() => _isObscure = !_isObscure);
-                    setModalState?.call(() {});
-                  },
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '密钥用于验证您的账户请求。全部配置仅保存在本地。',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Base URL
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'API 地址 (Base URL)',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-              TextButton(
-                onPressed: () =>
-                    _resetCurrentProvider(setModalState: setModalState),
-                style: TextButton.styleFrom(
-                  foregroundColor: colorScheme.onSurfaceVariant,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                child: const Text('恢复默认', style: TextStyle(fontSize: 12)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          _buildTextField(
-            controller: _baseUrlController,
-            hint: 'https://...',
-            icon: Icons.dns_outlined,
+          ProviderConfigForm(
+            provider: activeProvider,
+            baseUrlController: _baseUrlController,
+            apiKeyController: _apiKeyController,
+            isObscure: _isObscure,
+            onObscureToggle: () {
+              setState(() => _isObscure = !_isObscure);
+              setModalState?.call(() {});
+            },
+            isTesting: _isTesting,
+            onTestRequested: () =>
+                _testConnection(setModalState: setModalState),
+            onResetRequested: () =>
+                _resetCurrentProvider(setModalState: setModalState),
+            formKey: _formKey,
           ),
 
           const SizedBox(height: 32),
           Divider(color: colorScheme.outlineVariant.withOpacity(0.5)),
           const SizedBox(height: 32),
 
-          // Models Section
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.view_list_outlined,
-                    size: 20,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '模型列表 (${activeProvider.models.length})',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ],
-              ),
-              OutlinedButton.icon(
-                onPressed: _isFetchingModels
-                    ? null
-                    : () => _fetchModels(setModalState: setModalState),
-                icon: _isFetchingModels
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.sync_rounded, size: 16),
-                label: const Text('获取模型'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  side: BorderSide(color: colorScheme.outlineVariant),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-            ],
+          ProviderModelList(
+            provider: activeProvider,
+            iconBuilder: (type) => _getProviderIcon(type),
+            onFetchRequested: () => _fetchModels(setModalState: setModalState),
+            isFetching: _isFetchingModels,
+            onModelToggled: _loadProviderConfig,
           ),
-          const SizedBox(height: 16),
-
-          if (activeProvider.models.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(32),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: colorScheme.outlineVariant.withOpacity(0.5),
-                ),
-              ),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.model_training_rounded,
-                    size: 32,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    '暂无模型，点击右上角按钮获取',
-                    style: TextStyle(color: colorScheme.onSurfaceVariant),
-                  ),
-                ],
-              ),
-            )
-          else
-            Container(
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: colorScheme.outlineVariant.withOpacity(0.5),
-                ),
-              ),
-              child: ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                padding: EdgeInsets.zero,
-                itemCount: activeProvider.models.length,
-                separatorBuilder: (context, index) => Divider(
-                  height: 1,
-                  color: colorScheme.outlineVariant.withOpacity(0.5),
-                ),
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 16,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              _getProviderIcon(activeProvider.type),
-                              const SizedBox(width: 12),
-                              Flexible(
-                                child: Text(
-                                  activeProvider.models[index],
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 2,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.green.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '可用',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green.shade700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
         ],
       ),
     );
@@ -792,10 +453,7 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
       child: Stack(
         children: [
           Positioned.fill(
-            child: Form(
-              key: _formKey,
-              child: _buildRightConfigPanel(setModalState: setModalState),
-            ),
+            child: _buildRightConfigPanel(setModalState: setModalState),
           ),
           Positioned(
             bottom: 0,
@@ -868,12 +526,12 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
             ),
           ),
         Expanded(
-          child: ListView.builder(
-            padding: isMobile ? const EdgeInsets.only(top: 8) : EdgeInsets.zero,
-            itemCount: _providers.length,
-            itemBuilder: (context, index) {
-              return _buildProviderListItem(_providers[index], isMobile);
-            },
+          child: ProviderListPanel(
+            providers: _providers,
+            selectedProviderId: _selectedProviderId,
+            isMobile: isMobile,
+            iconBuilder: (type) => _getProviderIcon(type),
+            onProviderTap: _handleProviderTap,
           ),
         ),
         if (!isMobile)
