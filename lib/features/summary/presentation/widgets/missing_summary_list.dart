@@ -1,13 +1,14 @@
 import 'package:baishou/core/theme/app_theme.dart';
 import 'package:baishou/core/services/api_config_service.dart';
 import 'package:baishou/core/services/data_refresh_notifier.dart';
+import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:baishou/features/summary/domain/services/missing_summary_detector.dart';
 import 'package:baishou/features/summary/domain/services/summary_generator_service.dart';
 import 'package:baishou/features/summary/data/repositories/summary_repository_impl.dart';
 import 'package:baishou/features/summary/presentation/providers/generation_state_service.dart';
-import 'package:baishou/features/settings/presentation/pages/settings_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 class MissingSummaryList extends ConsumerStatefulWidget {
   const MissingSummaryList({super.key});
@@ -107,8 +108,8 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
                         final status = generationStatus[key];
                         final isError =
                             status != null &&
-                            (status.startsWith('错误') ||
-                                status.startsWith('生成内容为空'));
+                            (status.startsWith('生成失败') ||
+                                status.startsWith('内容为空'));
                         // 加载中：状态已设置且不是错误
                         final isLoading = status != null && !isError;
 
@@ -165,39 +166,61 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
     );
   }
 
-  /// 检查模型是否已配置，未配置则弹窗引导用户跳转设置
+  /// 检查模型是否已配置且已启用，否则弹窗引导用户跳转设置
   bool _checkModelConfigured() {
     final apiConfig = ref.read(apiConfigServiceProvider);
     final providerId = apiConfig.globalSummaryProviderId;
     final modelId = apiConfig.globalSummaryModelId;
 
+    // 检查是否已配置
     if (providerId.isEmpty || modelId.isEmpty) {
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('模型未配置'),
-          content: const Text('你还没有配置 AI 模型，无法生成总结。\n是否跳转到模型配置页面？'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SettingsPage()),
-                );
-              },
-              child: const Text('去配置'),
-            ),
-          ],
-        ),
+      _showGoToSettingsDialog('模型未配置', '你还没有配置 AI 模型，无法生成总结。\n是否跳转到设置页面进行配置？');
+      return false;
+    }
+
+    // 检查供应商是否已启用
+    final provider = apiConfig.getProvider(providerId);
+    if (provider == null || !provider.isEnabled) {
+      _showGoToSettingsDialog(
+        '模型服务已禁用',
+        '当前配置的总结模型所属服务已被关闭（OFF）。\n请在设置中重新启用该服务，或更换一个可用的模型。',
       );
       return false;
     }
+
     return true;
+  }
+
+  /// 显示引导跳转到设置页的通用弹窗
+  void _showGoToSettingsDialog(String title, String content) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(content),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              // 根据设备类型选择正确的跳转方式：
+              // 移动端：go 到 Shell 内的 /settings-mobile 路由，保留底边栏
+              // 桌面端：push 到独立的 /settings 全屏页
+              final isMobile = MediaQuery.of(context).size.width < 600;
+              if (isMobile) {
+                context.go('/settings-mobile');
+              } else {
+                context.push('/settings');
+              }
+            },
+            child: const Text('去设置'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _batchGenerate(List<MissingSummary> items) async {
@@ -215,11 +238,11 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
     final generator = ref.read(summaryGeneratorServiceProvider);
     final repository = ref.read(summaryRepositoryProvider);
 
-    // 检查是否正在生成（但允许在错误或为空时重试）
+    // 检查是否正在生成（允许在失败状态时重试）
     final currentStatus = service.getStatus(key);
     if (currentStatus != null &&
-        !currentStatus.startsWith('错误') &&
-        !currentStatus.startsWith('生成内容为空')) {
+        !currentStatus.startsWith('生成失败') &&
+        !currentStatus.startsWith('内容为空')) {
       return;
     }
 
@@ -254,10 +277,16 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
           ref.read(dataRefreshProvider.notifier).refresh();
         }
       } else {
-        service.setStatus(key, '生成内容为空');
+        service.setStatus(key, '内容为空，点击重试');
+        if (mounted) {
+          AppToast.showError(context, '「${item.label}」生成内容为空，请重试');
+        }
       }
     } catch (e) {
-      service.setStatus(key, '错误: $e');
+      service.setStatus(key, '生成失败，点击重试');
+      if (mounted) {
+        AppToast.showError(context, '「${item.label}」生成失败：$e');
+      }
     }
   }
 }
