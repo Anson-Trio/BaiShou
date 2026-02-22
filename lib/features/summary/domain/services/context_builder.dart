@@ -6,7 +6,6 @@ import 'package:baishou/features/summary/data/repositories/summary_repository_im
 import 'package:baishou/features/summary/domain/entities/summary.dart';
 import 'package:baishou/features/summary/domain/repositories/summary_repository.dart';
 import 'package:flutter/foundation.dart' hide Summary;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -163,12 +162,18 @@ Future<ContextResult> _processContextData(_ContextInput input) async {
 
   final allItems = <_ContextItem>[];
 
-  for (var i in yList) allItems.add(_ContextItem(i.startDate, i, '👑 年度'));
-  for (var i in qList) allItems.add(_ContextItem(i.startDate, i, '🏆 季度'));
-  for (var i in visibleMonths)
+  for (var i in yList) {
+    allItems.add(_ContextItem(i.startDate, i, '👑 年度'));
+  }
+  for (var i in qList) {
+    allItems.add(_ContextItem(i.startDate, i, '🏆 季度'));
+  }
+  for (var i in visibleMonths) {
     allItems.add(_ContextItem(i.startDate, i, '🌙 月度'));
-  for (var i in visibleWeeks)
+  }
+  for (var i in visibleWeeks) {
     allItems.add(_ContextItem(i.startDate, i, '📆 周度'));
+  }
 
   // 日记
   final diaryItems = visibleDiaries

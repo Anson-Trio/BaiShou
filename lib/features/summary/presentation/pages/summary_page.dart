@@ -604,7 +604,7 @@ class __AddSummaryDialogState extends ConsumerState<_AddSummaryDialog> {
               // 年份选择器（始终显示）
               Expanded(
                 child: DropdownButtonFormField<int>(
-                  value: _selectedYear,
+                  initialValue: _selectedYear,
                   decoration: const InputDecoration(
                     isDense: true,
                     contentPadding: EdgeInsets.symmetric(
@@ -634,7 +634,7 @@ class __AddSummaryDialogState extends ConsumerState<_AddSummaryDialog> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: DropdownButtonFormField<int>(
-                    value: _selectedMonth,
+                    initialValue: _selectedMonth,
                     decoration: const InputDecoration(
                       isDense: true,
                       contentPadding: EdgeInsets.symmetric(
@@ -665,7 +665,7 @@ class __AddSummaryDialogState extends ConsumerState<_AddSummaryDialog> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: DropdownButtonFormField<int>(
-                    value: _selectedQuarter,
+                    initialValue: _selectedQuarter,
                     decoration: const InputDecoration(
                       isDense: true,
                       contentPadding: EdgeInsets.symmetric(

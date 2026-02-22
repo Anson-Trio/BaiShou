@@ -1,6 +1,5 @@
 import 'package:baishou/features/diary/data/repositories/diary_repository_impl.dart';
 import 'package:baishou/features/diary/domain/repositories/diary_repository.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 

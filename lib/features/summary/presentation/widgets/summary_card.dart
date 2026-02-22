@@ -101,7 +101,7 @@ class SummaryCard extends StatelessWidget {
               const SizedBox(height: 8),
 
               // 内容预览
-              Container(
+              SizedBox(
                 height: 150, // 固定高度
                 width: double.infinity,
                 child: ShaderMask(

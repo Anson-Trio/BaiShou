@@ -53,7 +53,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
 
         if (isDesktop) {
           return Scaffold(
-            backgroundColor: Theme.of(context).colorScheme.background,
+            backgroundColor: Theme.of(context).colorScheme.surface,
             body: Row(
               children: [
                 // 左侧导航栏 (桌面端)

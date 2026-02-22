@@ -6,8 +6,7 @@ import 'package:baishou/features/summary/data/repositories/summary_repository_im
 import 'package:baishou/features/summary/domain/entities/summary.dart';
 import 'package:baishou/features/summary/domain/repositories/summary_repository.dart';
 import 'package:flutter/foundation.dart' hide Summary;
-import 'package:flutter/material.dart'; // 用于 DateTimeRange
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+// 用于 DateTimeRange
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'missing_summary_detector.g.dart';

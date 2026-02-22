@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:baishou/core/database/tables/summaries.dart';
 import 'package:baishou/features/diary/data/repositories/diary_repository_impl.dart';
 import 'package:baishou/features/diary/domain/repositories/diary_repository.dart';
@@ -10,8 +9,6 @@ import 'package:baishou/source/prompts/quarterly_prompt.dart';
 import 'package:baishou/source/prompts/weekly_prompt.dart';
 import 'package:baishou/source/prompts/yearly_prompt.dart';
 
-import 'package:http/http.dart' as http;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'package:baishou/core/services/api_config_service.dart';

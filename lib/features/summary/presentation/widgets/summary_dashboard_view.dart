@@ -7,7 +7,6 @@ import 'package:baishou/features/summary/presentation/widgets/missing_summary_li
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 class SummaryDashboardView extends ConsumerStatefulWidget {
   const SummaryDashboardView({super.key});
@@ -20,7 +19,7 @@ class SummaryDashboardView extends ConsumerStatefulWidget {
 class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
   bool _isLoading = false;
   ContextResult? _result;
-  int _months = 12; // Default lookback
+  final int _months = 12; // Default lookback
 
   int _lastRefreshVersion = 0;
 

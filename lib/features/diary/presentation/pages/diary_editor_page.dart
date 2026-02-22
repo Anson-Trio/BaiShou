@@ -6,7 +6,6 @@ import 'package:baishou/features/diary/presentation/widgets/markdown_toolbar.dar
 import 'package:baishou/features/diary/presentation/widgets/tag_input_widget.dart';
 import 'package:baishou/core/database/tables/summaries.dart';
 import 'package:baishou/features/summary/data/repositories/summary_repository_impl.dart';
-import 'package:baishou/features/summary/domain/entities/summary.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

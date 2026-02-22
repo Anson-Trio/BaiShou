@@ -4,7 +4,6 @@ import 'package:baishou/features/diary/domain/entities/diary.dart';
 import 'package:baishou/features/diary/domain/repositories/diary_repository.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'diary_repository_impl.g.dart';

@@ -220,7 +220,7 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
             width: 240,
             height: 40,
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
               borderRadius: BorderRadius.circular(20),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16),
