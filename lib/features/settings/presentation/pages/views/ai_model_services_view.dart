@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:baishou/core/services/api_config_service.dart';
 import 'package:baishou/features/summary/domain/services/summary_generator_service.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
@@ -369,11 +370,12 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
 
   /// 构建左侧供应商列表项
   Widget _buildProviderListItem(AiProviderModel p, bool isMobile) {
-    final isSelected = _selectedProviderId == p.id;
+    // 移动端仅作为入口列表，不需要高亮选中态
+    final isSelected = !isMobile && _selectedProviderId == p.id;
     final colorScheme = Theme.of(context).colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: InkWell(
         onTap: () => _handleProviderTap(p.id, isMobile),
         borderRadius: BorderRadius.circular(12),
@@ -820,7 +822,13 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
     }
 
     final colorScheme = Theme.of(context).colorScheme;
-    final isMobile = MediaQuery.of(context).size.width < 600;
+
+    bool isMobile = false;
+    try {
+      if (Platform.isAndroid || Platform.isIOS) {
+        isMobile = true;
+      }
+    } catch (e) {}
 
     final providersList = Column(
       crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:baishou/core/database/tables/summaries.dart';
 import 'package:baishou/core/theme/app_theme.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
@@ -18,30 +19,41 @@ class SummaryPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    bool isMobile = false;
+    try {
+      if (Platform.isAndroid || Platform.isIOS) {
+        isMobile = true;
+      }
+    } catch (e) {}
+
     return DefaultTabController(
       length: 3,
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          title: const Text('AI 总结'),
-          centerTitle: false,
+      child: SafeArea(
+        top: isMobile,
+        bottom: false,
+        child: Scaffold(
           backgroundColor: Colors.transparent,
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: '仪表盘'),
-              Tab(text: '原始数据'),
-              Tab(text: '历史归档'),
+          appBar: AppBar(
+            title: const Text('AI 总结'),
+            centerTitle: false,
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            bottom: const TabBar(
+              tabs: [
+                Tab(text: '仪表盘'),
+                Tab(text: '原始数据'),
+                Tab(text: '历史归档'),
+              ],
+            ),
+          ),
+          body: const TabBarView(
+            children: [
+              SummaryDashboardView(),
+              SummaryRawDataView(),
+              _SummaryArchiveView(),
             ],
           ),
-        ),
-        body: const TabBarView(
-          children: [
-            SummaryDashboardView(),
-            SummaryRawDataView(),
-            _SummaryArchiveView(),
-          ],
         ),
       ),
     );

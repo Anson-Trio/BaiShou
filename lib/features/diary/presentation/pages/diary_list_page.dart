@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:baishou/core/theme/app_theme.dart';
 import 'package:baishou/core/widgets/year_month_picker_sheet.dart';
 import 'package:baishou/features/diary/data/repositories/diary_repository_impl.dart';
@@ -33,103 +34,115 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
   @override
   Widget build(BuildContext context) {
     final diaryStream = ref.watch(diaryRepositoryProvider).watchAllDiaries();
-    final bool isDesktop = MediaQuery.of(context).size.width >= 700;
 
-    return Scaffold(
-      backgroundColor: Colors.transparent, // 让底层 Scaffold 的颜色透上来
-      appBar: AppBar(
-        centerTitle: false,
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        title: _isSearching && !isDesktop
-            ? TextField(
-                autofocus: true,
-                decoration: const InputDecoration(
-                  hintText: '搜索记忆...',
-                  border: InputBorder.none,
-                ),
-                onChanged: (val) => setState(() => _searchQuery = val),
-              )
-            : isDesktop
-            ? _buildDesktopHeader(context)
-            : _buildMobileTitle(context),
-        actions: isDesktop
-            ? null
-            : [
-                IconButton(
-                  onPressed: () {
-                    setState(() {
-                      _isSearching = !_isSearching;
-                      if (!_isSearching) _searchQuery = '';
-                    });
+    bool isMobile = false;
+    try {
+      if (Platform.isAndroid || Platform.isIOS) {
+        isMobile = true;
+      }
+    } catch (e) {}
+    final bool isDesktop = !isMobile;
+
+    return SafeArea(
+      top: isMobile,
+      bottom: false,
+      child: Scaffold(
+        backgroundColor: Colors.transparent, // 让底层 Scaffold 的颜色透上来
+        appBar: AppBar(
+          centerTitle: false,
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          title: _isSearching && !isDesktop
+              ? TextField(
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    hintText: '搜索记忆...',
+                    border: InputBorder.none,
+                  ),
+                  onChanged: (val) => setState(() => _searchQuery = val),
+                )
+              : isDesktop
+              ? _buildDesktopHeader(context)
+              : _buildMobileTitle(context),
+          actions: isDesktop
+              ? null
+              : [
+                  IconButton(
+                    onPressed: () {
+                      setState(() {
+                        _isSearching = !_isSearching;
+                        if (!_isSearching) _searchQuery = '';
+                      });
+                    },
+                    icon: Icon(_isSearching ? Icons.close : Icons.search),
+                  ),
+                ],
+        ),
+        body: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: isDesktop ? 800 : double.infinity,
+            ),
+            child: StreamBuilder<List<Diary>>(
+              stream: diaryStream,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final diaries = snapshot.data!;
+
+                // 性能优化：使用 helper 方法进行分组与筛选
+                final filteredDiaries = _getFilteredDiaries(diaries);
+                if (filteredDiaries.isEmpty) return _buildEmptyState(context);
+
+                final groupedData = _getGroupedDiaries(filteredDiaries);
+                final sortedDates = groupedData.keys.toList()
+                  ..sort((a, b) => b.compareTo(a));
+
+                return GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onDoubleTap: () {
+                    _scrollController.animateTo(
+                      0,
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeOut,
+                    );
                   },
-                  icon: Icon(_isSearching ? Icons.close : Icons.search),
-                ),
-              ],
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: isDesktop ? 800 : double.infinity,
-          ),
-          child: StreamBuilder<List<Diary>>(
-            stream: diaryStream,
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return Center(child: Text('Error: ${snapshot.error}'));
-              }
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              final diaries = snapshot.data!;
-
-              // 性能优化：使用 helper 方法进行分组与筛选
-              final filteredDiaries = _getFilteredDiaries(diaries);
-              if (filteredDiaries.isEmpty) return _buildEmptyState(context);
-
-              final groupedData = _getGroupedDiaries(filteredDiaries);
-              final sortedDates = groupedData.keys.toList()
-                ..sort((a, b) => b.compareTo(a));
-
-              return GestureDetector(
-                onDoubleTap: () {
-                  _scrollController.animateTo(
-                    0,
-                    duration: const Duration(milliseconds: 400),
-                    curve: Curves.easeOut,
-                  );
-                },
-                child: CustomScrollView(
-                  controller: _scrollController,
-                  physics: const BouncingScrollPhysics(),
-                  slivers: [
-                    const SliverToBoxAdapter(child: SizedBox(height: 10)),
-                    ..._buildSlivers(
-                      context,
-                      groupedData,
-                      sortedDates,
-                      isDesktop,
-                    ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 80)),
-                  ],
-                ),
-              );
-            },
+                  child: CustomScrollView(
+                    controller: _scrollController,
+                    physics: const BouncingScrollPhysics(),
+                    slivers: [
+                      const SliverToBoxAdapter(child: SizedBox(height: 10)),
+                      ..._buildSlivers(
+                        context,
+                        groupedData,
+                        sortedDates,
+                        isDesktop,
+                      ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 80)),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         ),
-      ),
-      floatingActionButton: isDesktop
-          ? null
-          : FloatingActionButton(
-              onPressed: () => context.push(
-                '/diary/edit?date=${DateTime.now().toIso8601String()}',
+        floatingActionButton: isDesktop
+            ? null
+            : FloatingActionButton(
+                onPressed: () => context.push(
+                  '/diary/edit?date=${DateTime.now().toIso8601String()}',
+                ),
+                backgroundColor: AppTheme.primary,
+                shape: const CircleBorder(),
+                child: const Icon(Icons.add, color: Colors.white, size: 32),
               ),
-              backgroundColor: AppTheme.primary,
-              shape: const CircleBorder(),
-              child: const Icon(Icons.add, color: Colors.white, size: 32),
-            ),
+      ),
     );
   }
 
@@ -137,6 +150,15 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
     return GestureDetector(
       onTap: () {
         _showMonthPicker(context);
+      },
+      onDoubleTap: () {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            0,
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeOut,
+          );
+        }
       },
       child: Row(
         mainAxisSize: MainAxisSize.min,
