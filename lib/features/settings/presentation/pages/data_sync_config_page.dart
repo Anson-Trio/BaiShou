@@ -4,6 +4,7 @@ import 'package:baishou/features/settings/presentation/widgets/config_form_field
 import 'package:baishou/features/settings/presentation/widgets/sync_target_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 class DataSyncConfigPage extends ConsumerStatefulWidget {
   const DataSyncConfigPage({super.key});
@@ -83,7 +84,7 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
     }
 
     if (mounted) {
-      AppToast.showSuccess(context, '配置已保存');
+      AppToast.showSuccess(context, t.data_sync.config_saved);
     }
   }
 
@@ -111,7 +112,7 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
     return Scaffold(
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        title: const Text('数据同步配置'),
+        title: Text(t.data_sync.config_title),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -126,7 +127,7 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '选择同步目标',
+                  t.data_sync.select_target_title,
                   style: textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -138,22 +139,22 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
                       _buildTargetCard(
                         index: 0,
                         icon: Icons.folder_outlined,
-                        title: '本地存储',
-                        description: '备份到设备本地目录',
+                        title: t.data_sync.target_local,
+                        description: t.data_sync.local_storage_desc,
                       ),
                       const SizedBox(height: 12),
                       _buildTargetCard(
                         index: 1,
                         icon: Icons.cloud_outlined,
-                        title: 'S3 对象存储',
-                        description: '兼容 AWS S3 的云存储服务',
+                        title: t.data_sync.target_s3,
+                        description: t.data_sync.s3_storage_desc,
                       ),
                       const SizedBox(height: 12),
                       _buildTargetCard(
                         index: 2,
                         icon: Icons.public_outlined,
-                        title: 'WebDAV',
-                        description: '通用网络文件存储协议',
+                        title: t.data_sync.target_webdav,
+                        description: t.data_sync.webdav_storage_desc,
                       ),
                     ],
                   )
@@ -164,8 +165,8 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
                         child: _buildTargetCard(
                           index: 0,
                           icon: Icons.folder_outlined,
-                          title: '本地存储',
-                          description: '备份到设备本地目录',
+                          title: t.data_sync.target_local,
+                          description: t.data_sync.local_storage_desc,
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -173,8 +174,8 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
                         child: _buildTargetCard(
                           index: 1,
                           icon: Icons.cloud_outlined,
-                          title: 'S3 对象存储',
-                          description: '兼容 AWS S3 的云存储服务',
+                          title: t.data_sync.target_s3,
+                          description: t.data_sync.s3_storage_desc,
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -182,8 +183,8 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
                         child: _buildTargetCard(
                           index: 2,
                           icon: Icons.public_outlined,
-                          title: 'WebDAV',
-                          description: '通用网络文件存储协议',
+                          title: t.data_sync.target_webdav,
+                          description: t.data_sync.webdav_storage_desc,
                         ),
                       ),
                     ],
@@ -243,11 +244,11 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('本地存储不需要额外配置。保存后生效。'),
+              Text(t.data_sync.local_no_config),
               const SizedBox(height: 16),
               FilledButton.tonal(
                 onPressed: _saveConfig,
-                child: const Text('设为本地同步目标'),
+                child: Text(t.data_sync.set_local_target),
               ),
             ],
           ),
@@ -294,7 +295,7 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
           children: [
             Flexible(
               child: Text(
-                'S3 存储配置',
+                t.data_sync.s3_config_title,
                 style: Theme.of(
                   context,
                 ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
@@ -302,19 +303,19 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
             ),
             FilledButton.tonal(
               onPressed: _saveConfig,
-              child: const Text('保存配置'),
+              child: Text(t.data_sync.save_config_button),
             ),
           ],
         ),
         const SizedBox(height: 32),
         buildRow([
           ConfigFormField(
-            title: 'Endpoint 服务地址',
+            title: t.data_sync.s3_endpoint_label,
             controller: _endpointController,
             icon: Icons.api_outlined,
           ),
           ConfigFormField(
-            title: 'Region 区域名',
+            title: t.data_sync.s3_region_label,
             controller: _regionController,
             icon: Icons.map_outlined,
           ),
@@ -322,12 +323,12 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
         if (!isMobile) const SizedBox(height: 16),
         buildRow([
           ConfigFormField(
-            title: 'Bucket 存储桶',
+            title: t.data_sync.s3_bucket_label,
             controller: _bucketController,
             icon: Icons.data_usage_outlined,
           ),
           ConfigFormField(
-            title: 'Path 子路径',
+            title: t.data_sync.s3_path_label,
             controller: _pathController,
             icon: Icons.folder_open_outlined,
           ),
@@ -337,7 +338,7 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
         const SizedBox(height: 24),
         buildRow([
           ConfigFormField(
-            title: 'Access Key (AK)',
+            title: t.data_sync.s3_ak_label,
             controller: _akController,
             icon: Icons.vpn_key_outlined,
             obscure: _isObscure,
@@ -347,7 +348,7 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
             ),
           ),
           ConfigFormField(
-            title: 'Secret Key (SK)',
+            title: t.data_sync.s3_sk_label,
             controller: _skController,
             icon: Icons.key_outlined,
             obscure: _isObscure,
@@ -394,7 +395,7 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
           children: [
             Flexible(
               child: Text(
-                'WebDAV 存储配置',
+                t.data_sync.webdav_config_title,
                 style: Theme.of(
                   context,
                 ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
@@ -402,19 +403,19 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
             ),
             FilledButton.tonal(
               onPressed: _saveConfig,
-              child: const Text('保存配置'),
+              child: Text(t.data_sync.save_config_button),
             ),
           ],
         ),
         const SizedBox(height: 32),
         buildRow([
           ConfigFormField(
-            title: 'Server URL 服务地址',
+            title: t.data_sync.webdav_url_label,
             controller: _webdavUrlController,
             icon: Icons.api_outlined,
           ),
           ConfigFormField(
-            title: 'Path 子路径',
+            title: t.data_sync.webdav_path_label,
             controller: _webdavPathController,
             icon: Icons.folder_open_outlined,
           ),
@@ -424,12 +425,12 @@ class _DataSyncConfigPageState extends ConsumerState<DataSyncConfigPage> {
         const SizedBox(height: 24),
         buildRow([
           ConfigFormField(
-            title: 'Username 用户名',
+            title: t.data_sync.webdav_user_label,
             controller: _webdavUserController,
             icon: Icons.person_outline,
           ),
           ConfigFormField(
-            title: 'Password 密码',
+            title: t.data_sync.webdav_password_label,
             controller: _webdavPwdController,
             icon: Icons.key_outlined,
             obscure: _isObscure,

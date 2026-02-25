@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 /// 自定义模型选择器组件
 /// 用于在全局设置中，以弹窗形式让用户从启用的供应商和模型列表中进行选择。
@@ -21,7 +22,7 @@ class CustomModelSelector extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    String displayTitle = '请选择模型'; // 按钮显示的标题
+    String displayTitle = t.settings.select_model_title; // 按钮显示的标题
     String displaySubtitle = ''; // 按钮显示的副标题（供应商名称）
 
     if (selectedModelId != null && selectedModelId!.isNotEmpty) {
@@ -131,7 +132,7 @@ class CustomModelSelector extends StatelessWidget {
                   child: Row(
                     children: [
                       Text(
-                        '选择$title',
+                        t.settings.select_title(title: title),
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,

@@ -3,6 +3,7 @@ import 'package:baishou/features/settings/presentation/pages/views/ai_global_mod
 import 'package:baishou/features/settings/presentation/pages/views/ai_model_services_view.dart';
 import 'package:baishou/features/settings/presentation/pages/data_sync_page.dart';
 import 'package:baishou/features/settings/presentation/pages/views/general_settings_view.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -87,19 +88,19 @@ class _SettingsPageState extends State<SettingsPage> {
       },
       child: Scaffold(
         backgroundColor: colorScheme.surface,
-        appBar: AppBar(title: const Text('系统设置'), centerTitle: true),
+        appBar: AppBar(title: Text(t.settings.title), centerTitle: true),
         body: ListView(
           children: [
             ListTile(
               leading: const Icon(Icons.settings_outlined),
-              title: const Text('常规设置'),
+              title: Text(t.settings.general),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => Scaffold(
-                      appBar: AppBar(title: const Text('常规设置')),
+                      appBar: AppBar(title: Text(t.settings.general)),
                       body: const GeneralSettingsView(),
                     ),
                   ),
@@ -108,14 +109,14 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             ListTile(
               leading: const Icon(Icons.cloud_queue_outlined),
-              title: const Text('模型服务'),
+              title: Text(t.settings.ai_services),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => Scaffold(
-                      appBar: AppBar(title: const Text('模型服务')),
+                      appBar: AppBar(title: Text(t.settings.ai_services)),
                       body: const AiModelServicesView(),
                     ),
                   ),
@@ -124,14 +125,14 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             ListTile(
               leading: const Icon(Icons.star_border_rounded),
-              title: const Text('全局模型'),
+              title: Text(t.settings.ai_global_models),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => Scaffold(
-                      appBar: AppBar(title: const Text('全局模型')),
+                      appBar: AppBar(title: Text(t.settings.ai_global_models)),
                       body: const AiGlobalModelsView(),
                     ),
                   ),
@@ -140,14 +141,14 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             ListTile(
               leading: const Icon(Icons.sync_rounded),
-              title: const Text('数据同步'),
+              title: Text(t.data_sync.title),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => Scaffold(
-                      appBar: AppBar(title: const Text('数据同步')),
+                      appBar: AppBar(title: Text(t.data_sync.title)),
                       body: const DataSyncPage(),
                     ),
                   ),
@@ -188,11 +189,11 @@ class _SettingsPageState extends State<SettingsPage> {
                       IconButton(
                         icon: const Icon(Icons.arrow_back),
                         onPressed: () => context.pop(),
-                        tooltip: '返回',
+                        tooltip: t.common.cancel,
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '系统设置',
+                        t.settings.title,
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                           letterSpacing: -0.5,
@@ -201,10 +202,22 @@ class _SettingsPageState extends State<SettingsPage> {
                     ],
                   ),
                 ),
-                _buildSidebarTab('常规设置', Icons.settings_outlined, 0),
-                _buildSidebarTab('模型服务', Icons.cloud_queue_outlined, 1),
-                _buildSidebarTab('全局模型', Icons.star_border_rounded, 2),
-                _buildSidebarTab('数据同步', Icons.sync_rounded, 3),
+                _buildSidebarTab(
+                  t.settings.general,
+                  Icons.settings_outlined,
+                  0,
+                ),
+                _buildSidebarTab(
+                  t.settings.ai_services,
+                  Icons.cloud_queue_outlined,
+                  1,
+                ),
+                _buildSidebarTab(
+                  t.settings.ai_global_models,
+                  Icons.star_border_rounded,
+                  2,
+                ),
+                _buildSidebarTab(t.data_sync.title, Icons.sync_rounded, 3),
               ],
             ),
           ),

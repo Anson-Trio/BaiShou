@@ -1,6 +1,7 @@
 import 'package:baishou/core/models/ai_provider_model.dart';
 import 'package:baishou/core/services/api_config_service.dart';
 import 'package:flutter/material.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// 负责渲染供应商可用模型列表、启用状态 toggle 以及列表排序
@@ -73,7 +74,10 @@ class ProviderModelList extends ConsumerWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '模型列表 (${provider.enabledModels.length} / ${provider.models.length})',
+                  t.settings.model_list_count(
+                    enabled: provider.enabledModels.length.toString(),
+                    total: provider.models.length.toString(),
+                  ),
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1,
@@ -90,7 +94,7 @@ class ProviderModelList extends ConsumerWidget {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.sync_rounded, size: 16),
-              label: const Text('获取模型'),
+              label: Text(t.settings.fetch_models),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -126,7 +130,7 @@ class ProviderModelList extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  '暂无模型，点击右上角按钮获取',
+                  t.settings.no_models_hint,
                   style: TextStyle(color: colorScheme.onSurfaceVariant),
                 ),
               ],

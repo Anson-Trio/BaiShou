@@ -2,6 +2,7 @@ import 'package:baishou/core/models/ai_provider_model.dart';
 import 'package:baishou/core/clients/openai_client.dart';
 import 'package:baishou/core/clients/gemini_client.dart';
 import 'package:baishou/core/clients/anthropic_client.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 /// AI 客户端的基础接口 (Strategy 模式)
 abstract class AiClient {
@@ -23,7 +24,7 @@ class AiClientFactory {
   /// 根据提供的 [provider] 创建并挂载对应的专属 API Client
   static AiClient createClient(AiProviderModel provider) {
     if (provider.apiKey.isEmpty) {
-      throw Exception('未填写 API Key，无法进行有效操作。');
+      throw Exception(t.ai.error_no_api_key);
     }
 
     // 如果没有配置 baseUrl 且非特定支持空Url的供应商，可在此处做通用拦截

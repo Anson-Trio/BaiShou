@@ -27,6 +27,7 @@
 | **UI System**  | **Material Design 3**    | 使用官方 M3 规范，配色需符合"白守"的素雅淡洁         |
 | **Immutable**  | **Freezed**              | 数据类必须不可变，杜绝隐式状态修改                   |
 | **AI Client**  | **Google Generative AI** | 直接调用 Gemini API (MVP阶段)                        |
+| **I18n**       | **slang**                | 强类型翻译键，代码生成，支持参数插值，零运行时反射 |
 
 ---
 
@@ -52,7 +53,14 @@ lib/
 │   │   └── presentation/   # Presentation Layer (Widgets, Controllers)
 │   ├── summary/            # e.g. 总结模块
 │   └── settings/           # e.g. 设置模块
-└── l10n/                   # 国际化 (虽然目前仅中文，预留结构)
+├── i18n/                   # 国际化文件目录 (slang 管理)
+│   ├── strings_zh.i18n.json   # 简体中文（基础语言）
+│   ├── strings_zh_TW.i18n.json # 繁体中文
+│   ├── strings_en.i18n.json   # 英语
+│   ├── strings_ja.i18n.json   # 日语
+│   └── strings.g.dart         # slang 自动生成，禁止手动修改
+└── source/
+    └── prompts/               # AI 提示词模板（按 Locale 分发）
 ```
 
 ### 3.1 严格分层原则
@@ -134,3 +142,73 @@ lib/
 2. **检查 Import**：确保 import 路径正确，优先使用绝对路径 `package:baishou/...`。
 3. **解释逻辑**：在复杂逻辑处（尤其是 Riverpod 的状态流转），用注释解释清楚。
 4. **UI 微调**：在编写 UI 时，主动添加 `const` 修饰符，主动思考 Padding 和对齐，确保 visually pleasing。
+5. **I18n 优先**：所有新增 UI 文案必须先在 `lib/i18n/strings_zh.i18n.json` 中定义，再通过 `t.xxx.xxx` 访问，禁止硬编码中文字面量。
+
+---
+
+## 8. 国际化规范 (I18n - slang)
+
+### 8.1 技术选型：slang
+
+我们使用 [slang](https://pub.dev/packages/slang) 作为 I18n 解决方案。它基于代码生成而非运行时反射，天然类型安全，且对 Flutter 全平台支持完美。
+
+以下几点决定了选择它的价值：
+- **强类型访问**：`t.summary.dashboard_title` 编译期报错，而非运行时 KeyNotFound。
+- **参数插值**：`t.summary.lookback_period(months: 12)` 直接传参，语法清晰。
+- **无需 Context**：可以在 Service 层直接通过 `t.xxx` 或 `LocaleSettings.currentLocale` 访问翻译。
+
+### 8.2 文件结构
+
+`lib/i18n/` 目录下包含所有翻译 JSON 文件。**简体中文（`strings_zh.i18n.json`）是基础语言**，其他语言文件仅需覆盖不同的键值。
+
+支持语言：
+| 语言 | 文件 | Locale 枚举 |
+|:---|:---|:---|
+| 简体中文 | `strings_zh.i18n.json` | `AppLocale.zh` |
+| 繁体中文 | `strings_zh_TW.i18n.json` | `AppLocale.zhTw` |
+| 英语 | `strings_en.i18n.json` | `AppLocale.en` |
+| 日语 | `strings_ja.i18n.json` | `AppLocale.ja` |
+
+### 8.3 使用规范
+
+**① UI 文案：在 Widget 中使用 `t`**
+```dart
+// ✅ Good
+Text(t.summary.copy_memories)
+
+// ❌ Bad（硬编码中文，无法多语言）
+Text('复制共同回忆')
+```
+
+**② 带参数的翻译**
+```dart
+// JSON 定义："lookback_period": "过去 {months} 个月"
+// slang 将插值字符串生成为普通 String getter，需手动替换占位符：
+Text(t.summary.lookback_period.replaceAll('{months}', '$months'))
+```
+
+> [!NOTE]
+> **关于参数插值**：slang 仅当 JSON 中存在 `(param)` 或使用了 plurals 语法时，才会生成函数形式。
+> 使用 `{param}` 风格时，生成的是 `String get`，需在代码中手动 `replaceAll('{param}', value)` 替换。
+
+**③ 在 Service 层（非 Widget 层）使用翻译**
+```dart
+// 不需要 BuildContext，直接通过顶层 t 或获取当前 Locale
+final currentLocale = LocaleSettings.currentLocale;
+final prompt = PromptTemplates.buildWeekly(currentLocale, ...);
+```
+
+**④ 切换语言**
+```dart
+await LocaleSettings.setLocale(AppLocale.en);
+```
+
+### 8.4 新增翻译文案的流程
+
+1. 在 `strings_zh.i18n.json` 中增加对应键。
+2. 在其他三个语言文件（`zh_TW`, `en`, `ja`）中同步增加翻译。
+3. 运行 `dart run build_runner build --delete-conflicting-outputs` 重新生成代码。
+4. 在 UI 中通过 `t.xxx.yyy` 访问（IDE 会提示自动补全）。
+
+> [!IMPORTANT]
+> **每次修改 `.i18n.json` 后必须重新执行 build_runner！** 否则生成的 `strings.g.dart` 不会更新，`t.xxx.xxx` 会报编译错误。

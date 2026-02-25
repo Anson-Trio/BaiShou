@@ -1,5 +1,6 @@
 import 'package:baishou/core/models/ai_provider_model.dart';
 import 'package:flutter/material.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 /// 负责渲染 API 密钥与基础 URL 的配置表单
 class ProviderConfigForm extends StatelessWidget {
@@ -68,7 +69,7 @@ class ProviderConfigForm extends StatelessWidget {
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      'API 配置',
+                      t.settings.api_config,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -78,7 +79,7 @@ class ProviderConfigForm extends StatelessWidget {
                 TextButton.icon(
                   onPressed: onResetRequested,
                   icon: const Icon(Icons.restore_rounded, size: 16),
-                  label: const Text('恢复默认'),
+                  label: Text(t.settings.reset_default),
                   style: TextButton.styleFrom(
                     foregroundColor: colorScheme.error,
                   ),
@@ -90,7 +91,7 @@ class ProviderConfigForm extends StatelessWidget {
               controller: baseUrlController,
               decoration: InputDecoration(
                 labelText: 'API Base URL',
-                hintText: '例如: https://api.openai.com/v1',
+                hintText: '',
                 prefixIcon: const Icon(Icons.link_rounded),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -100,10 +101,10 @@ class ProviderConfigForm extends StatelessWidget {
               ),
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return '请输入 Base URL';
+                  return t.settings.error_base_url_required;
                 }
                 if (!Uri.parse(value).isAbsolute) {
-                  return '请输入有效的 URL';
+                  return t.settings.error_invalid_url;
                 }
                 return null;
               },
@@ -145,7 +146,9 @@ class ProviderConfigForm extends StatelessWidget {
                     )
                   : const Icon(Icons.wifi_rounded, size: 18),
               label: Text(
-                isTesting ? '正在测试连接...' : '测试连接',
+                isTesting
+                    ? t.settings.testing_connection
+                    : t.settings.test_connection,
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               style: FilledButton.styleFrom(

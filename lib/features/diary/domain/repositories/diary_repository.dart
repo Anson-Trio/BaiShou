@@ -31,4 +31,7 @@ abstract class DiaryRepository {
 
   /// 获取指定日期范围内的日记
   Future<List<Diary>> getDiariesInRange(DateTime start, DateTime end);
+
+  /// 获取最早的一条日记的日期
+  Future<DateTime?> getOldestDiaryDate();
 }

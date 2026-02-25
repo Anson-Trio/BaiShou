@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:webdav_client/webdav_client.dart' as webdav;
+import 'package:baishou/i18n/strings.g.dart';
 
 /// WebDAV 同步记录详情类
 /// 封装了存储在 WebDAV 服务器上的备份文件的元数据
@@ -134,7 +135,7 @@ class WebDavClientService {
       if (e.toString().contains('404')) {
         return [];
       }
-      throw Exception('列出 WebDAV 文件失败: $e');
+      throw Exception(t.data_sync.list_webdav_failed(e: e.toString()));
     }
 
     return records;
@@ -163,7 +164,7 @@ class WebDavClientService {
       await client.copy(oldPath, newPath, false); // Add overwrite param
       await client.remove(oldPath);
     } catch (e) {
-      throw Exception('重命名 WebDAV 文件失败: $e');
+      throw Exception(t.data_sync.rename_webdav_failed(e: e.toString()));
     }
   }
 }

@@ -8,6 +8,7 @@ import 'package:baishou/features/summary/domain/repositories/summary_repository.
 import 'package:flutter/foundation.dart' hide Summary;
 // 用于 DateTimeRange
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 part 'missing_summary_detector.g.dart';
 
@@ -16,12 +17,14 @@ class MissingSummary {
   final DateTime startDate;
   final DateTime endDate;
   final String label;
+  final int? weekNumber;
 
   const MissingSummary({
     required this.type,
     required this.startDate,
     required this.endDate,
     required this.label,
+    this.weekNumber,
   });
 }
 
@@ -32,7 +35,7 @@ class MissingSummaryDetector {
   MissingSummaryDetector(this._diaryRepo, this._summaryRepo);
 
   /// 获取所有缺失的总结（周记、月报、季报、年鉴）
-  Future<List<MissingSummary>> getAllMissing() async {
+  Future<List<MissingSummary>> getAllMissing(AppLocale locale) async {
     // 1. 一次性获取所有数据
     final allDiaries = await _diaryRepo.getAllDiaries();
     final allSummaries = await _summaryRepo.getSummaries();
@@ -40,20 +43,25 @@ class MissingSummaryDetector {
     if (allDiaries.isEmpty) return [];
 
     // 2. 在 Isolate 中处理计算逻辑
-    return compute(_detectMissing, _DetectorInput(allDiaries, allSummaries));
+    return compute(
+      _detectMissing,
+      _DetectorInput(allDiaries, allSummaries, locale),
+    );
   }
 }
 
 class _DetectorInput {
   final List<Diary> diaries;
   final List<Summary> summaries;
-  _DetectorInput(this.diaries, this.summaries);
+  final AppLocale locale;
+  _DetectorInput(this.diaries, this.summaries, this.locale);
 }
 
 // Top-level function for isolate
 List<MissingSummary> _detectMissing(_DetectorInput input) {
   final diaries = input.diaries;
   final summaries = input.summaries;
+  final locale = input.locale;
 
   if (diaries.isEmpty) return [];
 
@@ -66,18 +74,22 @@ List<MissingSummary> _detectMissing(_DetectorInput input) {
   final weekly = _getMissingWeekly(
     diaries,
     summaryMap[SummaryType.weekly.name] ?? [],
+    locale,
   );
   final monthly = _getMissingMonthly(
     summaryMap[SummaryType.weekly.name] ?? [],
     summaryMap[SummaryType.monthly.name] ?? [],
+    locale,
   );
   final quarterly = _getMissingQuarterly(
     summaryMap[SummaryType.monthly.name] ?? [],
     summaryMap[SummaryType.quarterly.name] ?? [],
+    locale,
   );
   final yearly = _getMissingYearly(
     summaryMap[SummaryType.quarterly.name] ?? [],
     summaryMap[SummaryType.yearly.name] ?? [],
+    locale,
   );
 
   return [...weekly, ...monthly, ...quarterly, ...yearly]
@@ -89,6 +101,7 @@ List<MissingSummary> _detectMissing(_DetectorInput input) {
 List<MissingSummary> _getMissingWeekly(
   List<Diary> diaries,
   List<Summary> existingSummaries,
+  AppLocale locale,
 ) {
   final missing = <MissingSummary>[];
   final dates = diaries.map((d) => d.date).toList()..sort();
@@ -127,12 +140,21 @@ List<MissingSummary> _getMissingWeekly(
       ); // 简化判断：周记通常由开始日期唯一确定
 
       if (!hasSummary) {
+        final weekNum = _getWeekNumber(currentStart);
+        // 手动构造 Label，避免 Isolate 环境下的翻译加载问题
+        final label = _formatLabel(
+          SummaryType.weekly,
+          currentStart,
+          locale,
+          week: weekNum,
+        );
         missing.add(
           MissingSummary(
             type: SummaryType.weekly,
             startDate: currentStart,
             endDate: currentEnd,
-            label: '${currentStart.year}年第${_getWeekNumber(currentStart)}周',
+            label: label,
+            weekNumber: weekNum,
           ),
         );
       }
@@ -147,6 +169,7 @@ List<MissingSummary> _getMissingWeekly(
 List<MissingSummary> _getMissingMonthly(
   List<Summary> weeklies,
   List<Summary> monthlies,
+  AppLocale locale,
 ) {
   if (weeklies.isEmpty) return [];
   final missing = <MissingSummary>[];
@@ -174,7 +197,7 @@ List<MissingSummary> _getMissingMonthly(
           type: SummaryType.monthly,
           startDate: m,
           endDate: monthEnd,
-          label: '${m.year}年${m.month}月',
+          label: _formatLabel(SummaryType.monthly, m, locale),
         ),
       );
     }
@@ -185,6 +208,7 @@ List<MissingSummary> _getMissingMonthly(
 List<MissingSummary> _getMissingQuarterly(
   List<Summary> monthlies,
   List<Summary> quarterlies,
+  AppLocale locale,
 ) {
   if (monthlies.isEmpty) return [];
   final missing = <MissingSummary>[];
@@ -222,7 +246,12 @@ List<MissingSummary> _getMissingQuarterly(
           type: SummaryType.quarterly,
           startDate: qStart,
           endDate: qEnd,
-          label: '$year年Q$quarter',
+          label: _formatLabel(
+            SummaryType.quarterly,
+            qStart,
+            locale,
+            quarter: quarter,
+          ),
         ),
       );
     }
@@ -233,6 +262,7 @@ List<MissingSummary> _getMissingQuarterly(
 List<MissingSummary> _getMissingYearly(
   List<Summary> quarterlies,
   List<Summary> yearlies,
+  AppLocale locale,
 ) {
   if (quarterlies.isEmpty) return [];
   final missing = <MissingSummary>[];
@@ -257,12 +287,59 @@ List<MissingSummary> _getMissingYearly(
           type: SummaryType.yearly,
           startDate: yearStart,
           endDate: yearEnd,
-          label: '$year年度',
+          label: _formatLabel(SummaryType.yearly, yearStart, locale),
         ),
       );
     }
   }
   return missing;
+}
+
+String _formatLabel(
+  SummaryType type,
+  DateTime date,
+  AppLocale locale, {
+  int? week,
+  int? quarter,
+}) {
+  // 手动根据 locale 返回格式，因为 Isolate 可能没有初始化 slang
+  switch (locale) {
+    case AppLocale.en:
+      switch (type) {
+        case SummaryType.weekly:
+          return 'Week $week, ${date.year}';
+        case SummaryType.monthly:
+          return '${date.month}/${date.year}';
+        case SummaryType.quarterly:
+          return '${date.year} Q$quarter';
+        case SummaryType.yearly:
+          return 'Year ${date.year}';
+      }
+    case AppLocale.ja:
+      switch (type) {
+        case SummaryType.weekly:
+          return '${date.year}年 第${week}週';
+        case SummaryType.monthly:
+          return '${date.year}年${date.month}月';
+        case SummaryType.quarterly:
+          return '${date.year}年 Q$quarter';
+        case SummaryType.yearly:
+          return '${date.year}年度';
+      }
+    case AppLocale.zhTw:
+    case AppLocale.zh:
+    default:
+      switch (type) {
+        case SummaryType.weekly:
+          return '${date.year}年第${week}周';
+        case SummaryType.monthly:
+          return '${date.year}年${date.month}月';
+        case SummaryType.quarterly:
+          return '${date.year}年Q$quarter';
+        case SummaryType.yearly:
+          return '${date.year}年度';
+      }
+  }
 }
 
 int _getWeekNumber(DateTime date) {

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:baishou/core/models/ai_provider_model.dart';
 import 'package:baishou/core/clients/ai_client.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 class OpenAiClient implements AiClient {
   final AiProviderModel provider;
@@ -26,7 +27,7 @@ class OpenAiClient implements AiClient {
   @override
   Future<List<String>> fetchAvailableModels() async {
     if (provider.baseUrl.isEmpty) {
-      throw Exception('OpenAI 标准协议必须填写 API 基础地址。');
+      throw Exception(t.ai.error_openai_base_url);
     }
 
     final uri = Uri.parse('$_baseUrlStr/models');
@@ -48,7 +49,9 @@ class OpenAiClient implements AiClient {
             data['data'] is List) {
           modelsList = data['data'];
         } else {
-          throw Exception('OpenAI 标准协议响应数据格式错误：未找到模型列表字段。');
+          throw Exception(
+            t.ai.error_response_format(e: t.ai.error_no_model_list),
+          );
         }
 
         final List<String> result = [];
@@ -59,10 +62,13 @@ class OpenAiClient implements AiClient {
         }
         return result;
       } else {
-        throw Exception('HTTP 错误 ${response.statusCode}: ${response.body}');
+        throw Exception(
+          t.ai.error_api_request(statusCode: response.statusCode.toString()) +
+              '\n${response.body}',
+        );
       }
     } catch (e) {
-      throw Exception('(${provider.name}) 获取模型列表失败: $e');
+      throw Exception(t.ai.error_fetch_models(e: e.toString()));
     }
   }
 
@@ -96,15 +102,16 @@ class OpenAiClient implements AiClient {
             data['choices'][0]['message'] != null) {
           return data['choices'][0]['message']['content'].toString().trim();
         } else {
-          throw Exception('OpenAI 标准协议格式异常：未找到生成的文本');
+          throw Exception(t.ai.error_no_text);
         }
       } else {
         throw Exception(
-          'API请求失败 (状态码: ${response.statusCode})\n${response.body}',
+          t.ai.error_api_request(statusCode: response.statusCode.toString()) +
+              '\n${response.body}',
         );
       }
     } catch (e) {
-      throw Exception('调用生成接口失败: $e');
+      throw Exception(t.ai.error_generate_interface(e: e.toString()));
     }
   }
 

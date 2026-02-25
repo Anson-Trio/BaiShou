@@ -1,6 +1,7 @@
 import 'package:baishou/core/database/tables/summaries.dart';
 import 'package:baishou/core/theme/app_theme.dart';
 import 'package:baishou/features/summary/domain/entities/summary.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
@@ -26,21 +27,27 @@ class SummaryCard extends StatelessWidget {
     String title;
     switch (summary.type) {
       case SummaryType.weekly:
-        // 如果需要则计算周数，或者使用格式化的日期范围
-        title =
-            '周记 (${DateFormat('MM.dd').format(summary.startDate)} - ${DateFormat('MM.dd').format(summary.endDate)})';
+        title = t.summary.title_weekly(
+          range:
+              '${DateFormat('MM.dd').format(summary.startDate)} - ${DateFormat('MM.dd').format(summary.endDate)}',
+        );
         break;
       case SummaryType.monthly:
-        title = '${DateFormat('yyyy年MM月').format(summary.startDate)} 月报';
+        title = t.summary.title_monthly(
+          year: summary.startDate.year.toString(),
+          month: summary.startDate.month.toString(),
+        );
         break;
       case SummaryType.quarterly:
-        // 季度计算
         final month = summary.startDate.month;
         final q = (month / 3).ceil();
-        title = '${summary.startDate.year}年 Q$q 季度总结';
+        title = t.summary.title_quarterly(
+          year: summary.startDate.year.toString(),
+          q: q.toString(),
+        );
         break;
       case SummaryType.yearly:
-        title = '${summary.startDate.year} 年度总结';
+        title = t.summary.title_yearly(year: summary.startDate.year.toString());
         break;
     }
 
@@ -145,7 +152,7 @@ class SummaryCard extends StatelessWidget {
                       icon: const Icon(Icons.delete_outline, size: 20),
                       color: theme.disabledColor,
                       onPressed: onDelete,
-                      tooltip: '删除',
+                      tooltip: t.common.delete,
                     ),
                 ],
               ),
@@ -159,13 +166,13 @@ class SummaryCard extends StatelessWidget {
   String _getTypeLabel(SummaryType type) {
     switch (type) {
       case SummaryType.weekly:
-        return '周记';
+        return t.summary.stats_weekly;
       case SummaryType.monthly:
-        return '月报';
+        return t.summary.stats_monthly;
       case SummaryType.quarterly:
-        return '季报';
+        return t.summary.stats_quarterly;
       case SummaryType.yearly:
-        return '年鉴';
+        return t.summary.stats_yearly;
     }
   }
 }

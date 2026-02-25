@@ -7,6 +7,7 @@ import 'package:baishou/features/onboarding/presentation/pages/onboarding_page.d
 import 'package:baishou/features/settings/presentation/pages/data_sync_page.dart';
 import 'package:baishou/features/settings/presentation/pages/settings_page.dart';
 import 'package:baishou/features/summary/presentation/pages/summary_page.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -21,7 +22,7 @@ class PlaceholderHomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('白守')),
+      appBar: AppBar(title: Text(t.common.app_title)),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -29,7 +30,7 @@ class PlaceholderHomePage extends StatelessWidget {
             const Icon(Icons.favorite, size: 64, color: Colors.pinkAccent),
             const SizedBox(height: 16),
             Text(
-              '以纯白的爱，守护你和TA的一生',
+              t.settings.tagline_short,
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 32),

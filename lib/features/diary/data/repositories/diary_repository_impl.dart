@@ -164,6 +164,14 @@ class DiaryRepositoryImpl implements DiaryRepository {
   Future<List<Diary>> getDiariesInRange(DateTime start, DateTime end) {
     return getDiariesByDateRange(start, end);
   }
+
+  @override
+  Future<DateTime?> getOldestDiaryDate() async {
+    final query = _db.selectOnly(_db.diaries)
+      ..addColumns([_db.diaries.date.min()]);
+    final row = await query.getSingle();
+    return row.read(_db.diaries.date.min());
+  }
 }
 
 @Riverpod(keepAlive: true)

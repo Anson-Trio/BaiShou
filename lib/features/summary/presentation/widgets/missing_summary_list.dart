@@ -6,6 +6,7 @@ import 'package:baishou/features/summary/domain/services/missing_summary_detecto
 import 'package:baishou/features/summary/domain/services/summary_generator_service.dart';
 import 'package:baishou/features/summary/data/repositories/summary_repository_impl.dart';
 import 'package:baishou/features/summary/presentation/providers/generation_state_service.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -28,7 +29,9 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
       valueListenable: GenerationStateService().statusNotifier,
       builder: (context, generationStatus, _) {
         return FutureBuilder<List<MissingSummary>>(
-          future: ref.read(missingSummaryDetectorProvider).getAllMissing(),
+          future: ref
+              .read(missingSummaryDetectorProvider)
+              .getAllMissing(LocaleSettings.currentLocale),
           builder: (context, snapshot) {
             if (!snapshot.hasData) return const SizedBox.shrink();
             final missing = snapshot.data!;
@@ -59,8 +62,8 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
                           color: AppTheme.primary,
                         ),
                         const SizedBox(width: 8),
-                        const Text(
-                          'AI 建议补全',
+                        Text(
+                          t.summary.ai_suggestions,
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -74,7 +77,7 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
                             visualDensity: VisualDensity.compact,
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                           ),
-                          child: const Text('全部生成'),
+                          child: Text(t.summary.generate_all),
                         ),
                         const SizedBox(width: 8),
                         Container(
@@ -87,7 +90,7 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            '${missing.length}个',
+                            t.common.count_items(count: missing.length),
                             style: TextStyle(
                               fontSize: 12,
                               color: AppTheme.primary,
@@ -108,8 +111,8 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
                         final status = generationStatus[key];
                         final isError =
                             status != null &&
-                            (status.startsWith('生成失败') ||
-                                status.startsWith('内容为空'));
+                            (status.startsWith(t.summary.generation_failed) ||
+                                status.startsWith(t.summary.content_empty));
                         // 加载中：状态已设置且不是错误
                         final isLoading = status != null && !isError;
 
@@ -122,7 +125,7 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
                           ),
                           subtitle: Text(
                             status ??
-                                '${item.startDate.month}月${item.startDate.day}日 - ${item.endDate.month}月${item.endDate.day}日',
+                                '${item.startDate.month}${t.common.month_suffix}${item.startDate.day}${t.common.day_suffix} - ${item.endDate.month}${t.common.month_suffix}${item.endDate.day}${t.common.day_suffix}',
                             style: TextStyle(
                               color: status != null
                                   ? (isError ? Colors.red : AppTheme.primary)
@@ -151,7 +154,11 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
                                         ? Colors.red
                                         : null,
                                   ),
-                                  child: Text(isError ? '重试' : '生成'),
+                                  child: Text(
+                                    isError
+                                        ? t.common.retry
+                                        : t.common.generate,
+                                  ),
                                 ),
                         );
                       },
@@ -174,7 +181,10 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
 
     // 检查是否已配置
     if (providerId.isEmpty || modelId.isEmpty) {
-      _showGoToSettingsDialog('模型未配置', '你还没有配置 AI 模型，无法生成总结。\n是否跳转到设置页面进行配置？');
+      _showGoToSettingsDialog(
+        t.summary.model_not_configured,
+        t.summary.model_not_configured_desc,
+      );
       return false;
     }
 
@@ -182,8 +192,8 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
     final provider = apiConfig.getProvider(providerId);
     if (provider == null || !provider.isEnabled) {
       _showGoToSettingsDialog(
-        '模型服务已禁用',
-        '当前配置的总结模型所属服务已被关闭（OFF）。\n请在设置中重新启用该服务，或更换一个可用的模型。',
+        t.summary.service_disabled,
+        t.summary.service_disabled_desc,
       );
       return false;
     }
@@ -201,7 +211,7 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('取消'),
+            child: Text(t.common.cancel),
           ),
           FilledButton(
             onPressed: () {
@@ -216,7 +226,7 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
                 context.push('/settings');
               }
             },
-            child: const Text('去设置'),
+            child: Text(t.settings.go_to_settings),
           ),
         ],
       ),
@@ -241,12 +251,12 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
     // 检查是否正在生成（允许在失败状态时重试）
     final currentStatus = service.getStatus(key);
     if (currentStatus != null &&
-        !currentStatus.startsWith('生成失败') &&
-        !currentStatus.startsWith('内容为空')) {
+        !currentStatus.startsWith(t.summary.generation_failed) &&
+        !currentStatus.startsWith(t.summary.content_empty)) {
       return;
     }
 
-    service.setStatus(key, '准备中...');
+    service.setStatus(key, t.summary.preparing);
 
     try {
       final stream = generator.generate(item);
@@ -277,15 +287,21 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
           ref.read(dataRefreshProvider.notifier).refresh();
         }
       } else {
-        service.setStatus(key, '内容为空，点击重试');
+        service.setStatus(key, t.summary.tap_to_retry);
         if (mounted) {
-          AppToast.showError(context, '「${item.label}」生成内容为空，请重试');
+          AppToast.showError(
+            context,
+            t.summary.empty_content_error(label: item.label),
+          );
         }
       }
     } catch (e) {
-      service.setStatus(key, '生成失败，点击重试');
+      service.setStatus(key, t.summary.tap_to_retry);
       if (mounted) {
-        AppToast.showError(context, '「${item.label}」生成失败：$e');
+        AppToast.showError(
+          context,
+          t.summary.generation_failed_error(label: item.label, e: e.toString()),
+        );
       }
     }
   }

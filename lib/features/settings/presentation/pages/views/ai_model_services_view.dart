@@ -8,6 +8,7 @@ import 'package:baishou/features/settings/presentation/widgets/provider_model_li
 import 'package:baishou/core/models/ai_provider_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 /// AI 模型服务配置视图
 /// 提供供应商列表选择、API 密钥配置、模型获取以及连接测试等功能。
@@ -100,7 +101,7 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
             builder: (ctx2, setModalState) {
               final colorScheme = Theme.of(ctx2).colorScheme;
               return Scaffold(
-                appBar: AppBar(title: const Text('模型配置')),
+                appBar: AppBar(title: Text(t.ai_config.model_config_title)),
                 body: _buildConfigFormContainer(
                   colorScheme,
                   setModalState: setModalState,
@@ -143,7 +144,10 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
     }
 
     if (mounted) {
-      AppToast.showSuccess(context, '$_selectedProviderId 配置已保存');
+      AppToast.showSuccess(
+        context,
+        t.ai_config.save_success(id: _selectedProviderId),
+      );
     }
   }
 
@@ -183,14 +187,14 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
       });
       setModalState?.call(() {});
 
-      AppToast.showSuccess(context, '已恢复默认地址并清空 API Key，请点击保存');
+      AppToast.showSuccess(context, t.ai_config.reset_success);
     }
   }
 
   /// 测试当前配置是否能成功连接
   Future<void> _testConnection({StateSetter? setModalState}) async {
     if (_apiKeyController.text.isEmpty) {
-      AppToast.showError(context, '请先填写 API Key 并保存');
+      AppToast.showError(context, t.ai_config.fill_api_key_hint);
       return;
     }
 
@@ -202,7 +206,7 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
       final p = _providers[currentIdx];
       // 拦截检测：如果模型列表为空，提示先获取模型
       if (p.models.isEmpty) {
-        AppToast.showError(context, '请先点击右下角的「获取模型」按钮');
+        AppToast.showError(context, t.ai_config.fetch_models_first_hint);
         return;
       }
     }
@@ -226,12 +230,15 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
             .testConnection(testProvider);
 
         if (mounted) {
-          AppToast.showSuccess(context, '连接测试成功！🎉');
+          AppToast.showSuccess(context, t.ai_config.test_connection_success);
         }
       }
     } catch (e) {
       if (mounted) {
-        AppToast.showError(context, '连接失败: $e');
+        AppToast.showError(
+          context,
+          t.ai_config.test_connection_failed(e: e.toString()),
+        );
       }
     } finally {
       if (mounted) {
@@ -276,12 +283,15 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
 
           // 自动保存获取到的模型列表以及当前的地址/Key配置
           await service.updateProvider(_providers[currentIdx]);
-          AppToast.showSuccess(context, '成功获取并保存模型列表');
+          AppToast.showSuccess(context, t.ai_config.fetch_models_success);
         }
       }
     } catch (e) {
       if (mounted) {
-        AppToast.showError(context, '获取模型失败: $e');
+        AppToast.showError(
+          context,
+          t.ai_config.fetch_models_failed(e: e.toString()),
+        );
       }
     } finally {
       if (mounted) {
@@ -370,7 +380,7 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '配置并管理大语言模型服务',
+                      t.ai_config.manage_services_desc,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: colorScheme.onSurfaceVariant,
                       ),
@@ -468,7 +478,7 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
                   FilledButton.icon(
                     onPressed: _saveCurrentProviderConfig,
                     icon: const Icon(Icons.save, size: 18),
-                    label: const Text('保存修改'),
+                    label: Text(t.ai_config.save_changes_button),
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 24,
@@ -510,7 +520,7 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
             child: Text(
-              '服务提供商',
+              t.ai_config.providers_label,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1,

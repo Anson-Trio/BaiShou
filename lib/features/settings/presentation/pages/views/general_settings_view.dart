@@ -15,6 +15,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:baishou/features/settings/presentation/pages/privacy_policy_page.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_cropper/image_cropper.dart';
@@ -96,7 +97,7 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
                     ],
                   ),
                   Text(
-                    '点击头像更换图片',
+                    t.settings.tap_avatar_to_change,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -135,7 +136,7 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
         sourcePath: pickedFile.path,
         uiSettings: [
           AndroidUiSettings(
-            toolbarTitle: '裁剪头像',
+            toolbarTitle: t.settings.crop_avatar,
             toolbarColor: Theme.of(context).colorScheme.primary,
             toolbarWidgetColor: Colors.white,
             initAspectRatio: CropAspectRatioPreset.square,
@@ -143,7 +144,7 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
             aspectRatioPresets: [CropAspectRatioPreset.square],
           ),
           IOSUiSettings(
-            title: '裁剪头像',
+            title: t.settings.crop_avatar,
             aspectRatioPresets: [CropAspectRatioPreset.square],
           ),
         ],
@@ -162,20 +163,20 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
     final newNickname = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('修改昵称'),
+        title: Text(t.settings.edit_nickname),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(labelText: '昵称'),
+          decoration: InputDecoration(labelText: t.common.nickname),
           autofocus: true,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
+            child: Text(t.common.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text('保存'),
+            child: Text(t.common.save),
           ),
         ],
       ),
@@ -201,7 +202,7 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
         children: [
           ExpansionTile(
             leading: const Icon(Icons.palette_outlined),
-            title: const Text('外观设置'),
+            title: Text(t.settings.appearance),
             subtitle: Text(_getThemeModeText(themeState.mode)),
             children: [
               Padding(
@@ -209,24 +210,24 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('主题模式'),
+                    Text(t.settings.theme_mode),
                     const SizedBox(height: 8),
                     SegmentedButton<ThemeMode>(
-                      segments: const [
+                      segments: [
                         ButtonSegment(
                           value: ThemeMode.system,
-                          label: Text('跟随系统'),
-                          icon: Icon(Icons.brightness_auto),
+                          label: Text(t.settings.theme_system),
+                          icon: const Icon(Icons.brightness_auto),
                         ),
                         ButtonSegment(
                           value: ThemeMode.light,
-                          label: Text('亮色'),
-                          icon: Icon(Icons.wb_sunny_outlined),
+                          label: Text(t.settings.theme_light),
+                          icon: const Icon(Icons.wb_sunny_outlined),
                         ),
                         ButtonSegment(
                           value: ThemeMode.dark,
-                          label: Text('深色'),
-                          icon: Icon(Icons.dark_mode_outlined),
+                          label: Text(t.settings.theme_dark),
+                          icon: const Icon(Icons.dark_mode_outlined),
                         ),
                       ],
                       selected: {themeState.mode},
@@ -237,7 +238,7 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    const Text('主题色'),
+                    Text(t.settings.theme_color),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 12,
@@ -302,11 +303,11 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
   String _getThemeModeText(ThemeMode mode) {
     switch (mode) {
       case ThemeMode.system:
-        return '跟随系统';
+        return t.settings.theme_system;
       case ThemeMode.light:
-        return '亮色模式';
+        return t.settings.theme_light;
       case ThemeMode.dark:
-        return '深色模式';
+        return t.settings.theme_dark;
     }
   }
 
@@ -323,37 +324,37 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
         children: [
           ExpansionTile(
             leading: const Icon(Icons.storage_outlined),
-            title: const Text('数据管理'),
-            subtitle: const Text('导出、导入数据或局域网快传'),
+            title: Text(t.settings.data_management),
+            subtitle: Text(t.settings.data_management_desc),
             children: [
               ListTile(
                 leading: const Icon(Icons.download_outlined),
-                title: const Text('导出数据至本地'),
-                subtitle: const Text('生成一份包含所有内容的 ZIP 备份文件'),
+                title: Text(t.settings.export_data),
+                subtitle: Text(t.settings.export_desc),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: _exportData,
               ),
               const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.upload_file_outlined),
-                title: const Text('从外部 ZIP 导入'),
-                subtitle: const Text('选择本地 ZIP 文件覆盖恢复数据'),
+                title: Text(t.settings.import_data),
+                subtitle: Text(t.settings.import_desc),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: _importData,
               ),
               const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.history),
-                title: const Text('从快照恢复'),
-                subtitle: const Text('从本地历史快照中选择一个进行恢复'),
+                title: Text(t.settings.restore_snapshot),
+                subtitle: Text(t.settings.restore_desc),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: _restoreFromSnapshot,
               ),
               const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.wifi_protected_setup_outlined),
-                title: const Text('局域网传输'),
-                subtitle: const Text('在同一 Wi-Fi 下快速互传整个数据库'),
+                title: Text(t.settings.lan_transfer),
+                subtitle: Text(t.settings.lan_transfer_desc),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
                   Navigator.push(
@@ -375,12 +376,12 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => const AlertDialog(
+      builder: (ctx) => AlertDialog(
         content: Row(
           children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 16),
-            Text('正在导出数据...'),
+            const CircularProgressIndicator(),
+            const SizedBox(width: 16),
+            Text(t.settings.exporting_data),
           ],
         ),
       ),
@@ -396,12 +397,14 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
           showDialog(
             context: context,
             builder: (ctx) => AlertDialog(
-              title: const Text('导出成功'),
-              content: Text('备份 ZIP 文件已保存在:\n${exportFile.path}'),
+              title: Text(t.settings.export_success),
+              content: Text(
+                t.settings.export_success_desc(path: exportFile.path),
+              ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text('好的'),
+                  child: Text(t.common.ok),
                 ),
               ],
             ),
@@ -411,9 +414,11 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
     } catch (e) {
       if (mounted) {
         Navigator.pop(context); // 关掉 loading
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('导出失败: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(t.settings.export_failed(error: e.toString())),
+          ),
+        );
       }
     }
   }
@@ -433,16 +438,16 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('确认恢复'),
-        content: const Text('恢复快照将覆盖当前所有数据。\n\n确认继续？'),
+        title: Text(t.settings.confirm_restore),
+        content: Text(t.settings.confirm_restore_desc),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('取消'),
+            child: Text(t.common.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('恢复'),
+            child: Text(t.common.restore),
           ),
         ],
       ),
@@ -453,12 +458,12 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => const AlertDialog(
+      builder: (ctx) => AlertDialog(
         content: Row(
           children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 16),
-            Text('正在恢复数据...'),
+            const CircularProgressIndicator(),
+            const SizedBox(width: 16),
+            Text(t.settings.restoring_data),
           ],
         ),
       ),
@@ -484,22 +489,30 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '快照恢复成功：${importResult.diariesImported} 条日记，'
-              '${importResult.summariesImported} 条总结',
+              t.settings.restore_success(
+                diaries: importResult.diariesImported,
+                summaries: importResult.summariesImported,
+              ),
             ),
           ),
         );
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(importResult.error ?? '恢复失败')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              importResult.error ?? t.settings.restore_failed_generic,
+            ),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
         Navigator.pop(context); // 关掉 loading
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('恢复失败: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(t.settings.restore_failed(error: e.toString())),
+          ),
+        );
       }
     }
   }
@@ -510,7 +523,7 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
     final snapshotDir = Directory('${appDir.path}/snapshots');
 
     if (!snapshotDir.existsSync()) {
-      if (mounted) AppToast.show(context, '暂无可用快照');
+      if (mounted) AppToast.show(context, t.settings.no_snapshots_available);
       return;
     }
 
@@ -534,7 +547,7 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
     final snapshots = allFiles.take(10).toList();
 
     if (snapshots.isEmpty) {
-      if (mounted) AppToast.show(context, '暂无可用快照');
+      if (mounted) AppToast.show(context, t.settings.no_snapshots_available);
       return;
     }
 
@@ -543,7 +556,7 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
     final selected = await showDialog<File>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('选择要恢复的快照'),
+        title: Text(t.settings.select_snapshot_to_restore),
         content: SizedBox(
           width: double.maxFinite,
           height: 300,
@@ -578,7 +591,7 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('取消'),
+            child: Text(t.common.cancel),
           ),
         ],
       ),
@@ -589,16 +602,16 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('确认恢复'),
-        content: const Text('恢复快照将覆盖当前所有数据。\n\n确认继续？'),
+        title: Text(t.settings.confirm_restore),
+        content: Text(t.settings.confirm_restore_desc),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('取消'),
+            child: Text(t.common.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('恢复'),
+            child: Text(t.common.restore),
           ),
         ],
       ),
@@ -609,12 +622,12 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => const AlertDialog(
+      builder: (ctx) => AlertDialog(
         content: Row(
           children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 16),
-            Text('正在恢复数据...'),
+            const CircularProgressIndicator(),
+            const SizedBox(width: 16),
+            Text(t.settings.restoring_data),
           ],
         ),
       ),
@@ -638,17 +651,25 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
         ref.read(baishou_refresh.dataRefreshProvider.notifier).refresh();
         AppToast.showSuccess(
           context,
-          '快照恢复成功：${importResult.diariesImported} 条日记，'
-          '${importResult.summariesImported} 条总结',
+          t.settings.restore_success(
+            diaries: importResult.diariesImported,
+            summaries: importResult.summariesImported,
+          ),
           duration: const Duration(seconds: 4),
         );
       } else {
-        AppToast.showError(context, importResult.error ?? '恢复失败');
+        AppToast.showError(
+          context,
+          importResult.error ?? t.settings.restore_failed_generic,
+        );
       }
     } catch (e) {
       if (mounted) {
         Navigator.pop(context);
-        AppToast.showError(context, '恢复失败: $e');
+        AppToast.showError(
+          context,
+          t.settings.restore_failed(error: e.toString()),
+        );
       }
     }
   }
@@ -666,7 +687,7 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
         children: [
           ListTile(
             leading: const Icon(Icons.info_outline),
-            title: const Text('关于白守'),
+            title: Text(t.settings.about_baishou),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               Navigator.push(
@@ -678,7 +699,7 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
           const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.privacy_tip_outlined),
-            title: const Text('开发理念'),
+            title: Text(t.settings.development_philosophy),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               Navigator.push(
@@ -692,7 +713,7 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
           const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.bug_report_outlined),
-            title: const Text('反馈问题'),
+            title: Text(t.settings.feedback),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               launchUrl(

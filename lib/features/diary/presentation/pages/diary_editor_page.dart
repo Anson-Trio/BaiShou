@@ -11,6 +11,9 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:baishou/features/diary/application/file_sync_service.dart';
+import 'package:baishou/i18n/strings.g.dart';
+import 'package:baishou/features/diary/domain/entities/diary.dart';
 
 /// 日记/总结编辑器页面
 /// 支持日记记录（标题、内容、标签）以及对 AI 生成总结的查看与编辑。
@@ -19,12 +22,8 @@ class DiaryEditorPage extends ConsumerStatefulWidget {
   final int? summaryId; // 如果是非空，则进入总结编辑模式，与 diaryId 互斥
   final DateTime? initialDate; // 新建日记时的默认日期
 
-  const DiaryEditorPage({
-    super.key,
-    this.diaryId,
-    this.summaryId,
-    this.initialDate,
-  }) : assert(diaryId == null || summaryId == null, '不能同时编辑日记和总结');
+  DiaryEditorPage({super.key, this.diaryId, this.summaryId, this.initialDate})
+    : assert(diaryId == null || summaryId == null, t.diary.error_dual_edit);
 
   @override
   ConsumerState<DiaryEditorPage> createState() => _DiaryEditorPageState();
@@ -264,7 +263,7 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
     final combinedContent = '$title\n${body.trimRight()}';
 
     if (combinedContent.trim().isEmpty) {
-      AppToast.showSuccess(context, '写点什么吧...');
+      AppToast.showSuccess(context, t.diary.editor_hint);
       return;
     }
 
@@ -295,11 +294,26 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
               content: combinedContent,
               tags: _tags,
             );
+
+        // 触发文件同步 (Task 4)
+        if (mounted) {
+          final diary = Diary(
+            id:
+                widget.diaryId ??
+                0, // 这里的 ID 如果是新建的可能需要从 DB 获取，但 FileSyncService 目前主要用日期
+            date: _combinedDateTime,
+            content: combinedContent,
+            tags: _tags,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+          ref.read(fileSyncServiceProvider.notifier).syncDiaryToFile(diary);
+        }
       }
 
       if (mounted) {
         setState(() => _isDirty = false);
-        AppToast.showSuccess(context, '已保存 ✨');
+        AppToast.showSuccess(context, t.diary.saved_toast);
         context.pop(); // 保存成功后返回上一页
       }
     } catch (e) {
@@ -307,7 +321,7 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
       if (mounted) {
         AppToast.showError(
           context,
-          '保存失败: $e',
+          t.diary.save_failed(e: e.toString()),
           backgroundColor: Colors.red[900],
         );
       }
@@ -316,11 +330,6 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
 
   @override
   Widget build(BuildContext context) {
-    // 准备日期显示字符串
-    final dateStr = DateFormat('yyyy年MM月dd日').format(_selectedDate);
-    final timeStr = _selectedTime.format(context);
-    final weekDay = DateFormat('EEEE', 'zh_CN').format(_selectedDate);
-
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -341,7 +350,7 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
                 shape: const StadiumBorder(),
                 padding: const EdgeInsets.symmetric(horizontal: 20),
               ),
-              child: const Text('保存'),
+              child: Text(t.common.save),
             ),
           ),
         ],
@@ -367,7 +376,7 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
                             height: 1.2,
                           ),
                           decoration: InputDecoration(
-                            hintText: '标题',
+                            hintText: t.common.title,
                             hintStyle: TextStyle(color: Colors.grey[400]),
                             border: InputBorder.none,
                           ),
@@ -394,7 +403,7 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
                                 padding: const EdgeInsets.only(top: 24),
                                 child: Center(
                                   child: Text(
-                                    '还没有内容可以预览',
+                                    t.diary.no_content_preview,
                                     style: TextStyle(
                                       color: Colors.grey[400],
                                       fontSize: 14,
@@ -477,7 +486,7 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
                             color: Theme.of(context).textTheme.bodyLarge?.color,
                           ),
                           decoration: InputDecoration(
-                            hintText: '今天发生了什么？...',
+                            hintText: t.diary.editor_hint,
                             hintStyle: TextStyle(color: Colors.grey[400]),
                             border: InputBorder.none,
                           ),
@@ -511,30 +520,31 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
 
       switch (_summaryType!) {
         case SummaryType.weekly:
-          subText = '周记';
+          subText = t.summary.stats_weekly;
           if (_summaryStartDate != null && _summaryEndDate != null) {
             dateText =
                 '${_summaryStartDate!.month}.${_summaryStartDate!.day} - ${_summaryEndDate!.month}.${_summaryEndDate!.day}';
           }
           break;
         case SummaryType.monthly:
-          subText = '月报';
+          subText = t.summary.stats_monthly;
           if (_summaryStartDate != null) {
             dateText =
-                '${_summaryStartDate!.year}年 ${_summaryStartDate!.month}月';
+                '${_summaryStartDate!.year}${t.common.year_suffix} ${_summaryStartDate!.month}${t.common.month_suffix}';
           }
           break;
         case SummaryType.quarterly:
-          subText = '季报';
+          subText = t.summary.stats_quarterly;
           if (_summaryStartDate != null) {
             final q = (_summaryStartDate!.month / 3).ceil();
-            dateText = '${_summaryStartDate!.year}年 Q$q';
+            dateText =
+                '${_summaryStartDate!.year}${t.common.year_suffix} ${t.common.quarter_prefix}$q';
           }
           break;
         case SummaryType.yearly:
-          subText = '年鉴';
+          subText = t.summary.stats_yearly;
           if (_summaryStartDate != null) {
-            dateText = '${_summaryStartDate!.year}年';
+            dateText = '${_summaryStartDate!.year}${t.common.year_suffix}';
           }
           break;
       }
@@ -567,9 +577,14 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
     }
 
     // 默认日记标题
-    final dateStr = DateFormat('yyyy年MM月dd日').format(_selectedDate);
+    final dateStr = DateFormat(
+      t.diary.date_format_editor,
+    ).format(_selectedDate);
     final timeStr = _selectedTime.format(context);
-    final weekDay = DateFormat('EEEE', 'zh_CN').format(_selectedDate);
+    final weekDay = DateFormat(
+      'EEEE',
+      LocaleSettings.instance.currentLocale.languageCode,
+    ).format(_selectedDate);
 
     return GestureDetector(
       onTap: _showDateTimePicker,
@@ -629,7 +644,7 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
           lastDate: DateTime(2030),
           initialDate: _summaryStartDate ?? now,
           initialDatePickerMode: DatePickerMode.year,
-          helpText: '选择月份',
+          helpText: t.diary.select_month,
         );
         if (date != null) {
           setState(() {
@@ -656,7 +671,7 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
           builder: (ctx) => StatefulBuilder(
             builder: (context, setDialogState) {
               return AlertDialog(
-                title: const Text('选择季度'),
+                title: Text(t.diary.select_quarter),
                 content: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -664,8 +679,10 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
                       value: year,
                       items: List.generate(10, (i) => 2020 + i)
                           .map(
-                            (y) =>
-                                DropdownMenuItem(value: y, child: Text('$y年')),
+                            (y) => DropdownMenuItem(
+                              value: y,
+                              child: Text('$y${t.common.year_suffix}'),
+                            ),
                           )
                           .toList(),
                       onChanged: (v) => setDialogState(() => year = v!),
@@ -690,7 +707,7 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('取消'),
+                    child: Text(t.common.cancel),
                   ),
                   TextButton(
                     onPressed: () {
@@ -709,7 +726,7 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
                       });
                       Navigator.pop(context);
                     },
-                    child: const Text('确定'),
+                    child: Text(t.common.confirm),
                   ),
                 ],
               );
@@ -723,7 +740,7 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
           context: context,
           builder: (BuildContext context) {
             return AlertDialog(
-              title: const Text("选择年份"),
+              title: Text(t.summary.filter_year),
               content: SizedBox(
                 width: 300,
                 height: 300,

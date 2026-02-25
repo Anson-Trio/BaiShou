@@ -1,14 +1,15 @@
 import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:baishou/core/theme/app_theme.dart';
 import 'package:baishou/core/widgets/year_month_picker_sheet.dart';
 import 'package:baishou/features/diary/data/repositories/diary_repository_impl.dart';
 import 'package:baishou/features/diary/domain/entities/diary.dart';
 import 'package:baishou/features/diary/presentation/widgets/diary_card.dart';
 import 'package:collection/collection.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/services.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
@@ -60,7 +61,7 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
           if (_lastPressedAt == null ||
               now.difference(_lastPressedAt!) > const Duration(seconds: 2)) {
             _lastPressedAt = now;
-            AppToast.show(context, '再按一次回到桌面');
+            AppToast.show(context, t.common.exit_hint);
             return;
           }
 
@@ -76,8 +77,8 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
             title: _isSearching && !isDesktop
                 ? TextField(
                     autofocus: true,
-                    decoration: const InputDecoration(
-                      hintText: '搜索记忆...',
+                    decoration: InputDecoration(
+                      hintText: t.common.search_hint,
                       border: InputBorder.none,
                     ),
                     onChanged: (val) => setState(() => _searchQuery = val),
@@ -108,7 +109,9 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
                 stream: diaryStream,
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
+                    return Center(
+                      child: Text('${t.common.error}: ${snapshot.error}'),
+                    );
                   }
                   if (!snapshot.hasData) {
                     return const Center(child: CircularProgressIndicator());
@@ -186,8 +189,11 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
         children: [
           Text(
             _selectedMonth == null
-                ? '全部日记'
-                : DateFormat('yyyy年MM月').format(_selectedMonth!),
+                ? t.diary.all_diaries
+                : DateFormat(
+                    t.diary.export_month_format,
+                    LocaleSettings.instance.currentLocale.languageCode,
+                  ).format(_selectedMonth!),
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
               fontSize: 22,
@@ -216,8 +222,20 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
                   children: [
                     Text(
                       _selectedMonth == null
-                          ? '${DateTime.now().year}年${DateTime.now().month}月'
-                          : DateFormat('yyyy年MM月').format(_selectedMonth!),
+                          ? DateFormat(
+                              t.diary.export_month_format,
+                              LocaleSettings
+                                  .instance
+                                  .currentLocale
+                                  .languageCode,
+                            ).format(DateTime.now())
+                          : DateFormat(
+                              t.diary.export_month_format,
+                              LocaleSettings
+                                  .instance
+                                  .currentLocale
+                                  .languageCode,
+                            ).format(_selectedMonth!),
                       style: theme.textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                         letterSpacing: -0.5,
@@ -228,7 +246,7 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
                 ),
               ),
               Text(
-                '记录你的数字人生',
+                t.settings.tagline_short,
                 style: theme.textTheme.labelMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -257,7 +275,7 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
                   child: TextField(
                     onChanged: (val) => setState(() => _searchQuery = val),
                     decoration: InputDecoration(
-                      hintText: '搜索记忆...',
+                      hintText: t.common.search_hint,
                       hintStyle: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -299,7 +317,9 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
           ),
           const SizedBox(height: 16),
           Text(
-            _selectedMonth != null ? '本月还没有日记哦' : '还没有日记哦',
+            _selectedMonth != null
+                ? t.diary.no_diaries_month
+                : t.diary.no_diaries,
             style: Theme.of(
               context,
             ).textTheme.titleMedium?.copyWith(color: Colors.grey),
@@ -308,7 +328,7 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
             const SizedBox(height: 8),
             TextButton(
               onPressed: () => setState(() => _selectedMonth = null),
-              child: const Text('查看全部'),
+              child: Text(t.common.view_all),
             ),
           ],
         ],
@@ -378,12 +398,12 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('删除日记?'),
-        content: const Text('确认要删除这条日记吗？此操作无法撤销。'),
+        title: Text(t.summary.delete_summary_title),
+        content: Text(t.summary.confirm_delete_summary),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('取消'),
+            child: Text(t.common.cancel),
           ),
           TextButton(
             onPressed: () {
@@ -391,7 +411,7 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
               Navigator.pop(ctx);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('删除'),
+            child: Text(t.common.delete),
           ),
         ],
       ),
@@ -429,7 +449,7 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
               ),
             ),
             child: Text(
-              '$year年',
+              '$year${t.common.year_suffix}',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
@@ -564,8 +584,7 @@ class _DateHeaderDelegate extends SliverPersistentHeaderDelegate {
     final monthStr = DateFormat('MM').format(date);
 
     // 手动计算星期几，避免本地化未就绪时的依赖
-    const weekdays = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-    final weekdayStr = weekdays[date.weekday];
+    final weekdayStr = t.common.weekdays[date.weekday];
 
     return Container(
       // 两端统一使用 surface 背景（移动端已包裹白色 Container）
@@ -581,7 +600,7 @@ class _DateHeaderDelegate extends SliverPersistentHeaderDelegate {
             style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w300),
           ),
           Text(
-            '月',
+            t.common.month_suffix,
             style: TextStyle(
               fontSize: 16,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -592,7 +611,7 @@ class _DateHeaderDelegate extends SliverPersistentHeaderDelegate {
             style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w300),
           ),
           Text(
-            '日',
+            t.common.day_suffix,
             style: TextStyle(
               fontSize: 16,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -617,9 +636,9 @@ class _DateHeaderDelegate extends SliverPersistentHeaderDelegate {
                 color: AppTheme.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: const Text(
-                '今天',
-                style: TextStyle(
+              child: Text(
+                t.common.today,
+                style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
                   color: AppTheme.primary,

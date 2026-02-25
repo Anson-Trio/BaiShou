@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 import '../theme/app_theme.dart';
 
@@ -69,7 +70,7 @@ class _YearPickerSheetState extends State<YearPickerSheet> {
                 (int index) {
                   return Center(
                     child: Text(
-                      '${widget.minYear + index}年',
+                      '${widget.minYear + index}${t.common.year_suffix}',
                       style: const TextStyle(fontSize: 18),
                     ),
                   );
@@ -97,7 +98,7 @@ class _YearPickerSheetState extends State<YearPickerSheet> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text('查看全部'),
+                  child: Text(t.common.view_all),
                 ),
               ),
             ),
@@ -115,10 +116,13 @@ class _YearPickerSheetState extends State<YearPickerSheet> {
         children: [
           TextButton(
             onPressed: () => Navigator.pop(context), // 取消（无变更）
-            child: Text('取消', style: TextStyle(color: Colors.grey[600])),
+            child: Text(
+              t.common.cancel,
+              style: TextStyle(color: Colors.grey[600]),
+            ),
           ),
           Text(
-            '选择年份',
+            t.summary.filter_year,
             style: Theme.of(
               context,
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
@@ -128,9 +132,9 @@ class _YearPickerSheetState extends State<YearPickerSheet> {
               final date = DateTime(_selectedYear, 1, 1);
               Navigator.pop(context, date);
             },
-            child: const Text(
-              '确定',
-              style: TextStyle(
+            child: Text(
+              t.common.confirm,
+              style: const TextStyle(
                 color: AppTheme.primary,
                 fontWeight: FontWeight.bold,
               ),

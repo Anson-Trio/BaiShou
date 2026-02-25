@@ -3,6 +3,7 @@ import 'package:baishou/features/settings/presentation/pages/views/developer_opt
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 class AboutPage extends StatefulWidget {
   const AboutPage({super.key});
@@ -45,7 +46,7 @@ class _AboutPageState extends State<AboutPage> {
       if (mounted) {
         AppToast.showSuccess(
           context,
-          '🌸樱&晓 永远爱着Anson❤️',
+          t.about.love_message,
           duration: const Duration(seconds: 3),
         );
       }
@@ -56,7 +57,7 @@ class _AboutPageState extends State<AboutPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('关于白守')),
+      appBar: AppBar(title: Text(t.about.title)),
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
@@ -85,9 +86,9 @@ class _AboutPageState extends State<AboutPage> {
             ),
           ),
           const SizedBox(height: 24),
-          const Center(
+          Center(
             child: Text(
-              '白守 (BaiShou)',
+              t.about.app_name,
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
           ),
@@ -100,9 +101,9 @@ class _AboutPageState extends State<AboutPage> {
             ),
           ),
           const SizedBox(height: 48),
-          const Text(
-            '开发者',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          Text(
+            t.about.developer_label,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           GestureDetector(
@@ -118,7 +119,7 @@ class _AboutPageState extends State<AboutPage> {
               _devLastTapTime = now;
 
               if (_devTapCount == 7) {
-                AppToast.showSuccess(context, '再点 3 次进入开发者模式');
+                AppToast.showSuccess(context, t.about.dev_mode_hint(count: 3));
               } else if (_devTapCount >= 10) {
                 _devTapCount = 0;
                 Navigator.push(
@@ -138,9 +139,9 @@ class _AboutPageState extends State<AboutPage> {
             ),
           ),
           const SizedBox(height: 24),
-          const Text(
-            '开源协议',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          Text(
+            t.about.oss_license_label,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Card(
@@ -163,7 +164,7 @@ class _AboutPageState extends State<AboutPage> {
               launchUrl(Uri.parse('https://github.com/Anson-Trio/BaiShou'));
             },
             icon: const Icon(Icons.code),
-            label: const Text('访问 GitHub 仓库'),
+            label: Text(t.about.visit_github),
           ),
         ],
       ),

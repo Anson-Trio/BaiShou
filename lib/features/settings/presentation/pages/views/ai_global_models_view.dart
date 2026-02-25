@@ -3,6 +3,7 @@ import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:baishou/features/settings/presentation/widgets/custom_model_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 /// 全局默认模型配置视图
 /// 允许用户为对话、命名和总结任务指定默认使用的供应商和模型。
@@ -93,7 +94,7 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
     }
 
     if (mounted) {
-      AppToast.showSuccess(context, '全局默认模型已更新');
+      AppToast.showSuccess(context, t.ai_config.global_models_updated);
     }
   }
 
@@ -134,10 +135,7 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
           GestureDetector(
             onTap: items.isEmpty
                 ? () {
-                    AppToast.showError(
-                      context,
-                      '当前没有任何可用模型，请先在「模型服务」中配置并启用供应供应商，然后获取模型。',
-                    );
+                    AppToast.showError(context, t.ai_config.no_models_error);
                   }
                 : null,
             child: AbsorbPointer(
@@ -178,14 +176,14 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '全局默认模型',
+                  t.ai_config.global_models_title,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 FilledButton.tonal(
                   onPressed: _saveGlobalDefaults,
-                  child: const Text('保存全局配置'),
+                  child: Text(t.ai_config.save_global_button),
                 ),
               ],
             ),
@@ -193,9 +191,9 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
             const SizedBox(height: 24),
 
             _buildDefaultModelSection(
-              title: '记忆总结模型',
+              title: t.ai_config.summary_model_title,
               icon: Icons.compress_rounded,
-              description: '优化用于长文本摘要和记忆提取的系统模型，处理大段上下文时使用。',
+              description: t.ai_config.summary_model_desc,
               value: _globalSummaryModel,
               items: allModels,
               onChanged: (val) {
@@ -206,9 +204,9 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
             const SizedBox(height: 32),
 
             _buildDefaultModelSection(
-              title: '默认对话模型',
+              title: t.ai_config.dialogue_model_title,
               icon: Icons.chat_bubble_outline,
-              description: '这是主要的智能分析和系统交互模型。当没有专门指定模型时，系统将默认使用它。',
+              description: t.ai_config.dialogue_model_desc,
               value: _globalDialogueModel,
               items: allModels,
               onChanged: (val) {
@@ -219,9 +217,9 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
             const SizedBox(height: 24),
 
             _buildDefaultModelSection(
-              title: '默认命名模型',
+              title: t.ai_config.naming_model_title,
               icon: Icons.edit_outlined,
-              description: '执行标题命名、短句提取等简单任务时使用的模型。建议使用响应快、成本低的轻量级模型。',
+              description: t.ai_config.naming_model_desc,
               value: _globalNamingModel,
               items: allModels,
               onChanged: (val) {

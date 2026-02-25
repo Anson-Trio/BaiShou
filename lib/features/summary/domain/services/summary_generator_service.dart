@@ -8,6 +8,7 @@ import 'package:baishou/source/prompts/monthly_prompt.dart';
 import 'package:baishou/source/prompts/quarterly_prompt.dart';
 import 'package:baishou/source/prompts/weekly_prompt.dart';
 import 'package:baishou/source/prompts/yearly_prompt.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -30,7 +31,7 @@ class SummaryGeneratorService {
   /// [target] 描述了要生成的总结类型和时间范围。
   /// 返回一个字符串流，包含状态更新（以 "STATUS:" 开头）或最终生成的 Markdown。
   Stream<String> generate(MissingSummary target) async* {
-    yield 'STATUS:正在读取数据...';
+    yield 'STATUS:${t.summary.status_reading_data}';
 
     // 获取当前配置的模型名称
     final apiConfig = _ref.read(apiConfigServiceProvider);
@@ -41,43 +42,44 @@ class SummaryGeneratorService {
     String promptTemplate = '';
 
     try {
+      final currentLocale = LocaleSettings.currentLocale;
       switch (target.type) {
         case SummaryType.weekly:
           contextData = await _buildWeeklyContext(
             target.startDate,
             target.endDate,
           );
-          promptTemplate = getWeeklyPrompt(target);
+          promptTemplate = getWeeklyPrompt(target, currentLocale);
           break;
         case SummaryType.monthly:
           contextData = await _buildMonthlyContext(
             target.startDate,
             target.endDate,
           );
-          promptTemplate = getMonthlyPrompt(target);
+          promptTemplate = getMonthlyPrompt(target, currentLocale);
           break;
         case SummaryType.quarterly:
           contextData = await _buildQuarterlyContext(
             target.startDate,
             target.endDate,
           );
-          promptTemplate = getQuarterlyPrompt(target);
+          promptTemplate = getQuarterlyPrompt(target, currentLocale);
           break;
         case SummaryType.yearly:
           contextData = await _buildYearlyContext(
             target.startDate,
             target.endDate,
           );
-          promptTemplate = getYearlyPrompt(target);
+          promptTemplate = getYearlyPrompt(target, currentLocale);
           break;
       }
 
       if (contextData.isEmpty) {
-        yield 'STATUS:没有足够的数据来生成总结。';
+        yield 'STATUS:${t.summary.no_data_error}';
         return;
       }
 
-      yield 'STATUS:正在思考 ($modelName)...';
+      yield 'STATUS:${t.summary.status_thinking(model: modelName)}';
 
       final generatedContent = await _callApi(
         providerId,
@@ -89,7 +91,7 @@ class SummaryGeneratorService {
       yield generatedContent;
     } catch (e) {
       final msg = _sanitizeError(e);
-      yield 'STATUS:生成失败: $msg';
+      yield 'STATUS:${t.summary.generation_failed_error(label: 'Summary', e: msg)}';
       // 重新抛出脱敏后的异常，以便上层逻辑（如UI）能显示处理后的信息
       throw Exception(msg);
     }
@@ -102,12 +104,12 @@ class SummaryGeneratorService {
 
     final buffer = StringBuffer();
     buffer.writeln(
-      '### 原始日记数据 (${start.year}-${start.month}-${start.day} ~ ${end.month}-${end.day})',
+      '${t.ai_prompt.raw_diary_data(start: '${start.year}-${start.month}-${start.day}', end: '${end.month}-${end.day}')}',
     );
     for (final d in diaries) {
       buffer.writeln('\n#### ${d.date.year}-${d.date.month}-${d.date.day}');
       buffer.writeln(d.content);
-      buffer.writeln('Tags: ${d.tags.join(", ")}');
+      buffer.writeln('${t.diary.tag_label}: ${d.tags.join(", ")}');
     }
     return buffer.toString();
   }
@@ -127,10 +129,12 @@ class SummaryGeneratorService {
     if (weeklies.isEmpty) return '';
 
     final buffer = StringBuffer();
-    buffer.writeln('### 原始周记数据 (${start.year}-${start.month})');
+    buffer.writeln(
+      '${t.ai_prompt.raw_weekly_data(start: '${start.year}-${start.month}')}',
+    );
     for (final s in weeklies) {
       buffer.writeln(
-        '\n#### ${s.startDate.toString().split(' ')[0]} ~ ${s.endDate.toString().split(' ')[0]} 周记',
+        '\n#### ${s.startDate.toString().split(' ')[0]} ~ ${s.endDate.toString().split(' ')[0]} ${t.ai_prompt.weekly_label}',
       );
       buffer.writeln(s.content);
     }
@@ -149,9 +153,13 @@ class SummaryGeneratorService {
     if (monthlies.isEmpty) return '';
 
     final buffer = StringBuffer();
-    buffer.writeln('### 原始月报数据 (${start.year} Q${(start.month / 3).ceil()})');
+    buffer.writeln(
+      '${t.ai_prompt.raw_monthly_data(year: start.year.toString(), q: (start.month / 3).ceil().toString())}',
+    );
     for (final s in monthlies) {
-      buffer.writeln('\n#### ${s.startDate.year}-${s.startDate.month} 月报');
+      buffer.writeln(
+        '\n#### ${s.startDate.year}-${s.startDate.month} ${t.ai_prompt.monthly_label}',
+      );
       buffer.writeln(s.content);
     }
     return buffer.toString();
@@ -176,9 +184,13 @@ class SummaryGeneratorService {
           .toList();
       if (monthlies.isNotEmpty) {
         final buffer = StringBuffer();
-        buffer.writeln('### 原始月报数据 (${start.year}年 - 季度缺失，使用月报补全)');
+        buffer.writeln(
+          '### ${t.ai_prompt.raw_monthly_data(year: start.year.toString(), q: 'MISSING')}',
+        );
         for (final s in monthlies) {
-          buffer.writeln('\n#### ${s.startDate.year}-${s.startDate.month} 月报');
+          buffer.writeln(
+            '\n#### ${s.startDate.year}-${s.startDate.month} ${t.ai_prompt.monthly_label}',
+          );
           buffer.writeln(s.content);
         }
         return buffer.toString();
@@ -187,10 +199,14 @@ class SummaryGeneratorService {
     }
 
     final buffer = StringBuffer();
-    buffer.writeln('### 原始季度总结数据 (${start.year}年)');
+    buffer.writeln(
+      '${t.ai_prompt.raw_quarterly_data(year: start.year.toString())}',
+    );
     for (final s in quarterlies) {
       final q = (s.startDate.month / 3).ceil();
-      buffer.writeln('\n#### ${s.startDate.year} Q$q 总结');
+      buffer.writeln(
+        '\n#### ${s.startDate.year} Q$q ${t.ai_prompt.summary_label}',
+      );
       buffer.writeln(s.content);
     }
     return buffer.toString();
@@ -207,18 +223,18 @@ class SummaryGeneratorService {
     final provider = apiConfig.getProvider(providerId);
 
     if (provider == null) {
-      throw Exception('未找到对应的 AI 配置 ($providerId)。请在设置中重新选择全局模型。');
+      throw Exception(t.summary.error_no_provider(id: providerId));
     }
 
     final apiKey = provider.apiKey;
 
     // 如果未配置 Key，抛出异常
     if (apiKey.isEmpty || apiKey == 'YOUR_API_KEY_HERE') {
-      throw Exception('请先在"设置"中配置 API Key (Settings -> AI Config)');
+      throw Exception(t.ai.error_no_api_key);
     }
 
     if (modelId.isEmpty) {
-      throw Exception('未配置模型。请在"设置"中配置对话模型 (Settings -> AI Config -> 默认模型)');
+      throw Exception(t.summary.error_no_model);
     }
 
     // 通过 Factory 实例化特定 Client 并发起请求
@@ -262,9 +278,9 @@ class SummaryGeneratorService {
         errorMsg.contains('Connection refused') ||
         errorMsg.contains('Connection timed out') ||
         errorMsg.contains('连接超时')) {
-      errorMsg = '网络连接失败。请检查网络设置或配置国内可用的 API Base URL (反向代理)。\n原始错误: $errorMsg';
+      errorMsg = t.summary.error_network(e: errorMsg);
     } else if (errorMsg.contains('HandshakeException')) {
-      errorMsg = 'SSL 握手失败。请检查网络或代理设置。\n原始错误: $errorMsg';
+      errorMsg = t.summary.error_ssl(e: errorMsg);
     }
 
     return errorMsg;

@@ -1,5 +1,6 @@
 import 'package:baishou/core/models/ai_provider_model.dart';
 import 'package:flutter/material.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 /// 负责渲染左侧 (或主列表) 的供应商项集合
 class ProviderListPanel extends StatelessWidget {
@@ -71,7 +72,7 @@ class ProviderListPanel extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  p.isEnabled ? 'ON' : 'OFF',
+                  p.isEnabled ? t.settings.status_on : t.settings.status_off,
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,

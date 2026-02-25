@@ -1,4 +1,5 @@
 import 'package:baishou/core/theme/app_theme.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
@@ -63,7 +64,7 @@ class _DateTimePickerSheetState extends State<DateTimePickerSheet>
       _maxYear - _minYear + 1,
       (index) => Center(
         child: Text(
-          '${_minYear + index}年',
+          '${_minYear + index}${t.common.year_suffix}',
           style: const TextStyle(fontSize: 18),
         ),
       ),
@@ -72,7 +73,10 @@ class _DateTimePickerSheetState extends State<DateTimePickerSheet>
     _monthWidgets = List.generate(
       12,
       (index) => Center(
-        child: Text('${index + 1}月', style: const TextStyle(fontSize: 18)),
+        child: Text(
+          '${index + 1}${t.common.month_suffix}',
+          style: const TextStyle(fontSize: 18),
+        ),
       ),
     );
   }
@@ -145,9 +149,9 @@ class _DateTimePickerSheetState extends State<DateTimePickerSheet>
             indicatorColor: AppTheme.primary,
             labelColor: AppTheme.primary,
             unselectedLabelColor: Colors.grey,
-            tabs: const [
-              Tab(text: '日期'),
-              Tab(text: '时间'),
+            tabs: [
+              Tab(text: t.common.date),
+              Tab(text: t.common.time),
             ],
           ),
           Expanded(
@@ -194,7 +198,7 @@ class _DateTimePickerSheetState extends State<DateTimePickerSheet>
                           _getDaysInMonth(_selectedYear, _selectedMonth),
                           (index) => Center(
                             child: Text(
-                              '${index + 1}日',
+                              '${index + 1}${t.common.day_suffix}',
                               style: const TextStyle(fontSize: 18),
                             ),
                           ),

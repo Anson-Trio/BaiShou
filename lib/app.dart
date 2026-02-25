@@ -1,6 +1,7 @@
 import 'package:baishou/core/router/app_router.dart';
 import 'package:baishou/core/theme/app_theme.dart';
 import 'package:baishou/core/theme/theme_service.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,7 +16,7 @@ class BaiShouApp extends ConsumerWidget {
     final themeState = ref.watch(themeProvider);
 
     return MaterialApp.router(
-      title: '白守',
+      title: t.common.app_title,
       debugShowCheckedModeBanner: false,
 
       // 主题配置
@@ -26,15 +27,12 @@ class BaiShouApp extends ConsumerWidget {
       routerConfig: router,
 
       // 国际化配置
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [
-        Locale('zh', 'CN'), // 中文
-        Locale('en', 'US'), // 英文
-      ],
+      locale: TranslationProvider.of(
+        context,
+      ).flutterLocale, // 使用 slang 的 locale
+      localizationsDelegates: GlobalMaterialLocalizations
+          .delegates, // 使用 slang 的代理 (等下，应该还是用官方的或者 slang 提供的)
+      supportedLocales: AppLocaleUtils.supportedLocales,
     );
   }
 }

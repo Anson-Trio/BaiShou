@@ -1,4 +1,5 @@
 import 'package:baishou/core/theme/app_theme.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 
 /// Markdown 编辑工具栏
@@ -91,7 +92,7 @@ class MarkdownToolbar extends StatelessWidget {
                       color: isPreview ? AppTheme.primary : Colors.grey,
                     ),
                     onPressed: onTogglePreview,
-                    tooltip: isPreview ? '编辑' : '预览',
+                    tooltip: isPreview ? t.common.edit : t.common.confirm,
                   ),
                   IconButton(
                     icon: const Icon(Icons.keyboard_hide),

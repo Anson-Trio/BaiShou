@@ -1,5 +1,6 @@
 import 'package:baishou/core/theme/app_theme.dart';
 import 'package:baishou/features/diary/domain/entities/diary.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -18,7 +19,7 @@ class DiaryCard extends StatelessWidget {
     final lines = diary.content.split('\n');
     final String title = (lines.isNotEmpty && lines.first.trim().isNotEmpty)
         ? lines.first
-        : '无标题';
+        : t.diary.no_title;
     final String body = lines.length > 1
         ? lines
               .sublist(1)
@@ -75,7 +76,7 @@ class DiaryCard extends StatelessWidget {
                       }
                     },
                     itemBuilder: (context) => [
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'delete',
                         child: Row(
                           children: [
@@ -85,7 +86,10 @@ class DiaryCard extends StatelessWidget {
                               color: Colors.red,
                             ),
                             SizedBox(width: 8),
-                            Text('删除', style: TextStyle(color: Colors.red)),
+                            Text(
+                              t.common.delete,
+                              style: const TextStyle(color: Colors.red),
+                            ),
                           ],
                         ),
                       ),

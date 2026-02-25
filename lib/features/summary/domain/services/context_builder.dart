@@ -8,6 +8,7 @@ import 'package:baishou/features/summary/domain/repositories/summary_repository.
 import 'package:flutter/foundation.dart' hide Summary;
 import 'package:intl/intl.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 part 'context_builder.g.dart';
 
@@ -155,7 +156,7 @@ Future<ContextResult> _processContextData(_ContextInput input) async {
 
   // 4. 构建 Markdown
   final buffer = StringBuffer();
-  buffer.writeln('# 共同的回忆 (过去 $months 个月 - 白守算法已折叠)');
+  buffer.writeln(t.ai_prompt.context_title(months: months.toString()));
   buffer.writeln();
 
   // 最好按时间顺序输出以便于 AI 上下文。
@@ -163,21 +164,21 @@ Future<ContextResult> _processContextData(_ContextInput input) async {
   final allItems = <_ContextItem>[];
 
   for (var i in yList) {
-    allItems.add(_ContextItem(i.startDate, i, '👑 年度'));
+    allItems.add(_ContextItem(i.startDate, i, t.ai_prompt.prefix_yearly));
   }
   for (var i in qList) {
-    allItems.add(_ContextItem(i.startDate, i, '🏆 季度'));
+    allItems.add(_ContextItem(i.startDate, i, t.ai_prompt.prefix_quarterly));
   }
   for (var i in visibleMonths) {
-    allItems.add(_ContextItem(i.startDate, i, '🌙 月度'));
+    allItems.add(_ContextItem(i.startDate, i, t.ai_prompt.prefix_monthly));
   }
   for (var i in visibleWeeks) {
-    allItems.add(_ContextItem(i.startDate, i, '📆 周度'));
+    allItems.add(_ContextItem(i.startDate, i, t.ai_prompt.prefix_weekly));
   }
 
   // 日记
   final diaryItems = visibleDiaries
-      .map((d) => _ContextItem(d.date, d, '📝 日记'))
+      .map((d) => _ContextItem(d.date, d, t.ai_prompt.prefix_diary))
       .toList();
   allItems.addAll(diaryItems);
 

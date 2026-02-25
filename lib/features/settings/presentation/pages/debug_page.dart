@@ -2,6 +2,7 @@ import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:baishou/features/diary/data/repositories/diary_repository_impl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 class DebugPage extends ConsumerStatefulWidget {
   const DebugPage({super.key});
@@ -22,14 +23,17 @@ class _DebugPageState extends ConsumerState<DebugPage> {
         if (mounted) {
           AppToast.showSuccess(
             context,
-            ' 演示数据已加载',
+            t.developer.load_demo_success,
             duration: const Duration(seconds: 3),
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        AppToast.showError(context, '❌ 加载失败: $e');
+        AppToast.showError(
+          context,
+          t.developer.load_demo_failed(e: e.toString()),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -39,7 +43,7 @@ class _DebugPageState extends ConsumerState<DebugPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('🛠 开发者调试')),
+      appBar: AppBar(title: Text(t.developer.debug_title)),
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
@@ -50,14 +54,17 @@ class _DebugPageState extends ConsumerState<DebugPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    '数据管理',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  Text(
+                    t.developer.data_management,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  const Text(
-                    '加载演示数据会向数据库写入一批示例日记，用于测试和展示。\n如果已有数据，会强制覆盖写入（不清空现有数据）。',
-                    style: TextStyle(fontSize: 13),
+                  Text(
+                    t.developer.load_demo_full_desc,
+                    style: const TextStyle(fontSize: 13),
                   ),
                   const SizedBox(height: 16),
                   SizedBox(
@@ -74,7 +81,11 @@ class _DebugPageState extends ConsumerState<DebugPage> {
                               ),
                             )
                           : const Icon(Icons.science_outlined),
-                      label: Text(_isLoading ? '加载中...' : '加载演示数据'),
+                      label: Text(
+                        _isLoading
+                            ? t.developer.loading_status
+                            : t.developer.load_demo_data,
+                      ),
                     ),
                   ),
                 ],

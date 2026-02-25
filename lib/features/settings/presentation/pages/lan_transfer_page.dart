@@ -7,6 +7,7 @@ import 'package:bonsoir/bonsoir.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:baishou/features/settings/presentation/widgets/radar_background.dart';
 import 'package:baishou/features/settings/presentation/widgets/sync_floating_bubble.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -68,8 +69,9 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
         if (mounted) {
           AppToast.showSuccess(
             context,
-            '已接收文件: ${next.lastReceivedFile!.path.split('/').last}',
-
+            t.lan_transfer.file_received(
+              name: next.lastReceivedFile!.path.split('/').last,
+            ),
             duration: const Duration(seconds: 4),
           );
         }
@@ -115,7 +117,7 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          '局域网传输',
+          t.lan_transfer.title,
           style: TextStyle(
             color: isDark ? Colors.grey[100] : Colors.grey[800],
             fontWeight: FontWeight.bold,
@@ -159,7 +161,7 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    '正在搜索附近设备...',
+                    t.lan_transfer.scanning_nearby,
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -168,7 +170,7 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '请确保接收设备已打开「白守」并连接至同一Wi-Fi',
+                    t.lan_transfer.scan_hint,
                     style: TextStyle(
                       fontSize: 14,
                       color: isDark ? Colors.grey[400] : Colors.grey[500],
@@ -227,7 +229,7 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
                   ),
                 ),
                 icon: const Icon(Icons.qr_code_scanner),
-                label: const Text('扫一扫连接'),
+                label: Text(t.lan_transfer.scan_button),
               ),
             ),
           ),
@@ -257,7 +259,10 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
                 child: CircularProgressIndicator(),
               ),
             const SizedBox(height: 16),
-            Text('扫描二维码以连接', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              t.lan_transfer.qr_dialog_title,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
           ],
         ),
       ),
@@ -279,16 +284,16 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
       final confirm = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: Text('发送数据给 $nickname?'),
-          content: const Text('将生成数据备份并发送给该设备。'),
+          title: Text(t.lan_transfer.send_confirm_title(nickname: nickname)),
+          content: Text(t.lan_transfer.send_confirm_content),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('取消'),
+              child: Text(t.common.cancel),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('发送'),
+              child: Text(t.common.export),
             ),
           ],
         ),
@@ -296,7 +301,7 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
 
       if (confirm == true) {
         if (context.mounted) {
-          AppToast.showSuccess(context, '正在生成并发送数据...');
+          AppToast.showSuccess(context, t.lan_transfer.sending_status);
         }
 
         // 执行 Push 发送
@@ -304,14 +309,17 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
 
         if (context.mounted) {
           if (success) {
-            AppToast.showSuccess(context, '已发送给 $nickname');
+            AppToast.showSuccess(
+              context,
+              t.lan_transfer.sent_success(nickname: nickname),
+            );
           }
           // 错误信息已由 state 监听处理
         }
       }
     } else {
       if (context.mounted) {
-        AppToast.showError(context, '无法获取设备IP');
+        AppToast.showError(context, t.lan_transfer.ip_not_found);
       }
     }
   }
@@ -321,11 +329,11 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('收到数据备份'),
+        title: Text(t.lan_transfer.received_backup_title),
         content: Text(
-          '来自局域网设备的数据 (${(file.lengthSync() / 1024 / 1024).toStringAsFixed(2)} MB)。\n'
-          '是否立即覆盖当前数据并导入？\n\n'
-          '注意：导入前会自动创建当前数据的快照。',
+          t.lan_transfer.received_backup_content(
+            size: (file.lengthSync() / 1024 / 1024).toStringAsFixed(2),
+          ),
         ),
         actions: [
           TextButton(
@@ -335,7 +343,7 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
                   .consumeReceivedFile();
               Navigator.pop(context);
             },
-            child: const Text('取消'),
+            child: Text(t.common.cancel),
           ),
           FilledButton(
             onPressed: () {
@@ -348,7 +356,7 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
 
               _importFile(file);
             },
-            child: const Text('导入'),
+            child: Text(t.common.restore),
           ),
         ],
       ),
@@ -393,7 +401,7 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
       if (result.success) {
         if (mounted) {
           ref.read(dataRefreshProvider.notifier).refresh();
-          AppToast.showSuccess(context, '导入成功！\n已自动创建快照备份。');
+          AppToast.showSuccess(context, t.common.success);
         }
 
         if (result.configData != null) {
@@ -404,14 +412,17 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
         }
       } else {
         if (mounted) {
-          AppToast.showError(context, '导入失败: ${result.error}');
+          AppToast.showError(
+            context,
+            t.settings.import_failed_with_error(error: result.error ?? ''),
+          );
         }
       }
     } catch (e, stack) {
       debugPrint('UI: Error in _importFile: $e\n$stack');
       closeDialog();
       if (mounted) {
-        AppToast.showError(context, '发生错误: $e');
+        AppToast.showError(context, t.common.error);
       }
     }
   }
@@ -425,7 +436,7 @@ class _QRScanPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(title: const Text('扫描二维码')),
+      appBar: AppBar(title: Text(t.lan_transfer.qr_scan_title)),
       body: MobileScanner(
         onDetect: (capture) {
           final List<Barcode> barcodes = capture.barcodes;

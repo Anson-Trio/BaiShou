@@ -1,9 +1,10 @@
+import 'package:baishou/features/diary/data/repositories/diary_repository_impl.dart';
 import 'package:baishou/core/theme/app_theme.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:baishou/core/services/data_refresh_notifier.dart';
-
 import 'package:baishou/features/summary/domain/services/context_builder.dart';
 import 'package:baishou/features/summary/presentation/widgets/missing_summary_list.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,39 +20,70 @@ class SummaryDashboardView extends ConsumerStatefulWidget {
 class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
   bool _isLoading = false;
   ContextResult? _result;
-  final int _months = 12; // Default lookback
+  int _months = 12; // 当前选中的回溯月份数
+  int _maxMonths = 60; // 动态计算的最大月数（至少60）
 
+  late final TextEditingController _monthsController;
   int _lastRefreshVersion = 0;
 
   @override
   void initState() {
     super.initState();
+    _monthsController = TextEditingController(text: _months.toString());
+    _initRange();
+  }
+
+  @override
+  void dispose() {
+    _monthsController.dispose();
+    super.dispose();
+  }
+
+  /// 初始化范围：获取最早数据日期，计算最大可选月数
+  Future<void> _initRange() async {
+    final oldestDate = await ref
+        .read(diaryRepositoryProvider)
+        .getOldestDiaryDate();
+    if (oldestDate != null) {
+      final now = DateTime.now();
+      final int diffMonths =
+          (now.year - oldestDate.year) * 12 + now.month - oldestDate.month + 1;
+      if (mounted) {
+        setState(() {
+          _maxMonths = diffMonths > 60 ? diffMonths : 60;
+        });
+      }
+    }
     _loadContext();
   }
 
+  /// 加载/重载白守上下文数据
   Future<void> _loadContext() async {
     setState(() => _isLoading = true);
     try {
       final result = await ref
           .read(contextBuilderProvider)
           .buildLifeBookContext(months: _months);
-      setState(() {
-        _result = result;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _result = result;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        AppToast.showError(context, '加载失败: $e');
+        AppToast.showError(context, '${t.summary.load_failed}: $e');
       }
     }
   }
 
+  /// 复制共同回忆到剪贴板
   Future<void> _copyContext() async {
     if (_result == null) return;
     await Clipboard.setData(ClipboardData(text: _result!.text));
     if (mounted) {
-      AppToast.showSuccess(context, '共同回忆已复制');
+      AppToast.showSuccess(context, t.summary.toast_copied);
     }
   }
 
@@ -67,73 +99,163 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
       });
     }
 
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_result == null) {
-      return Center(
-        child: FilledButton.icon(
-          onPressed: _loadContext,
-          icon: const Icon(Icons.refresh),
-          label: const Text('加载数据'),
-        ),
-      );
-    }
-
-    final stats = _result!;
+    final theme = Theme.of(context);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 仪表盘卡片
-          _buildStatCard(context, '白守数据概览 (过去 $_months 个月)', [
-            _StatItem('年度', stats.yearCount, Colors.orange),
-            _StatItem('季度', stats.quarterCount, Colors.amber),
-            _StatItem('月度', stats.monthCount, Colors.blue),
-            _StatItem('周度', stats.weekCount, Colors.cyan),
-            _StatItem('日记', stats.diaryCount, Colors.green),
-          ]),
-          const SizedBox(height: 24),
-
-          // 操作按钮区域
-          const Text(
-            '白守•共同回忆',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            '基于白守级联折叠算法，自动过滤冗余数据，构建我们共同的记忆脉络。',
-            style: TextStyle(color: Colors.grey, fontSize: 13),
-          ),
+          // 统计范围选择器
+          _buildRangeSelector(theme),
           const SizedBox(height: 16),
 
-          FilledButton.icon(
-            onPressed: _copyContext,
-            icon: const Icon(Icons.copy),
-            label: const Text('复制共同回忆'),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.all(16),
-              backgroundColor: AppTheme.primary,
-            ),
-          ),
+          // 仪表盘卡片（加载中时显示骨架 or CircularProgress）
+          _isLoading
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 48),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              : _result == null
+              ? Center(
+                  child: FilledButton.icon(
+                    onPressed: _loadContext,
+                    icon: const Icon(Icons.refresh),
+                    label: Text(t.summary.load_data),
+                  ),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // 统计数据概览卡片
+                    _buildStatCard(context, theme),
+                    const SizedBox(height: 24),
 
-          const SizedBox(height: 32),
+                    // 白守·共同回忆区域
+                    Text(
+                      t.summary.collective_memories_title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      t.summary.algorithm_desc,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: _copyContext,
+                      icon: const Icon(Icons.copy),
+                      label: Text(t.summary.copy_memories),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.all(16),
+                        backgroundColor: AppTheme.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 32),
 
-          // 智能补全列表
-          const MissingSummaryList(),
+                    // 智能补全列表
+                    const MissingSummaryList(),
+                  ],
+                ),
         ],
       ),
     );
   }
 
-  Widget _buildStatCard(
-    BuildContext context,
-    String title,
-    List<_StatItem> items,
-  ) {
+  /// 构建统计范围选择器（Slider + 文本显示 + 自由输入）
+  Widget _buildRangeSelector(ThemeData theme) {
+    // 确保 slider 的 value 在 min/max 范围内
+    final sliderMax = _months > _maxMonths
+        ? _months.toDouble()
+        : _maxMonths.toDouble();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              t.summary.range_selector,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            Row(
+              children: [
+                SizedBox(
+                  width: 40,
+                  child: TextField(
+                    controller: _monthsController,
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    onSubmitted: (v) {
+                      final val = int.tryParse(v);
+                      if (val != null && val > 0) {
+                        setState(() => _months = val);
+                        _loadContext();
+                      } else {
+                        _monthsController.text = _months.toString();
+                      }
+                    },
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: AppTheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                      border: InputBorder.none,
+                    ),
+                  ),
+                ),
+                Text(
+                  ' M',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: AppTheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Slider(
+          value: _months.toDouble().clamp(1.0, sliderMax),
+          min: 1,
+          max: sliderMax,
+          divisions: sliderMax.round() > 1 ? sliderMax.round() - 1 : 1,
+          activeColor: AppTheme.primary,
+          onChanged: (v) {
+            setState(() {
+              _months = v.round();
+              _monthsController.text = _months.toString();
+            });
+          },
+          onChangeEnd: (v) {
+            _loadContext();
+          },
+        ),
+      ],
+    );
+  }
+
+  /// 构建统计数据概览卡片
+  Widget _buildStatCard(BuildContext context, ThemeData theme) {
+    final stats = _result!;
+    final lookback = t.summary.lookback_period.replaceAll(
+      '{months}',
+      '$_months',
+    );
+    final title = '${t.summary.dashboard_title} ($lookback)';
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -142,13 +264,42 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: Theme.of(context).textTheme.titleMedium),
+            Text(title, style: theme.textTheme.titleMedium),
             const Divider(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: items
-                  .map((item) => _buildStatItem(context, item))
-                  .toList(),
+              children: [
+                _buildStatItem(
+                  context,
+                  t.summary.stats_yearly,
+                  stats.yearCount,
+                  Colors.orange,
+                ),
+                _buildStatItem(
+                  context,
+                  t.summary.stats_quarterly,
+                  stats.quarterCount,
+                  Colors.amber,
+                ),
+                _buildStatItem(
+                  context,
+                  t.summary.stats_monthly,
+                  stats.monthCount,
+                  Colors.blue,
+                ),
+                _buildStatItem(
+                  context,
+                  t.summary.stats_weekly,
+                  stats.weekCount,
+                  Colors.cyan,
+                ),
+                _buildStatItem(
+                  context,
+                  t.summary.stats_daily,
+                  stats.diaryCount,
+                  Colors.green,
+                ),
+              ],
             ),
           ],
         ),
@@ -156,19 +307,24 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
     );
   }
 
-  Widget _buildStatItem(BuildContext context, _StatItem item) {
+  Widget _buildStatItem(
+    BuildContext context,
+    String label,
+    int count,
+    Color color,
+  ) {
     return Column(
       children: [
         Text(
-          item.count.toString(),
+          count.toString(),
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            color: item.color,
+            color: color,
             fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 4),
         Text(
-          item.label,
+          label,
           style: Theme.of(
             context,
           ).textTheme.bodySmall?.copyWith(color: Colors.grey),
@@ -176,11 +332,4 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
       ],
     );
   }
-}
-
-class _StatItem {
-  final String label;
-  final int count;
-  final Color color;
-  _StatItem(this.label, this.count, this.color);
 }

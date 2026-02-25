@@ -9,6 +9,7 @@ import 'package:baishou/core/widgets/year_picker_sheet.dart';
 import 'package:baishou/features/summary/presentation/widgets/summary_dashboard_view.dart';
 import 'package:baishou/features/summary/presentation/widgets/summary_list_view.dart';
 import 'package:baishou/features/summary/presentation/widgets/summary_raw_data_view.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -41,16 +42,16 @@ class SummaryPage extends ConsumerWidget {
           child: Scaffold(
             backgroundColor: Colors.transparent,
             appBar: AppBar(
-              title: const Text('AI 总结'),
+              title: Text(t.summary.dashboard_title),
               centerTitle: false,
               backgroundColor: Colors.transparent,
               surfaceTintColor: Colors.transparent,
               elevation: 0,
-              bottom: const TabBar(
+              bottom: TabBar(
                 tabs: [
-                  Tab(text: '仪表盘'),
-                  Tab(text: '原始数据'),
-                  Tab(text: '历史归档'),
+                  Tab(text: t.summary.collective_memories_title),
+                  Tab(text: t.summary.raw_data_tab),
+                  Tab(text: t.summary.history_tab),
                 ],
               ),
             ),
@@ -85,7 +86,6 @@ class _SummaryArchiveViewState extends State<_SummaryArchiveView>
   DateTime? _weeklyEndDate;
   DateTime? _monthlyDate; // 年-月
   DateTime? _quarterlyDate; // 年-季度
-  DateTime? _yearlyDate; // 年份
 
   @override
   void initState() {
@@ -116,11 +116,11 @@ class _SummaryArchiveViewState extends State<_SummaryArchiveView>
                 indicatorSize: TabBarIndicatorSize.label,
                 dividerColor: Colors.transparent,
                 labelPadding: const EdgeInsets.symmetric(horizontal: 4),
-                tabs: const [
-                  Tab(text: '周记'),
-                  Tab(text: '月报'),
-                  Tab(text: '季报'),
-                  Tab(text: '年鉴'),
+                tabs: [
+                  Tab(text: t.summary.tab_weekly),
+                  Tab(text: t.summary.tab_monthly),
+                  Tab(text: t.summary.tab_quarterly),
+                  Tab(text: t.summary.tab_yearly),
                 ],
               ),
             ),
@@ -315,16 +315,16 @@ class _SummaryArchiveViewState extends State<_SummaryArchiveView>
   String _getFilterText(int index) {
     switch (index) {
       case 0: // 周记
-        if (_weeklyStartDate == null) return '筛选月份';
-        return '${_weeklyStartDate!.year}年 ${_weeklyStartDate!.month}月';
+        if (_weeklyStartDate == null) return t.summary.filter_month;
+        return '${_weeklyStartDate!.year}${t.common.year_suffix} ${_weeklyStartDate!.month}${t.common.month_suffix}';
       case 1: // 月报
-        if (_monthlyDate == null) return '筛选年份';
-        return '${_monthlyDate!.year}年';
+        if (_monthlyDate == null) return t.summary.filter_year;
+        return '${_monthlyDate!.year}${t.common.year_suffix}';
       case 2: // 季报
-        if (_quarterlyDate == null) return '筛选年份';
-        return '${_quarterlyDate!.year}年';
+        if (_quarterlyDate == null) return t.summary.filter_year;
+        return '${_quarterlyDate!.year}${t.common.year_suffix}';
       case 3: // 年鉴
-        return '全部年鉴';
+        return t.summary.all_yearly;
     }
     return '';
   }
@@ -355,9 +355,6 @@ class _SummaryArchiveViewState extends State<_SummaryArchiveView>
           break;
         case 2:
           _quarterlyDate = null;
-          break;
-        case 3:
-          _yearlyDate = null;
           break;
       }
     });
@@ -477,7 +474,7 @@ class __AddSummaryDialogState extends ConsumerState<_AddSummaryDialog> {
   Future<void> _save() async {
     final content = _contentController.text.trim();
     if (content.isEmpty) {
-      AppToast.showSuccess(context, '请输入内容');
+      AppToast.showSuccess(context, t.summary.input_content);
       return;
     }
 
@@ -493,11 +490,11 @@ class __AddSummaryDialogState extends ConsumerState<_AddSummaryDialog> {
           );
       if (mounted) {
         Navigator.pop(context);
-        AppToast.showSuccess(context, '已添加');
+        AppToast.showSuccess(context, t.summary.added_success);
       }
     } catch (e) {
       if (mounted) {
-        AppToast.showError(context, '添加失败: $e');
+        AppToast.showError(context, '${t.summary.add_failed}: $e');
         setState(() => _isLoading = false);
       }
     }
@@ -506,20 +503,22 @@ class __AddSummaryDialogState extends ConsumerState<_AddSummaryDialog> {
   String _getTypeLabel(SummaryType type) {
     switch (type) {
       case SummaryType.weekly:
-        return '周记';
+        return t.summary.stats_weekly;
       case SummaryType.monthly:
-        return '月报';
+        return t.summary.stats_monthly;
       case SummaryType.quarterly:
-        return '季报';
+        return t.summary.stats_quarterly;
       case SummaryType.yearly:
-        return '年鉴';
+        return t.summary.stats_yearly;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text('添加${_getTypeLabel(widget.fixedType)}'),
+      title: Text(
+        t.summary.add_summary_title(type: _getTypeLabel(widget.fixedType)),
+      ),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -535,10 +534,10 @@ class __AddSummaryDialogState extends ConsumerState<_AddSummaryDialog> {
               controller: _contentController,
               maxLines: 10,
               minLines: 5,
-              decoration: const InputDecoration(
-                labelText: '总结内容',
-                hintText: '在此粘贴 AI 生成的总结...',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: t.summary.content_label,
+                hintText: t.summary.paste_hint,
+                border: const OutlineInputBorder(),
                 alignLabelWithHint: true,
               ),
             ),
@@ -548,7 +547,7 @@ class __AddSummaryDialogState extends ConsumerState<_AddSummaryDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('取消'),
+          child: Text(t.common.cancel),
         ),
         FilledButton(
           onPressed: _isLoading ? null : _save,
@@ -558,7 +557,7 @@ class __AddSummaryDialogState extends ConsumerState<_AddSummaryDialog> {
                   height: 20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('保存'),
+              : Text(t.common.save),
         ),
       ],
     );
@@ -570,10 +569,13 @@ class __AddSummaryDialogState extends ConsumerState<_AddSummaryDialog> {
         onTap: _pickDateRange,
         borderRadius: BorderRadius.circular(4),
         child: InputDecorator(
-          decoration: const InputDecoration(
-            labelText: '时间范围',
-            border: OutlineInputBorder(),
-            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+          decoration: InputDecoration(
+            labelText: t.summary.time_range_label,
+            border: const OutlineInputBorder(),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 16,
+            ),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -600,7 +602,7 @@ class __AddSummaryDialogState extends ConsumerState<_AddSummaryDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '选择时间',
+            t.summary.tap_to_select_range,
             style: TextStyle(
               fontSize: 12,
               color: Theme.of(context).colorScheme.primary,
@@ -623,7 +625,10 @@ class __AddSummaryDialogState extends ConsumerState<_AddSummaryDialog> {
                   ),
                   items: years
                       .map(
-                        (y) => DropdownMenuItem(value: y, child: Text('$y年')),
+                        (y) => DropdownMenuItem(
+                          value: y,
+                          child: Text('$y${t.common.year_suffix}'),
+                        ),
                       )
                       .toList(),
                   onChanged: (val) {
@@ -653,7 +658,10 @@ class __AddSummaryDialogState extends ConsumerState<_AddSummaryDialog> {
                     ),
                     items: List.generate(12, (i) => i + 1)
                         .map(
-                          (m) => DropdownMenuItem(value: m, child: Text('$m月')),
+                          (m) => DropdownMenuItem(
+                            value: m,
+                            child: Text('$m${t.common.month_suffix}'),
+                          ),
                         )
                         .toList(),
                     onChanged: (val) {
@@ -684,7 +692,10 @@ class __AddSummaryDialogState extends ConsumerState<_AddSummaryDialog> {
                     ),
                     items: [1, 2, 3, 4]
                         .map(
-                          (q) => DropdownMenuItem(value: q, child: Text('Q$q')),
+                          (q) => DropdownMenuItem(
+                            value: q,
+                            child: Text('${t.common.quarter_prefix}$q'),
+                          ),
                         )
                         .toList(),
                     onChanged: (val) {

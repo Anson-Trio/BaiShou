@@ -1,4 +1,5 @@
 import 'package:baishou/core/theme/app_theme.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 
 /// 标签输入组件
@@ -52,7 +53,7 @@ class TagInputWidget extends StatelessWidget {
             focusNode: focusNode,
             style: const TextStyle(fontSize: 13, color: AppTheme.primary),
             decoration: InputDecoration(
-              hintText: '使用换行添加标签哦...',
+              hintText: t.diary.tag_input_hint,
               hintStyle: TextStyle(fontSize: 13, color: Colors.grey[400]),
               border: InputBorder.none,
               isDense: true,

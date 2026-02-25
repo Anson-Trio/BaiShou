@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 import '../theme/app_theme.dart';
 
@@ -80,7 +81,7 @@ class _YearMonthPickerSheetState extends State<YearMonthPickerSheet> {
                       (int index) {
                         return Center(
                           child: Text(
-                            '${widget.minYear + index}年',
+                            '${widget.minYear + index}${t.common.year_suffix}',
                             style: const TextStyle(fontSize: 18),
                           ),
                         );
@@ -101,7 +102,7 @@ class _YearMonthPickerSheetState extends State<YearMonthPickerSheet> {
                     children: List<Widget>.generate(12, (int index) {
                       return Center(
                         child: Text(
-                          '${1 + index}月',
+                          '${1 + index}${t.common.month_suffix}',
                           style: const TextStyle(fontSize: 18),
                         ),
                       );
@@ -131,7 +132,7 @@ class _YearMonthPickerSheetState extends State<YearMonthPickerSheet> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text('查看全部'),
+                  child: Text(t.common.view_all),
                 ),
               ),
             ),
@@ -149,10 +150,13 @@ class _YearMonthPickerSheetState extends State<YearMonthPickerSheet> {
         children: [
           TextButton(
             onPressed: () => Navigator.pop(context), // 取消（无变更）
-            child: Text('取消', style: TextStyle(color: Colors.grey[600])),
+            child: Text(
+              t.common.cancel,
+              style: TextStyle(color: Colors.grey[600]),
+            ),
           ),
           Text(
-            '选择月份',
+            t.diary.select_month,
             style: Theme.of(
               context,
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
@@ -162,9 +166,9 @@ class _YearMonthPickerSheetState extends State<YearMonthPickerSheet> {
               final date = DateTime(_selectedYear, _selectedMonth);
               Navigator.pop(context, date);
             },
-            child: const Text(
-              '确定',
-              style: TextStyle(
+            child: Text(
+              t.common.confirm,
+              style: const TextStyle(
                 color: AppTheme.primary,
                 fontWeight: FontWeight.bold,
               ),

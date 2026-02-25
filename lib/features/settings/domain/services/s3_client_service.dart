@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:minio/minio.dart';
 import 'package:path/path.dart' as p;
+import 'package:baishou/i18n/strings.g.dart';
 
 /// S3 同步记录详情类
 /// 封装了存储在 S3 上的备份文件的基本元数据
@@ -137,7 +138,7 @@ class S3ClientService {
       records.sort((a, b) => b.lastModified.compareTo(a.lastModified));
     } catch (e) {
       // 捕获异常并包装成更具描述性的错误
-      throw Exception('列出 S3 备份文件失败: $e');
+      throw Exception(t.data_sync.list_s3_failed(e: e.toString()));
     }
 
     return records;

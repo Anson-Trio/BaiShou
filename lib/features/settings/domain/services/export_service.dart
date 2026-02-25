@@ -20,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 /// 备份包 schema 版本，每次修改格式时递增
 const int _kSchemaVersion = 1;
@@ -171,7 +172,7 @@ class ExportService {
       for (final diary in dailyDiaries) {
         sb.writeln('## ${DateFormat('HH:mm').format(diary.date)}');
         if (diary.tags.isNotEmpty) {
-          sb.writeln('标签: ${diary.tags.join(', ')}');
+          sb.writeln('${t.diary.tag_label}: ${diary.tags.join(', ')}');
         }
         sb.writeln();
         sb.writeln(diary.content);
@@ -226,7 +227,7 @@ class ExportService {
     // share: false（用户手动导出）——弹出系统文件保存对话框，与导入体验一致
     // Android/iOS 需要传 bytes 参数，桌面端通过路径写入
     final outputPath = await FilePicker.platform.saveFile(
-      dialogTitle: '选择保存位置',
+      dialogTitle: t.settings.select_save_location,
       fileName: fileName,
       allowedExtensions: ['zip'],
       type: FileType.custom,

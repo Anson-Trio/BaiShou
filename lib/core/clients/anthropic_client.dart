@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:baishou/core/models/ai_provider_model.dart';
 import 'package:baishou/core/clients/ai_client.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 class AnthropicClient implements AiClient {
   final AiProviderModel provider;
@@ -44,13 +45,18 @@ class AnthropicClient implements AiClient {
           }
           return result;
         } else {
-          throw Exception('Anthropic 响应数据格式错误：未找到 "data" 列表字段。');
+          throw Exception(
+            t.ai.error_response_format(e: t.ai.error_no_model_list),
+          );
         }
       } else {
-        throw Exception('HTTP 错误 ${response.statusCode}: ${response.body}');
+        throw Exception(
+          t.ai.error_api_request(statusCode: response.statusCode.toString()) +
+              '\n${response.body}',
+        );
       }
     } catch (e) {
-      throw Exception('(${provider.name}) 获取模型列表失败: $e');
+      throw Exception(t.ai.error_fetch_models(e: e.toString()));
     }
   }
 
@@ -83,15 +89,16 @@ class AnthropicClient implements AiClient {
             data['content'][0]['text'] != null) {
           return data['content'][0]['text'].toString().trim();
         } else {
-          throw Exception('Anthropic 协议格式异常：未找到生成的文本');
+          throw Exception(t.ai.error_no_text);
         }
       } else {
         throw Exception(
-          'API请求失败 (状态码: ${response.statusCode})\n${response.body}',
+          t.ai.error_api_request(statusCode: response.statusCode.toString()) +
+              '\n${response.body}',
         );
       }
     } catch (e) {
-      throw Exception('调用生成接口失败: $e');
+      throw Exception(t.ai.error_generate_interface(e: e.toString()));
     }
   }
 

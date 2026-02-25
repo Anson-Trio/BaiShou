@@ -15,6 +15,7 @@ import 'package:uuid/uuid.dart';
 
 import 'export_service.dart';
 import 'user_profile_service.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 /// 局域网传输状态管理
 /// 包含广播状态、发现状态、服务器信息以及最近接收的文件
@@ -158,7 +159,9 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
 
       state = state.copyWith(isBroadcasting: true);
     } catch (e) {
-      state = state.copyWith(error: '无法启动广播: $e');
+      state = state.copyWith(
+        error: t.lan_transfer.broadcast_failed(e: e.toString()),
+      );
       await stopBroadcasting();
     }
   }
@@ -189,7 +192,9 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
         // 不调用系统分享
         final zipFile = await exportService.exportToZip(share: false);
         if (zipFile == null) {
-          return Response.internalServerError(body: 'Failed to generate zip');
+          return Response.internalServerError(
+            body: t.settings.backup_create_failed,
+          );
         }
 
         return Response.ok(
@@ -201,7 +206,7 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
           },
         );
       } catch (e) {
-        return Response.internalServerError(body: 'Error serving file: $e');
+        return Response.internalServerError(body: '${t.common.error}: $e');
       }
     });
 
@@ -232,9 +237,11 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
           receivedFileToImport: file,
         );
 
-        return Response.ok('File received successfully');
+        return Response.ok(t.common.success);
       } catch (e) {
-        return Response.internalServerError(body: 'Upload failed: $e');
+        return Response.internalServerError(
+          body: t.lan_transfer.receive_failed(e: e.toString()),
+        );
       }
     });
 
@@ -328,7 +335,9 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
       await _discovery!.start();
       state = state.copyWith(isDiscovering: true);
     } catch (e) {
-      state = state.copyWith(error: '无法启动搜索: $e');
+      state = state.copyWith(
+        error: t.lan_transfer.search_failed(e: e.toString()),
+      );
       await stopDiscovery();
     }
   }
@@ -368,18 +377,17 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
       // 提早进行快速探路 PING，找出现阶段能通过路由器的那个 IP，防止阻塞死等
       final reachableHost = await _findReachableIp(hostStr, port);
       if (reachableHost == null) {
-        throw TimeoutException('无法连接到接收端，所有可能尝试的 IP 均超时或被拒绝');
+        throw TimeoutException(t.lan_transfer.no_reachable_ip);
       }
 
       final exportService = ref.read(exportServiceProvider);
       // 1. 生成 Zip，不调用系统分享 (share: true 表示生成临时文件不弹窗)
       final zipFile = await exportService.exportToZip(share: true);
-      if (zipFile == null) throw Exception('无法生成备份文件');
+      if (zipFile == null) throw Exception(t.settings.backup_create_failed);
 
       // 2. 读取文件字节
       final bytes = await zipFile.readAsBytes();
 
-      // 3. 发送 POST 请求
       final uri = Uri.parse('http://$reachableHost:$port/upload');
       final response = await http
           .post(
@@ -396,13 +404,17 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
       if (response.statusCode == 200) {
         return true;
       } else {
-        throw Exception('发送失败: ${response.statusCode} ${response.body}');
+        throw Exception(
+          t.lan_transfer.send_failed(e: 'Status: ${response.statusCode}'),
+        );
       }
     } catch (e) {
       if (e is TimeoutException) {
-        state = state.copyWith(error: '连接超时，请检查设备是否在同一局域网内且未开启 AP 隔离');
+        state = state.copyWith(error: t.lan_transfer.connect_timeout);
       } else {
-        state = state.copyWith(error: '文件发送失败: $e');
+        state = state.copyWith(
+          error: t.lan_transfer.send_failed(e: e.toString()),
+        );
       }
       return false;
     }
@@ -414,7 +426,7 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
     try {
       final reachableHost = await _findReachableIp(hostStr, port);
       if (reachableHost == null) {
-        throw TimeoutException('无法连接到接收端，所有尝试的 IP 均超时或被拒绝');
+        throw TimeoutException(t.lan_transfer.no_reachable_ip);
       }
 
       final response = await http
@@ -443,13 +455,17 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
 
         return file;
       } else {
-        throw Exception('Download failed with status: ${response.statusCode}');
+        throw Exception(
+          t.lan_transfer.receive_failed(e: 'Status: ${response.statusCode}'),
+        );
       }
     } catch (e) {
       if (e is TimeoutException) {
-        state = state.copyWith(error: '下载超时，请检查设备连接');
+        state = state.copyWith(error: t.lan_transfer.connect_timeout);
       } else {
-        state = state.copyWith(error: '下载失败: $e');
+        state = state.copyWith(
+          error: t.lan_transfer.receive_failed(e: e.toString()),
+        );
       }
       return null;
     }
@@ -461,7 +477,9 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
       final uri = Uri.parse(url);
       return downloadFile(uri.host, uri.port);
     } catch (e) {
-      state = state.copyWith(error: '无效的链接: $e');
+      state = state.copyWith(
+        error: t.lan_transfer.invalid_link(e: e.toString()),
+      );
       return null;
     }
   }

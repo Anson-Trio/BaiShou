@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path/path.dart' as path;
 
 import '../../../../core/providers/shared_preferences_provider.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 class UserProfile {
   final String nickname;
@@ -31,7 +32,7 @@ class UserProfileNotifier extends Notifier<UserProfile> {
   UserProfile build() {
     _prefs = ref.watch(sharedPreferencesProvider);
     return UserProfile(
-      nickname: _prefs.getString(_keyNickname) ?? '白守用户',
+      nickname: _prefs.getString(_keyNickname) ?? t.settings.default_nickname,
       avatarPath: _prefs.getString(_keyAvatarPath),
     );
   }

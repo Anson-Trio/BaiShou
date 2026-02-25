@@ -11,6 +11,7 @@ import 'package:baishou/features/settings/presentation/widgets/sync_stat_card.da
 import 'package:baishou/features/settings/presentation/widgets/sync_record_item.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 class DataSyncPage extends ConsumerStatefulWidget {
   const DataSyncPage({super.key});
@@ -62,7 +63,10 @@ class _DataSyncPageState extends ConsumerState<DataSyncPage> {
       }
     } catch (e) {
       if (mounted) {
-        AppToast.showError(context, '获取记录失败: $e');
+        AppToast.showError(
+          context,
+          t.data_sync.fetch_records_failed(e: e.toString()),
+        );
       }
     } finally {
       if (mounted) {
@@ -77,7 +81,7 @@ class _DataSyncPageState extends ConsumerState<DataSyncPage> {
     final config = ref.read(dataSyncConfigServiceProvider);
 
     if (config.syncTarget == SyncTarget.local) {
-      AppToast.showSuccess(context, '本地备份不需要通过此页面同步');
+      AppToast.showSuccess(context, t.data_sync.local_backup_hint);
       return;
     }
 
@@ -113,12 +117,12 @@ class _DataSyncPageState extends ConsumerState<DataSyncPage> {
       await zipFile.delete();
 
       if (mounted) {
-        AppToast.showSuccess(context, '同步成功！');
+        AppToast.showSuccess(context, t.data_sync.sync_success);
       }
       await _fetchRecords();
     } catch (e) {
       if (mounted) {
-        AppToast.showError(context, '同步失败: $e');
+        AppToast.showError(context, t.data_sync.sync_failed(e: e.toString()));
       }
     } finally {
       if (mounted) {
@@ -159,7 +163,7 @@ class _DataSyncPageState extends ConsumerState<DataSyncPage> {
                     final isMobile = constraints.maxWidth < 500;
                     final cards = [
                       SyncStatCard(
-                        title: '同步目标',
+                        title: t.data_sync.sync_target,
                         value: config.syncTarget.name.toUpperCase(),
                         icon: config.syncTarget == SyncTarget.s3
                             ? Icons.cloud_done_outlined
@@ -169,14 +173,16 @@ class _DataSyncPageState extends ConsumerState<DataSyncPage> {
                         color: Colors.blue.shade600,
                       ),
                       SyncStatCard(
-                        title: '备份总大小',
+                        title: t.data_sync.total_backup_size,
                         value: sizeString,
                         icon: Icons.storage_outlined,
                         color: Colors.green.shade600,
                       ),
                       SyncStatCard(
-                        title: '备份数量',
-                        value: '${_records.length} 个',
+                        title: t.data_sync.backup_count,
+                        value: t.data_sync.backup_count_unit(
+                          count: _records.length,
+                        ),
                         icon: Icons.sync_alt_outlined,
                         color: Colors.purple.shade600,
                       ),
@@ -221,7 +227,7 @@ class _DataSyncPageState extends ConsumerState<DataSyncPage> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              '备份记录',
+                              t.data_sync.sync_records,
                               style: textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
@@ -252,7 +258,7 @@ class _DataSyncPageState extends ConsumerState<DataSyncPage> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '以下记录仅属于当前同步目标',
+                          t.data_sync.records_scope_hint,
                           style: textTheme.bodySmall?.copyWith(
                             color: Theme.of(
                               context,
@@ -275,7 +281,7 @@ class _DataSyncPageState extends ConsumerState<DataSyncPage> {
                             ).then((_) => _fetchRecords());
                           },
                           icon: const Icon(Icons.settings_outlined, size: 18),
-                          label: const Text('同步设置'),
+                          label: Text(t.data_sync.sync_settings_button),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 16,
@@ -296,7 +302,11 @@ class _DataSyncPageState extends ConsumerState<DataSyncPage> {
                                   ),
                                 )
                               : const Icon(Icons.sync_rounded, size: 18),
-                          label: Text(_isSyncing ? '同步中...' : '立即同步'),
+                          label: Text(
+                            _isSyncing
+                                ? t.data_sync.syncing_status
+                                : t.data_sync.sync_now_button,
+                          ),
                           style: FilledButton.styleFrom(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 16,
@@ -318,10 +328,10 @@ class _DataSyncPageState extends ConsumerState<DataSyncPage> {
                     ),
                   )
                 else if (_records.isEmpty)
-                  const Center(
+                  Center(
                     child: Padding(
-                      padding: EdgeInsets.all(32),
-                      child: Text('暂无同步记录'),
+                      padding: const EdgeInsets.all(32),
+                      child: Text(t.data_sync.no_records_hint),
                     ),
                   )
                 else
@@ -353,17 +363,17 @@ class _DataSyncPageState extends ConsumerState<DataSyncPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('删除备份?'),
-        content: Text('确定要删除备份文件 ${record.filename} 吗？此操作不可撤销。'),
+        title: Text(t.data_sync.delete_backup_title),
+        content: Text(t.data_sync.delete_backup_confirm(name: record.filename)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('取消'),
+            child: Text(t.common.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('删除'),
+            child: Text(t.common.delete),
           ),
         ],
       ),
@@ -404,22 +414,22 @@ class _DataSyncPageState extends ConsumerState<DataSyncPage> {
     final newName = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('重命名备份'),
+        title: Text(t.data_sync.rename_title),
         content: TextField(
           controller: nameController,
-          decoration: const InputDecoration(
-            labelText: '新文件名',
-            hintText: 'baishou_backup_xxx.zip',
+          decoration: InputDecoration(
+            labelText: t.data_sync.new_filename_label,
+            hintText: t.data_sync.backup_filename_hint,
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('取消'),
+            child: Text(t.common.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, nameController.text),
-            child: const Text('确定'),
+            child: Text(t.common.confirm),
           ),
         ],
       ),
@@ -461,17 +471,17 @@ class _DataSyncPageState extends ConsumerState<DataSyncPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('还原备份?'),
-        content: const Text('注意：还原将覆盖当前设备上的所有数据！建议还原前先进行一次当前数据的备份。'),
+        title: Text(t.data_sync.restore_backup_title),
+        content: Text(t.data_sync.restore_backup_confirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('取消'),
+            child: Text(t.common.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.orange),
-            child: const Text('开始还原'),
+            child: Text(t.data_sync.start_restore_button),
           ),
         ],
       ),
@@ -513,10 +523,10 @@ class _DataSyncPageState extends ConsumerState<DataSyncPage> {
       await syncService.restoreFromZip(localPath);
 
       if (mounted) {
-        AppToast.showSuccess(context, '还原成功！');
+        AppToast.showSuccess(context, t.common.success);
       }
     } catch (e) {
-      AppToast.showError(context, '还原失败: $e');
+      AppToast.showError(context, t.common.error);
     } finally {
       if (mounted) setState(() => _isSyncing = false);
     }

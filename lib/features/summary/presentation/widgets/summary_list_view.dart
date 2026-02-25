@@ -3,6 +3,7 @@ import 'package:baishou/core/theme/app_theme.dart';
 import 'package:baishou/features/summary/data/repositories/summary_repository_impl.dart';
 import 'package:baishou/features/summary/domain/entities/summary.dart';
 import 'package:baishou/features/summary/presentation/widgets/summary_card.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -30,7 +31,7 @@ class SummaryListView extends ConsumerWidget {
       stream: summaryStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
+          return Center(child: Text('${t.common.error}: ${snapshot.error}'));
         }
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
@@ -75,15 +76,15 @@ class SummaryListView extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            '暂无${_getTypeLabel(type)}',
+            t.summary.no_summary_type(type: _getTypeLabel(type)),
             style: Theme.of(
               context,
             ).textTheme.titleMedium?.copyWith(color: Colors.grey),
           ),
           const SizedBox(height: 8),
-          const Text(
-            '点击右上角生成', // 按钮可能在别处
-            style: TextStyle(color: Colors.grey),
+          Text(
+            t.summary.click_to_generate,
+            style: const TextStyle(color: Colors.grey),
           ),
         ],
       ),
@@ -94,12 +95,12 @@ class SummaryListView extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('删除总结?'),
-        content: const Text('确认要删除这条总结吗？原始日记数据不会被删除。'),
+        title: Text(t.summary.delete_summary_title),
+        content: Text(t.summary.confirm_delete_summary),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('取消'),
+            child: Text(t.common.cancel),
           ),
           TextButton(
             onPressed: () {
@@ -107,7 +108,7 @@ class SummaryListView extends ConsumerWidget {
               Navigator.pop(ctx);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('删除'),
+            child: Text(t.common.delete),
           ),
         ],
       ),
@@ -117,13 +118,13 @@ class SummaryListView extends ConsumerWidget {
   String _getTypeLabel(SummaryType type) {
     switch (type) {
       case SummaryType.weekly:
-        return '周记';
+        return t.summary.stats_weekly;
       case SummaryType.monthly:
-        return '月报';
+        return t.summary.stats_monthly;
       case SummaryType.quarterly:
-        return '季报';
+        return t.summary.stats_quarterly;
       case SummaryType.yearly:
-        return '年鉴';
+        return t.summary.stats_yearly;
     }
   }
 }

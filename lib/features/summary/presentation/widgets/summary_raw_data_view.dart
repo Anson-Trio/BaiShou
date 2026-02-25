@@ -1,6 +1,7 @@
 import 'package:baishou/core/theme/app_theme.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:baishou/features/summary/domain/services/raw_data_exporter.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,9 +29,9 @@ class _SummaryRawDataViewState extends ConsumerState<SummaryRawDataView> {
       initialDateRange:
           _dateRange ??
           DateTimeRange(start: now.subtract(const Duration(days: 6)), end: now),
-      confirmText: '确定',
-      cancelText: '取消',
-      saveText: '选择',
+      confirmText: t.common.confirm,
+      cancelText: t.common.cancel,
+      saveText: t.common.select,
     );
 
     if (result != null) {
@@ -42,7 +43,7 @@ class _SummaryRawDataViewState extends ConsumerState<SummaryRawDataView> {
 
   Future<void> _exportData() async {
     if (_dateRange == null) {
-      AppToast.showError(context, '请先选择日期范围');
+      AppToast.showError(context, t.summary.error_select_range);
       return;
     }
 
@@ -53,16 +54,17 @@ class _SummaryRawDataViewState extends ConsumerState<SummaryRawDataView> {
           .exportRawData(_dateRange!.start, _dateRange!.end);
 
       if (text.isEmpty) {
-        if (mounted) AppToast.showSuccess(context, '该范围内没有日记数据');
+        if (mounted) AppToast.showSuccess(context, t.summary.no_data_range);
         return;
       }
 
       await Clipboard.setData(ClipboardData(text: text));
       if (mounted) {
-        AppToast.showSuccess(context, '原始数据已复制到剪贴板');
+        AppToast.showSuccess(context, t.summary.toast_raw_exported);
       }
     } catch (e) {
-      if (mounted) AppToast.showError(context, '导出失败: $e');
+      if (mounted)
+        AppToast.showError(context, '${t.summary.export_failed}: $e');
     } finally {
       if (mounted) setState(() => _isExporting = false);
     }
@@ -75,14 +77,14 @@ class _SummaryRawDataViewState extends ConsumerState<SummaryRawDataView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            '原始数据导出 (Raw Data Export)',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          Text(
+            t.summary.raw_data_title,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          const Text(
-            '无损导出指定日期范围内的所有日记数据，包含元数据和标签。',
-            style: TextStyle(color: Colors.grey, fontSize: 13),
+          Text(
+            t.summary.raw_data_desc,
+            style: const TextStyle(color: Colors.grey, fontSize: 13),
           ),
           const SizedBox(height: 24),
 
@@ -103,8 +105,8 @@ class _SummaryRawDataViewState extends ConsumerState<SummaryRawDataView> {
                   Expanded(
                     child: Text(
                       _dateRange == null
-                          ? '点击选择日期范围'
-                          : '${DateFormat('yyyy-MM-dd').format(_dateRange!.start)}  至  ${DateFormat('yyyy-MM-dd').format(_dateRange!.end)}',
+                          ? t.summary.tap_to_select_range
+                          : '${DateFormat('yyyy-MM-dd').format(_dateRange!.start)}  ${t.common.to}  ${DateFormat('yyyy-MM-dd').format(_dateRange!.end)}',
                       style: TextStyle(
                         fontSize: 16,
                         color: _dateRange == null ? Colors.grey : null,
@@ -125,7 +127,7 @@ class _SummaryRawDataViewState extends ConsumerState<SummaryRawDataView> {
             FilledButton.icon(
               onPressed: _dateRange == null ? null : _exportData,
               icon: const Icon(Icons.file_download),
-              label: const Text('导出并复制'),
+              label: Text(t.summary.export_and_copy),
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.all(16),
                 backgroundColor: AppTheme.primary,

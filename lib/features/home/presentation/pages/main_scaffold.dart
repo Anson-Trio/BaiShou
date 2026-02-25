@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:baishou/features/home/presentation/widgets/desktop_sidebar.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -95,21 +96,21 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
                 _goBranch(index);
               }
             },
-            destinations: const [
+            destinations: [
               NavigationDestination(
-                icon: Icon(Icons.timeline_outlined),
-                selectedIcon: Icon(Icons.timeline),
-                label: '时间轴',
+                icon: const Icon(Icons.timeline_outlined),
+                selectedIcon: const Icon(Icons.timeline),
+                label: t.diary.title,
               ),
               NavigationDestination(
-                icon: Icon(Icons.auto_stories_outlined),
-                selectedIcon: Icon(Icons.auto_stories),
-                label: '总结',
+                icon: const Icon(Icons.auto_stories_outlined),
+                selectedIcon: const Icon(Icons.auto_stories),
+                label: t.summary.dashboard_title,
               ),
               NavigationDestination(
-                icon: Icon(Icons.settings_outlined),
-                selectedIcon: Icon(Icons.settings),
-                label: '设置',
+                icon: const Icon(Icons.settings_outlined),
+                selectedIcon: const Icon(Icons.settings),
+                label: t.settings.title,
               ),
             ],
           ),

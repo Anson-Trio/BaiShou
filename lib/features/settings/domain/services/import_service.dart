@@ -22,6 +22,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 /// 导入结果
 class ImportResult {
@@ -152,7 +153,7 @@ class ImportService {
       final parsedData = await compute(parseZipData, tempZipFile.path).timeout(
         const Duration(minutes: 2),
         onTimeout: () {
-          throw TimeoutException('解析备份文件超时，请检查文件是否过大');
+          throw TimeoutException(t.settings.parse_timeout);
         },
       );
       debugPrint('Import: ZIP parsed in ${stopwatch.elapsedMilliseconds}ms');
@@ -160,7 +161,11 @@ class ImportService {
       // 2. 验证版本
       final schemaVersion = parsedData.manifest['schema_version'] as int? ?? 0;
       if (schemaVersion > 1) {
-        return ImportResult(error: '备份版本过高 (v$schemaVersion)，请升级白守后再导入');
+        return ImportResult(
+          error: t.settings.schema_version_too_high(
+            version: schemaVersion.toString(),
+          ),
+        );
       }
 
       // 3. 创建导入前快照（用户可恢复到此节点）
@@ -172,7 +177,7 @@ class ImportService {
             .timeout(
               const Duration(minutes: 3),
               onTimeout: () {
-                throw TimeoutException('创建快照超时，跳过备份步骤');
+                throw TimeoutException(t.settings.snapshot_timeout);
               },
             );
         if (snapshotFile != null) {
@@ -231,9 +236,11 @@ class ImportService {
     } catch (e) {
       debugPrint('Import error: $e');
       if (e.toString().contains('manifest.json')) {
-        return ImportResult(error: '无效的备份文件：缺少 manifest.json');
+        return ImportResult(error: t.settings.invalid_backup_missing_manifest);
       }
-      return ImportResult(error: '导入失败: $e');
+      return ImportResult(
+        error: t.settings.import_failed_with_error(error: e.toString()),
+      );
     } finally {
       // 8. 彻底清理临时文件逻辑
       if (tempZipFile.existsSync()) {

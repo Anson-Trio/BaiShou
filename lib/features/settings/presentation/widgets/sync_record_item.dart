@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 /// 云端数据记录单行组件
 class SyncRecordItem extends StatelessWidget {
@@ -47,12 +48,12 @@ class SyncRecordItem extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '备份文件: $filename',
+                  t.data_sync.backup_file_label(name: filename),
                   style: const TextStyle(fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${lastModified.year}-${lastModified.month.toString().padLeft(2, '0')}-${lastModified.day.toString().padLeft(2, '0')} ${lastModified.hour.toString().padLeft(2, '0')}:${lastModified.minute.toString().padLeft(2, '0')} • 大小: $sizeMb MB',
+                  '${lastModified.year}-${lastModified.month.toString().padLeft(2, '0')}-${lastModified.day.toString().padLeft(2, '0')} ${lastModified.hour.toString().padLeft(2, '0')}:${lastModified.minute.toString().padLeft(2, '0')} • ${t.data_sync.size_mb(size: sizeMb)}',
                   style: TextStyle(
                     fontSize: 12,
                     color: colorScheme.onSurfaceVariant,
@@ -69,11 +70,17 @@ class SyncRecordItem extends StatelessWidget {
               if (val == 'delete') onDelete();
             },
             itemBuilder: (ctx) => [
-              const PopupMenuItem(value: 'restore', child: Text('还原此备份')),
-              const PopupMenuItem(value: 'rename', child: Text('重命名')),
-              const PopupMenuItem(
+              PopupMenuItem(
+                value: 'restore',
+                child: Text(t.data_sync.restore_this),
+              ),
+              PopupMenuItem(value: 'rename', child: Text(t.data_sync.rename)),
+              PopupMenuItem(
                 value: 'delete',
-                child: Text('删除', style: TextStyle(color: Colors.red)),
+                child: Text(
+                  t.common.delete,
+                  style: const TextStyle(color: Colors.red),
+                ),
               ),
             ],
           ),

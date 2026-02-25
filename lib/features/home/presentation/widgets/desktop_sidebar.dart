@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:baishou/features/settings/domain/services/user_profile_service.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -22,8 +23,6 @@ class DesktopSidebar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final userProfile = ref.watch(userProfileProvider);
-
-    final isSystemSettings = navigationShell.currentIndex == 2;
 
     return Container(
       width: 230,
@@ -56,14 +55,14 @@ class DesktopSidebar extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '白守',
+                      t.common.app_title,
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         letterSpacing: -0.5,
                       ),
                     ),
                     Text(
-                      '留下你的珍贵回忆',
+                      t.settings.tagline_short,
                       style: theme.textTheme.labelMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.w600,
@@ -84,19 +83,19 @@ class DesktopSidebar extends ConsumerWidget {
               children: [
                 _NavMenuItem(
                   icon: Icons.timeline,
-                  label: '时间轴',
+                  label: t.diary.title,
                   isSelected: navigationShell.currentIndex == 0,
                   onTap: () => onBranchChange(0),
                 ),
                 _NavMenuItem(
                   icon: Icons.auto_stories_rounded,
-                  label: '多维总结',
+                  label: t.summary.dashboard_title,
                   isSelected: navigationShell.currentIndex == 1,
                   onTap: () => onBranchChange(1),
                 ),
                 _NavMenuItem(
                   icon: Icons.sync_rounded,
-                  label: '数据同步',
+                  label: t.common.data_sync,
                   isSelected: navigationShell.currentIndex == 2,
                   onTap: () => onBranchChange(2),
                 ),
@@ -108,7 +107,7 @@ class DesktopSidebar extends ConsumerWidget {
                 const SizedBox(height: 16),
                 _NavMenuItem(
                   icon: Icons.settings_outlined,
-                  label: '全局设置',
+                  label: t.settings.title,
                   isSelected: false,
                   onTap: () => context.push('/settings'),
                 ),
@@ -168,7 +167,7 @@ class DesktopSidebar extends ConsumerWidget {
                     Text(
                       userProfile.nickname.isNotEmpty
                           ? userProfile.nickname
-                          : '未设置昵称',
+                          : t.settings.no_nickname,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),

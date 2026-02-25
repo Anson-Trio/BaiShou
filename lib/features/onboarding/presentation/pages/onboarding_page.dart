@@ -1,6 +1,7 @@
 import 'package:baishou/core/services/api_config_service.dart';
 import 'package:baishou/features/onboarding/data/providers/onboarding_provider.dart';
 import 'package:baishou/features/onboarding/presentation/widgets/compression_chart.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -18,6 +19,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
   final TextEditingController _apiKeyController = TextEditingController();
+  static const int _numPages = 5;
 
   @override
   void dispose() {
@@ -114,14 +116,17 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
           ),
           const SizedBox(height: 32),
           Text(
-            '你好，我是白守狐',
+            t.onboarding.welcome_title,
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.bold,
               color: Theme.of(context).primaryColor,
             ),
           ),
           const SizedBox(height: 16),
-          Text('你可以叫我小白', style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            t.onboarding.welcome_desc,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
         ],
       ),
     );
@@ -136,16 +141,16 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
           const Icon(Icons.auto_stories, size: 80, color: Colors.blueGrey),
           const SizedBox(height: 32),
           Text(
-            '你的灵魂备份',
+            t.onboarding.philosophy_title,
             style: Theme.of(
               context,
             ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 24),
-          const Text(
-            '白守会全力为你守护重要的回忆。\n在这里，我们对抗遗忘。',
+          Text(
+            t.onboarding.philosophy_desc,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 18, height: 1.5),
+            style: const TextStyle(fontSize: 18, height: 1.5),
           ),
         ],
       ),
@@ -158,10 +163,13 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text('记忆压缩算法', style: Theme.of(context).textTheme.headlineSmall),
+          Text(
+            t.onboarding.compression_title,
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
           const SizedBox(height: 8),
           Text(
-            '年度不覆盖其他，层层递进',
+            t.onboarding.compression_desc,
             style: Theme.of(
               context,
             ).textTheme.bodyMedium?.copyWith(color: Colors.grey),
@@ -182,19 +190,19 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
         children: [
           const Icon(Icons.psychology, size: 80, color: Colors.purple),
           const SizedBox(height: 32),
-          Text('AI 助手配置', style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 16),
-          const Text(
-            '配置 Gemini API 后，可以直接调用 AI 模型来生成日记的总结。',
-            textAlign: TextAlign.center,
+          Text(
+            t.onboarding.ai_setup_title,
+            style: Theme.of(context).textTheme.headlineSmall,
           ),
+          const SizedBox(height: 16),
+          Text(t.onboarding.ai_setup_desc, textAlign: TextAlign.center),
           const SizedBox(height: 24),
           TextField(
             controller: _apiKeyController,
-            decoration: const InputDecoration(
-              labelText: 'Gemini API Key',
-              border: OutlineInputBorder(),
-              hintText: '可选，稍后在设置中配置',
+            decoration: InputDecoration(
+              labelText: t.onboarding.api_key_label,
+              border: const OutlineInputBorder(),
+              hintText: t.onboarding.api_key_hint,
             ),
           ),
         ],
@@ -210,12 +218,15 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
         children: [
           const Icon(Icons.security, size: 80, color: Colors.green),
           const SizedBox(height: 32),
-          Text('数据完全掌控', style: Theme.of(context).textTheme.headlineSmall),
+          Text(
+            t.onboarding.privacy_title,
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
           const SizedBox(height: 24),
-          const Text(
-            '所有的数据都是可以随意导出。\n并且提供局域网传输。\n让你能守护自己和爱人的回忆。',
+          Text(
+            t.onboarding.privacy_desc,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 18, height: 1.5),
+            style: const TextStyle(fontSize: 18, height: 1.5),
           ),
         ],
       ),
@@ -230,7 +241,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
         children: [
           // Indicators
           Row(
-            children: List.generate(5, (index) {
+            children: List.generate(_numPages, (index) {
               return Container(
                 margin: const EdgeInsets.only(right: 8),
                 width: 10,
@@ -247,7 +258,11 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
           // Button
           FilledButton(
             onPressed: _nextPage,
-            child: Text(_currentPage == 4 ? '开始旅程' : '下一步'),
+            child: Text(
+              _currentPage == _numPages - 1
+                  ? t.onboarding.get_started
+                  : t.common.next,
+            ),
           ),
         ],
       ),

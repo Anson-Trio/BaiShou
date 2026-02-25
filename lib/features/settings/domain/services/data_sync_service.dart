@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:baishou/features/settings/domain/services/export_service.dart';
 import 'package:baishou/features/settings/domain/services/import_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 /// 数据同步服务类
 /// 核心逻辑复用 ExportService 和 ImportService，确保与数据导出/导入/局域网传输的格式完全一致。
@@ -22,7 +23,7 @@ class DataSyncService {
     // share: true 表示生成临时文件，不弹系统分享
     final zipFile = await _exportService.exportToZip(share: true);
     if (zipFile == null) {
-      throw Exception('备份创建失败：无法生成 ZIP 文件');
+      throw Exception(t.settings.backup_create_failed);
     }
     return zipFile.path;
   }
@@ -32,12 +33,12 @@ class DataSyncService {
   Future<void> restoreFromZip(String zipPath) async {
     final zipFile = File(zipPath);
     if (!await zipFile.exists()) {
-      throw Exception('未找到备份文件：$zipPath');
+      throw Exception(t.settings.backup_zip_not_found(path: zipPath));
     }
 
     final result = await _importService.importFromZip(zipFile);
     if (!result.success) {
-      throw Exception(result.error ?? '导入失败');
+      throw Exception(result.error ?? t.settings.restore_failed_generic);
     }
 
     // 如果有配置数据，也一并恢复

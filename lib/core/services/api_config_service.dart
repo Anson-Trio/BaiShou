@@ -5,6 +5,7 @@ import 'package:baishou/core/providers/shared_preferences_provider.dart';
 import 'package:baishou/core/clients/ai_client.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 /// AI 服务配置管理类
 /// 负责处理 AI 供应商列表、当前激活的供应商以及全局默认模型设置的持久化与读取。
@@ -221,7 +222,7 @@ class ApiConfigService {
       final client = AiClientFactory.createClient(provider);
       return await client.fetchAvailableModels();
     } catch (e) {
-      throw Exception('获取模型列表失败: $e');
+      throw Exception(t.ai_config.fetch_models_failed(e: e.toString()));
     }
   }
 

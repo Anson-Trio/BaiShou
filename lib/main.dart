@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,10 +16,10 @@ void main() async {
 
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
     await windowManager.ensureInitialized();
-    WindowOptions windowOptions = const WindowOptions(
-      minimumSize: Size(1200, 800),
+    WindowOptions windowOptions = WindowOptions(
+      minimumSize: const Size(1200, 800),
       center: true,
-      title: '白守 - 记录你珍贵的回忆',
+      title: t.common.app_tagline,
     );
     windowManager.waitUntilReadyToShow(windowOptions, () async {
       await windowManager.show();
@@ -29,9 +30,11 @@ void main() async {
   final prefs = await SharedPreferences.getInstance();
 
   runApp(
-    ProviderScope(
-      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
-      child: const BaiShouApp(),
+    TranslationProvider(
+      child: ProviderScope(
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        child: const BaiShouApp(),
+      ),
     ),
   );
 }
