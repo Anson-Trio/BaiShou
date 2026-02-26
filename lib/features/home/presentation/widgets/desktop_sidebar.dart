@@ -50,7 +50,7 @@ class DesktopSidebar extends ConsumerWidget {
                     height: 40,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 16),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

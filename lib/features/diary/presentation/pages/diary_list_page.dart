@@ -580,14 +580,13 @@ class _DateHeaderDelegate extends SliverPersistentHeaderDelegate {
     bool overlapsContent,
   ) {
     final isToday = DateUtils.isSameDay(date, DateTime.now());
+    final bool isEn = LocaleSettings.instance.currentLocale == AppLocale.en;
     final dayStr = DateFormat('dd').format(date);
-    final monthStr = DateFormat('MM').format(date);
 
     // 手动计算星期几，避免本地化未就绪时的依赖
     final weekdayStr = t.common.weekdays[date.weekday];
 
     return Container(
-      // 两端统一使用 surface 背景（移动端已包裹白色 Container）
       color: Theme.of(context).colorScheme.surface,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       alignment: Alignment.centerLeft,
@@ -595,28 +594,40 @@ class _DateHeaderDelegate extends SliverPersistentHeaderDelegate {
         crossAxisAlignment: CrossAxisAlignment.baseline,
         textBaseline: TextBaseline.alphabetic,
         children: [
-          Text(
-            monthStr,
-            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w300),
-          ),
-          Text(
-            t.common.month_suffix,
-            style: TextStyle(
-              fontSize: 16,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+          if (isEn) ...[
+            Text(
+              DateFormat('MMM').format(date),
+              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w300),
             ),
-          ),
-          Text(
-            dayStr,
-            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w300),
-          ),
-          Text(
-            t.common.day_suffix,
-            style: TextStyle(
-              fontSize: 16,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            const SizedBox(width: 8),
+            Text(
+              dayStr,
+              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w300),
             ),
-          ),
+          ] else ...[
+            Text(
+              DateFormat('MM').format(date),
+              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w300),
+            ),
+            Text(
+              t.common.month_suffix,
+              style: TextStyle(
+                fontSize: 16,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            Text(
+              dayStr,
+              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w300),
+            ),
+            Text(
+              t.common.day_suffix,
+              style: TextStyle(
+                fontSize: 16,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
 
           const SizedBox(width: 8),
           Text(

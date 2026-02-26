@@ -15,6 +15,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:baishou/features/settings/presentation/pages/privacy_policy_page.dart';
+import 'package:baishou/core/localization/locale_service.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -189,6 +190,7 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
 
   Widget _buildAppearanceSection() {
     final themeState = ref.watch(themeProvider);
+    final currentLocale = ref.watch(localeProvider);
 
     return Card(
       elevation: 0,
@@ -203,7 +205,9 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
           ExpansionTile(
             leading: const Icon(Icons.palette_outlined),
             title: Text(t.settings.appearance),
-            subtitle: Text(_getThemeModeText(themeState.mode)),
+            subtitle: Text(
+              '${_getThemeModeText(themeState.mode)} · ${_getLanguageText(currentLocale)}',
+            ),
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -254,6 +258,12 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
                         _buildColorOption(Colors.blueGrey),
                       ],
                     ),
+                    const SizedBox(height: 16),
+                    const Divider(),
+                    const SizedBox(height: 16),
+                    Text(t.settings.language),
+                    const SizedBox(height: 8),
+                    _buildLanguageSelector(),
                   ],
                 ),
               ),
@@ -262,6 +272,49 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
         ],
       ),
     );
+  }
+
+  Widget _buildLanguageSelector() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _buildLanguageChip(null),
+        _buildLanguageChip(AppLocale.zh),
+        _buildLanguageChip(AppLocale.zhTw),
+        _buildLanguageChip(AppLocale.en),
+        _buildLanguageChip(AppLocale.ja),
+      ],
+    );
+  }
+
+  Widget _buildLanguageChip(AppLocale? locale) {
+    final currentLocale = ref.watch(localeProvider);
+    final isSelected = currentLocale == locale;
+
+    return ChoiceChip(
+      label: Text(_getLanguageText(locale)),
+      selected: isSelected,
+      onSelected: (selected) {
+        if (selected) {
+          ref.read(localeProvider.notifier).setLocale(locale);
+        }
+      },
+    );
+  }
+
+  String _getLanguageText(AppLocale? locale) {
+    if (locale == null) return t.settings.language_system;
+    switch (locale) {
+      case AppLocale.zh:
+        return t.settings.language_zh;
+      case AppLocale.en:
+        return t.settings.language_en;
+      case AppLocale.ja:
+        return t.settings.language_ja;
+      case AppLocale.zhTw:
+        return t.settings.language_zh_tw;
+    }
   }
 
   Widget _buildColorOption(Color color) {
