@@ -15,6 +15,12 @@ class AppTheme {
 
   // 字体族
   static const String fontFamily = 'Manrope';
+  static const List<String> fontFamilyFallback = [
+    'Microsoft YaHei',
+    'Noto Sans SC',
+    'PingFang SC',
+    'sans-serif',
+  ];
 
   static const Color textSecondaryLight = Color(0xFF475569); // slate-600
   static const Color textSecondaryDark = Color(0xFF94A3B8); // slate-400
@@ -25,6 +31,7 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.light,
       fontFamily: fontFamily,
+      fontFamilyFallback: fontFamilyFallback,
       scaffoldBackgroundColor: backgroundLight,
       colorScheme: ColorScheme.fromSeed(
         seedColor: seedColor,
@@ -56,6 +63,7 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       fontFamily: fontFamily,
+      fontFamilyFallback: fontFamilyFallback,
       scaffoldBackgroundColor: backgroundDark,
       colorScheme: ColorScheme.fromSeed(
         seedColor: seedColor,

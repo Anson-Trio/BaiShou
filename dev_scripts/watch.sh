@@ -10,8 +10,11 @@ else
     exit 1
 fi
 
-echo "[白守] 正在从 $PROJECT_ROOT 启动 build_runner 监听模式..."
+echo "[白守] 正在从 $PROJECT_ROOT 启动翻译文件与代码生成的监听模式..."
 cd "$PROJECT_ROOT"
+
+# 同时启动 slang 监听翻译文件和 build_runner 监听代码生成
+dart run slang watch &
 dart run build_runner watch --delete-conflicting-outputs
 
 if [ $? -ne 0 ]; then

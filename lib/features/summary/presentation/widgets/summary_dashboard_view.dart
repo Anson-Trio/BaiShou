@@ -250,10 +250,7 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
   /// 构建统计数据概览卡片
   Widget _buildStatCard(BuildContext context, ThemeData theme) {
     final stats = _result!;
-    final lookback = t.summary.lookback_period.replaceAll(
-      '{months}',
-      '$_months',
-    );
+    final lookback = t.summary.lookback_period(months: _months);
     final title = '${t.summary.dashboard_title} ($lookback)';
 
     return Card(
