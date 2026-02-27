@@ -62,10 +62,14 @@ class ProviderModelList extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   Icons.view_list_outlined,

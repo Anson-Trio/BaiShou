@@ -3,12 +3,14 @@ import 'package:baishou/core/database/tables/summaries.dart';
 import 'package:baishou/core/theme/app_theme.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:baishou/features/summary/data/repositories/summary_repository_impl.dart';
+import 'package:baishou/core/localization/locale_service.dart';
 
 import 'package:baishou/core/widgets/year_month_picker_sheet.dart';
 import 'package:baishou/core/widgets/year_picker_sheet.dart';
 import 'package:baishou/features/summary/presentation/widgets/summary_dashboard_view.dart';
 import 'package:baishou/features/summary/presentation/widgets/summary_list_view.dart';
 import 'package:baishou/features/summary/presentation/widgets/summary_raw_data_view.dart';
+import 'package:baishou/features/summary/presentation/providers/summary_filter_provider.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,6 +23,7 @@ class SummaryPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(localeProvider);
     bool isMobile = false;
     try {
       if (Platform.isAndroid || Platform.isIOS) {
@@ -70,22 +73,17 @@ class SummaryPage extends ConsumerWidget {
 }
 
 // _SummaryArchiveView 需要为每个标签页管理筛选器
-class _SummaryArchiveView extends StatefulWidget {
+class _SummaryArchiveView extends ConsumerStatefulWidget {
   const _SummaryArchiveView();
 
   @override
-  State<_SummaryArchiveView> createState() => _SummaryArchiveViewState();
+  ConsumerState<_SummaryArchiveView> createState() =>
+      _SummaryArchiveViewState();
 }
 
-class _SummaryArchiveViewState extends State<_SummaryArchiveView>
+class _SummaryArchiveViewState extends ConsumerState<_SummaryArchiveView>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-
-  // 筛选状态
-  DateTime? _weeklyStartDate;
-  DateTime? _weeklyEndDate;
-  DateTime? _monthlyDate; // 年-月
-  DateTime? _quarterlyDate; // 年-季度
 
   @override
   void initState() {
@@ -101,6 +99,8 @@ class _SummaryArchiveViewState extends State<_SummaryArchiveView>
 
   @override
   Widget build(BuildContext context) {
+    final filterState = ref.watch(summaryFilterProvider);
+
     return Stack(
       children: [
         Column(
@@ -132,15 +132,15 @@ class _SummaryArchiveViewState extends State<_SummaryArchiveView>
                 children: [
                   SummaryListView(
                     type: SummaryType.weekly,
-                    startDate: _weeklyStartDate,
-                    endDate: _weeklyEndDate,
+                    startDate: filterState.weeklyStartDate,
+                    endDate: filterState.weeklyEndDate,
                   ),
                   SummaryListView(
                     type: SummaryType.monthly,
-                    startDate: _monthlyDate,
-                    endDate: _monthlyDate != null
+                    startDate: filterState.monthlyDate,
+                    endDate: filterState.monthlyDate != null
                         ? DateTime(
-                            _monthlyDate!.year,
+                            filterState.monthlyDate!.year,
                             12,
                             31,
                             23,
@@ -151,10 +151,10 @@ class _SummaryArchiveViewState extends State<_SummaryArchiveView>
                   ),
                   SummaryListView(
                     type: SummaryType.quarterly,
-                    startDate: _quarterlyDate, // 这里表示年份（1月1日）
-                    endDate: _quarterlyDate != null
+                    startDate: filterState.quarterlyDate, // 这里表示年份（1月1日）
+                    endDate: filterState.quarterlyDate != null
                         ? DateTime(
-                            _quarterlyDate!.year,
+                            filterState.quarterlyDate!.year,
                             12,
                             31,
                             23,
@@ -244,44 +244,43 @@ class _SummaryArchiveViewState extends State<_SummaryArchiveView>
 
   Future<void> _pickDate(int index) async {
     final now = DateTime.now();
+    final filterState = ref.read(summaryFilterProvider);
+    final filterNotifier = ref.read(summaryFilterProvider.notifier);
+
     switch (index) {
       case 0: // 周记 - 年月选择器 -> 按月筛选
         final date = await showModalBottomSheet<DateTime>(
           context: context,
           backgroundColor: Colors.transparent,
-          builder: (context) =>
-              YearMonthPickerSheet(initialDate: _weeklyStartDate ?? now),
+          builder: (context) => YearMonthPickerSheet(
+            initialDate: filterState.weeklyStartDate ?? now,
+          ),
         );
         if (date != null) {
-          setState(() {
-            if (date.year == 0) {
-              _weeklyStartDate = null;
-              _weeklyEndDate = null;
-            } else {
-              _weeklyStartDate = date;
-              // 筛选该月内开始的所有周记
-              _weeklyEndDate = DateTime(date.year, date.month + 1, 0);
-            }
-          });
+          if (date.year == 0) {
+            await filterNotifier.updateWeeklyFilter(null, null);
+          } else {
+            // 筛选该月内开始的所有周记
+            final startDate = date;
+            final endDate = DateTime(date.year, date.month + 1, 0);
+            await filterNotifier.updateWeeklyFilter(startDate, endDate);
+          }
         }
         break;
 
-      case 1: // 月报 - 年份选择器 (原为年月)
-        // 用户反馈：月报筛选器应改为年份选择器。选择年份后显示该年所有月报。
+      case 1: // 月报 - 年份选择器
         final date = await showModalBottomSheet<DateTime>(
           context: context,
           backgroundColor: Colors.transparent,
           builder: (context) =>
-              YearPickerSheet(initialDate: _monthlyDate ?? now),
+              YearPickerSheet(initialDate: filterState.monthlyDate ?? now),
         );
         if (date != null) {
-          setState(() {
-            if (date.year == 0) {
-              _monthlyDate = null;
-            } else {
-              _monthlyDate = date; // 这里表示该年的1月1日
-            }
-          });
+          if (date.year == 0) {
+            await filterNotifier.updateMonthlyFilter(null);
+          } else {
+            await filterNotifier.updateMonthlyFilter(date);
+          }
         }
         break;
 
@@ -290,39 +289,34 @@ class _SummaryArchiveViewState extends State<_SummaryArchiveView>
           context: context,
           backgroundColor: Colors.transparent,
           builder: (context) =>
-              YearPickerSheet(initialDate: _quarterlyDate ?? now),
+              YearPickerSheet(initialDate: filterState.quarterlyDate ?? now),
         );
         if (date != null) {
-          setState(() {
-            if (date.year == 0) {
-              _quarterlyDate = null;
-            } else {
-              _quarterlyDate = date; // 年份 1月1日
-            }
-          });
+          if (date.year == 0) {
+            await filterNotifier.updateQuarterlyFilter(null);
+          } else {
+            await filterNotifier.updateQuarterlyFilter(date);
+          }
         }
         break;
 
       case 3: // 年鉴 - 无筛选
-        // 什么都不做，或者显示 Toast “年鉴默认显示全部”
-        // 用户说“年鉴不需要筛选”。
         break;
     }
   }
 
-  // ...
-
   String _getFilterText(int index) {
+    final filterState = ref.watch(summaryFilterProvider);
     switch (index) {
       case 0: // 周记
-        if (_weeklyStartDate == null) return t.summary.filter_month;
-        return '${_weeklyStartDate!.year}${t.common.year_suffix} ${_weeklyStartDate!.month}${t.common.month_suffix}';
+        if (filterState.weeklyStartDate == null) return t.summary.filter_month;
+        return '${filterState.weeklyStartDate!.year}${t.common.year_suffix} ${filterState.weeklyStartDate!.month}${t.common.month_suffix}';
       case 1: // 月报
-        if (_monthlyDate == null) return t.summary.filter_year;
-        return '${_monthlyDate!.year}${t.common.year_suffix}';
+        if (filterState.monthlyDate == null) return t.summary.filter_year;
+        return '${filterState.monthlyDate!.year}${t.common.year_suffix}';
       case 2: // 季报
-        if (_quarterlyDate == null) return t.summary.filter_year;
-        return '${_quarterlyDate!.year}${t.common.year_suffix}';
+        if (filterState.quarterlyDate == null) return t.summary.filter_year;
+        return '${filterState.quarterlyDate!.year}${t.common.year_suffix}';
       case 3: // 年鉴
         return t.summary.all_yearly;
     }
@@ -330,13 +324,14 @@ class _SummaryArchiveViewState extends State<_SummaryArchiveView>
   }
 
   bool _hasFilter(int index) {
+    final filterState = ref.watch(summaryFilterProvider);
     switch (index) {
       case 0:
-        return _weeklyStartDate != null;
+        return filterState.weeklyStartDate != null;
       case 1:
-        return _monthlyDate != null;
+        return filterState.monthlyDate != null;
       case 2:
-        return _quarterlyDate != null;
+        return filterState.quarterlyDate != null;
       case 3:
         return false; // 年鉴无筛选
     }
@@ -344,20 +339,7 @@ class _SummaryArchiveViewState extends State<_SummaryArchiveView>
   }
 
   void _clearFilter(int index) {
-    setState(() {
-      switch (index) {
-        case 0:
-          _weeklyStartDate = null;
-          _weeklyEndDate = null;
-          break;
-        case 1:
-          _monthlyDate = null;
-          break;
-        case 2:
-          _quarterlyDate = null;
-          break;
-      }
-    });
+    ref.read(summaryFilterProvider.notifier).clearFilter(index);
   }
 
   void _showAddSummaryDialog(BuildContext context) {

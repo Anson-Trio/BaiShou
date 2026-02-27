@@ -361,7 +361,7 @@
   "summary": {
     "dashboard_title": "Memories",
     "lookback_period": "Past $months Months",
-    "collective_memories_title": "BaiShou • Collective Memories",
+    "collective_memories_title": "Memories",
     "copy_memories": "Copy Collective Memory",
     "algorithm_desc": "Based on the BaiShou cascade folding algorithm, redundent data is automatically filtered to build our collective memory context.",
     "stats_yearly": "Yearly",

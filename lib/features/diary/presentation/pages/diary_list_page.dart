@@ -12,6 +12,7 @@ import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:baishou/core/localization/locale_service.dart';
 
 /// 日记列表页面
 /// 使用 CustomScrollView 实现带有年份吸顶效果的高性能滚动列表。
@@ -37,6 +38,7 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(localeProvider);
     final diaryStream = ref.watch(diaryRepositoryProvider).watchAllDiaries();
 
     bool isMobile = false;

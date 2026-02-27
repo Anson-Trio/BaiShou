@@ -3,48 +3,46 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../i18n/strings.g.dart';
 import '../providers/shared_preferences_provider.dart';
 
-class LocaleNotifier extends Notifier<AppLocale?> {
+class LocaleNotifier extends Notifier<AppLocale> {
   static const String _keyLocale = 'app_locale';
 
   late SharedPreferences _prefs;
 
   @override
-  AppLocale? build() {
+  AppLocale build() {
     _prefs = ref.watch(sharedPreferencesProvider);
 
     final localeTag = _prefs.getString(_keyLocale);
     if (localeTag == null) {
-      // Use device locale by default
-      LocaleSettings.useDeviceLocale();
-      return null;
+      // main.dart has already called useDeviceLocale(), so this is now safe
+      return LocaleSettings.instance.currentLocale;
     }
 
     try {
       final locale = AppLocaleUtils.parse(localeTag);
-      // Immediately apply the locale to slang
-      LocaleSettings.setLocale(locale);
+      // main.dart has already loaded this, so currentLocale should match
       return locale;
     } catch (_) {
-      return null;
+      return LocaleSettings.instance.currentLocale;
     }
   }
 
   Future<void> setLocale(AppLocale? locale) async {
     if (locale == null) {
       await _prefs.remove(_keyLocale);
-      LocaleSettings.useDeviceLocale();
+      state = await LocaleSettings.useDeviceLocale();
     } else {
       await _prefs.setString(
         _keyLocale,
         locale.languageCode +
             (locale.countryCode != null ? '-${locale.countryCode}' : ''),
       );
-      LocaleSettings.setLocale(locale);
+      await LocaleSettings.setLocale(locale);
+      state = locale;
     }
-    state = locale;
   }
 }
 
-final localeProvider = NotifierProvider<LocaleNotifier, AppLocale?>(
+final localeProvider = NotifierProvider<LocaleNotifier, AppLocale>(
   LocaleNotifier.new,
 );

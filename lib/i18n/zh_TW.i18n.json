@@ -361,7 +361,7 @@
   "summary": {
     "dashboard_title": "白守數據概覽",
     "lookback_period": "過去 $months 個月",
-    "collective_memories_title": "白守•共同回憶",
+    "collective_memories_title": "回憶",
     "copy_memories": "複製共同回憶",
     "algorithm_desc": "基於白守級聯折疊算法，自動過濾冗余數據，構築我們共同的記憶脈絡。",
     "stats_yearly": "年度",
