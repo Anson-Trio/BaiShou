@@ -7,6 +7,7 @@ import 'package:baishou/features/summary/presentation/widgets/missing_summary_li
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:baishou/features/summary/presentation/providers/summary_filter_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class SummaryDashboardView extends ConsumerStatefulWidget {
@@ -20,7 +21,6 @@ class SummaryDashboardView extends ConsumerStatefulWidget {
 class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
   bool _isLoading = false;
   ContextResult? _result;
-  int _months = 12; // 当前选中的回溯月份数
   int _maxMonths = 60; // 动态计算的最大月数（至少60）
 
   late final TextEditingController _monthsController;
@@ -29,7 +29,9 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
   @override
   void initState() {
     super.initState();
-    _monthsController = TextEditingController(text: _months.toString());
+    // 使用 Provider 的初始值
+    final initialMonths = ref.read(summaryFilterProvider).lookbackMonths;
+    _monthsController = TextEditingController(text: initialMonths.toString());
     _initRange();
   }
 
@@ -61,9 +63,10 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
   Future<void> _loadContext() async {
     setState(() => _isLoading = true);
     try {
+      final months = ref.read(summaryFilterProvider).lookbackMonths;
       final result = await ref
           .read(contextBuilderProvider)
-          .buildLifeBookContext(months: _months);
+          .buildLifeBookContext(months: months);
       if (mounted) {
         setState(() {
           _result = result;
@@ -89,11 +92,21 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
 
   @override
   Widget build(BuildContext context) {
-    // 监听全局数据刷新信号（导入/恢复后会递增）
+    // 监听全局数据刷新信号
     final refreshVersion = ref.watch(dataRefreshProvider);
+    // 同时监听月份变化
+    ref.listen(summaryFilterProvider.select((s) => s.lookbackMonths), (
+      prev,
+      next,
+    ) {
+      if (prev != next) {
+        _monthsController.text = next.toString();
+        _loadContext();
+      }
+    });
+
     if (refreshVersion != _lastRefreshVersion) {
       _lastRefreshVersion = refreshVersion;
-      // 延迟到帧结束后再刷新，避免在 build 中调用 setState
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _loadContext();
       });
@@ -110,23 +123,25 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
           _buildRangeSelector(theme),
           const SizedBox(height: 16),
 
-          // 仪表盘卡片（加载中时显示骨架 or CircularProgress）
-          _isLoading
-              ? const Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 48),
-                    child: CircularProgressIndicator(),
-                  ),
-                )
-              : _result == null
-              ? Center(
-                  child: FilledButton.icon(
-                    onPressed: _loadContext,
-                    icon: const Icon(Icons.refresh),
-                    label: Text(t.summary.load_data),
-                  ),
-                )
-              : Column(
+          if (_isLoading && _result == null)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 48),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else if (_result == null)
+            Center(
+              child: FilledButton.icon(
+                onPressed: _loadContext,
+                icon: const Icon(Icons.refresh),
+                label: Text(t.summary.load_data),
+              ),
+            )
+          else
+            Stack(
+              children: [
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // 统计数据概览卡片
@@ -163,6 +178,20 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
                     const MissingSummaryList(),
                   ],
                 ),
+                if (_isLoading)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: LinearProgressIndicator(
+                      backgroundColor: Colors.transparent,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppTheme.primary.withOpacity(0.5),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
         ],
       ),
     );
@@ -170,9 +199,12 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
 
   /// 构建统计范围选择器（Slider + 文本显示 + 自由输入）
   Widget _buildRangeSelector(ThemeData theme) {
-    // 确保 slider 的 value 在 min/max 范围内
-    final sliderMax = _months > _maxMonths
-        ? _months.toDouble()
+    final filterState = ref.watch(summaryFilterProvider);
+    final currentMonths = filterState.lookbackMonths;
+
+    // 确定 slider 的 max 值
+    final sliderMax = currentMonths > _maxMonths
+        ? currentMonths.toDouble()
         : _maxMonths.toDouble();
 
     return Column(
@@ -198,10 +230,11 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
                     onSubmitted: (v) {
                       final val = int.tryParse(v);
                       if (val != null && val > 0) {
-                        setState(() => _months = val);
-                        _loadContext();
+                        ref
+                            .read(summaryFilterProvider.notifier)
+                            .updateLookbackMonths(val);
                       } else {
-                        _monthsController.text = _months.toString();
+                        _monthsController.text = currentMonths.toString();
                       }
                     },
                     style: theme.textTheme.labelLarge?.copyWith(
@@ -228,19 +261,15 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
         ),
         const SizedBox(height: 8),
         Slider(
-          value: _months.toDouble().clamp(1.0, sliderMax),
+          value: currentMonths.toDouble().clamp(1.0, sliderMax),
           min: 1,
           max: sliderMax,
           divisions: sliderMax.round() > 1 ? sliderMax.round() - 1 : 1,
           activeColor: AppTheme.primary,
           onChanged: (v) {
-            setState(() {
-              _months = v.round();
-              _monthsController.text = _months.toString();
-            });
-          },
-          onChangeEnd: (v) {
-            _loadContext();
+            final val = v.round();
+            _monthsController.text = val.toString();
+            ref.read(summaryFilterProvider.notifier).updateLookbackMonths(val);
           },
         ),
       ],
@@ -250,7 +279,8 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
   /// 构建统计数据概览卡片
   Widget _buildStatCard(BuildContext context, ThemeData theme) {
     final stats = _result!;
-    final lookback = t.summary.lookback_period(months: _months);
+    final currentMonths = ref.watch(summaryFilterProvider).lookbackMonths;
+    final lookback = t.summary.lookback_period(months: currentMonths);
     final title = '${t.summary.dashboard_title} ($lookback)';
 
     return Card(

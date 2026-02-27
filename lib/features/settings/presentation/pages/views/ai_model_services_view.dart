@@ -352,11 +352,18 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
     );
     final colorScheme = Theme.of(context).colorScheme;
 
+    bool isMobile = false;
+    try {
+      if (Platform.isAndroid || Platform.isIOS) {
+        isMobile = true;
+      }
+    } catch (e) {}
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(
-        40,
-        40,
-        40,
+      padding: EdgeInsets.fromLTRB(
+        isMobile ? 16 : 40,
+        isMobile ? 24 : 40,
+        isMobile ? 16 : 40,
         100,
       ), // extra bottom padding for FAB
       child: Column(

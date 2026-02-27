@@ -29,6 +29,19 @@ void main() async {
 
   final prefs = await SharedPreferences.getInstance();
 
+  // 提前初始化语言设置，防止首帧显示错误的默认语言
+  final localeTag = prefs.getString('app_locale');
+  if (localeTag != null) {
+    try {
+      final locale = AppLocaleUtils.parse(localeTag);
+      await LocaleSettings.setLocale(locale);
+    } catch (_) {
+      await LocaleSettings.useDeviceLocale();
+    }
+  } else {
+    await LocaleSettings.useDeviceLocale();
+  }
+
   runApp(
     TranslationProvider(
       child: ProviderScope(

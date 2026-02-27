@@ -54,10 +54,10 @@ lib/
 │   ├── summary/            # e.g. 总结模块
 │   └── settings/           # e.g. 设置模块
 ├── i18n/                   # 国际化文件目录 (slang 管理)
-│   ├── strings_zh.i18n.json   # 简体中文（基础语言）
-│   ├── strings_zh_TW.i18n.json # 繁体中文
-│   ├── strings_en.i18n.json   # 英语
-│   ├── strings_ja.i18n.json   # 日语
+│   ├── zh.i18n.json           # 简体中文（基础语言，Base Locale）
+│   ├── zh_TW.i18n.json        # 繁体中文
+│   ├── en.i18n.json           # 英语
+│   ├── ja.i18n.json           # 日语
 │   └── strings.g.dart         # slang 自动生成，禁止手动修改
 └── source/
     └── prompts/               # AI 提示词模板（按 Locale 分发）
@@ -159,15 +159,15 @@ lib/
 
 ### 8.2 文件结构
 
-`lib/i18n/` 目录下包含所有翻译 JSON 文件。**简体中文（`strings_zh.i18n.json`）是基础语言**，其他语言文件仅需覆盖不同的键值。
+`lib/i18n/` 目录下包含所有翻译 JSON 文件。**简体中文（`zh.i18n.json`）是基础语言（Base Locale）**，其他语言文件仅需覆盖不同的键值。
 
 支持语言：
 | 语言 | 文件 | Locale 枚举 |
 |:---|:---|:---|
-| 简体中文 | `strings_zh.i18n.json` | `AppLocale.zh` |
-| 繁体中文 | `strings_zh_TW.i18n.json` | `AppLocale.zhTw` |
-| 英语 | `strings_en.i18n.json` | `AppLocale.en` |
-| 日语 | `strings_ja.i18n.json` | `AppLocale.ja` |
+| 简体中文 | `zh.i18n.json` | `AppLocale.zh` |
+| 繁体中文 | `zh_TW.i18n.json` | `AppLocale.zhTw` |
+| 英语 | `en.i18n.json` | `AppLocale.en` |
+| 日语 | `ja.i18n.json` | `AppLocale.ja` |
 
 ### 8.3 使用规范
 

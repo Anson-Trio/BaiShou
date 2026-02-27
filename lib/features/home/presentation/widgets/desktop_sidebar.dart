@@ -25,7 +25,7 @@ class DesktopSidebar extends ConsumerWidget {
     final userProfile = ref.watch(userProfileProvider);
 
     return Container(
-      width: 230,
+      width: 250,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(

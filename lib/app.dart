@@ -6,11 +6,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:baishou/core/localization/locale_service.dart';
+
 class BaiShouApp extends ConsumerWidget {
   const BaiShouApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(localeProvider);
     final router = ref.watch(goRouterProvider);
 
     final themeState = ref.watch(themeProvider);

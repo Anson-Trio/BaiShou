@@ -26,6 +26,7 @@ class _SummaryRawDataViewState extends ConsumerState<SummaryRawDataView> {
       context: context,
       firstDate: DateTime(2000),
       lastDate: DateTime(2200),
+      locale: LocaleSettings.currentLocale.flutterLocale,
       initialDateRange:
           _dateRange ??
           DateTimeRange(start: now.subtract(const Duration(days: 6)), end: now),
@@ -72,6 +73,10 @@ class _SummaryRawDataViewState extends ConsumerState<SummaryRawDataView> {
 
   @override
   Widget build(BuildContext context) {
+    final dateFormat = DateFormat(
+      'yyyy-MM-dd',
+      LocaleSettings.currentLocale.languageCode,
+    );
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -106,7 +111,7 @@ class _SummaryRawDataViewState extends ConsumerState<SummaryRawDataView> {
                     child: Text(
                       _dateRange == null
                           ? t.summary.tap_to_select_range
-                          : '${DateFormat('yyyy-MM-dd').format(_dateRange!.start)}  ${t.common.to}  ${DateFormat('yyyy-MM-dd').format(_dateRange!.end)}',
+                          : '${dateFormat.format(_dateRange!.start)}  ${t.common.to}  ${dateFormat.format(_dateRange!.end)}',
                       style: TextStyle(
                         fontSize: 16,
                         color: _dateRange == null ? Colors.grey : null,

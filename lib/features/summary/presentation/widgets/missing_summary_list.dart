@@ -54,22 +54,30 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.start,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Icon(
-                          Icons.auto_awesome,
-                          size: 20,
-                          color: AppTheme.primary,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.auto_awesome,
+                              size: 20,
+                              color: AppTheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              t.summary.ai_suggestions,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          t.summary.ai_suggestions,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Spacer(),
                         // 批量生成按钮
                         FilledButton.tonal(
                           onPressed: () => _batchGenerate(missing),
@@ -79,7 +87,6 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
                           ),
                           child: Text(t.summary.generate_all),
                         ),
-                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -112,7 +119,8 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
                         final isError =
                             status != null &&
                             (status.startsWith(t.summary.generation_failed) ||
-                                status.startsWith(t.summary.content_empty));
+                                status.startsWith(t.summary.content_empty) ||
+                                status == t.summary.tap_to_retry);
                         // 加载中：状态已设置且不是错误
                         final isLoading = status != null && !isError;
 
@@ -122,15 +130,17 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
                           title: Text(
                             item.label,
                             style: const TextStyle(fontWeight: FontWeight.w500),
+                            overflow: TextOverflow.ellipsis,
                           ),
                           subtitle: Text(
                             status ??
-                                '${item.startDate.month}${t.common.month_suffix}${item.startDate.day}${t.common.day_suffix} - ${item.endDate.month}${t.common.month_suffix}${item.endDate.day}${t.common.day_suffix}',
+                                '${item.startDate.year}/${item.startDate.month}/${item.startDate.day} - ${item.endDate.month}/${item.endDate.day}',
                             style: TextStyle(
                               color: status != null
                                   ? (isError ? Colors.red : AppTheme.primary)
                                   : null,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                           trailing: isLoading
                               ? const SizedBox(
@@ -140,24 +150,30 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : FilledButton.tonal(
-                                  onPressed: () => _generate(item),
-                                  style: FilledButton.styleFrom(
-                                    visualDensity: VisualDensity.compact,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                    ),
-                                    backgroundColor: isError
-                                        ? Colors.red.withOpacity(0.1)
-                                        : null,
-                                    foregroundColor: isError
-                                        ? Colors.red
-                                        : null,
+                              : ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    minWidth: 70,
                                   ),
-                                  child: Text(
-                                    isError
-                                        ? t.common.retry
-                                        : t.common.generate,
+                                  child: FilledButton.tonal(
+                                    onPressed: () => _generate(item),
+                                    style: FilledButton.styleFrom(
+                                      visualDensity: VisualDensity.compact,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                      ),
+                                      backgroundColor: isError
+                                          ? Colors.red.withOpacity(0.1)
+                                          : null,
+                                      foregroundColor: isError
+                                          ? Colors.red
+                                          : null,
+                                    ),
+                                    child: Text(
+                                      isError
+                                          ? t.common.retry
+                                          : t.common.generate,
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
                                   ),
                                 ),
                         );

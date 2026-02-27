@@ -131,11 +131,14 @@ class CustomModelSelector extends StatelessWidget {
                   padding: const EdgeInsets.all(24.0),
                   child: Row(
                     children: [
-                      Text(
-                        t.settings.select_title(title: title),
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                      Expanded(
+                        child: Text(
+                          t.settings.select_title(title: title),
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const Spacer(),
