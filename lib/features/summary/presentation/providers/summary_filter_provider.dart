@@ -9,6 +9,7 @@ class SummaryFilterState {
   final DateTime? monthlyDate;
   final DateTime? quarterlyDate;
   final int lookbackMonths;
+  final String copyContextPrefix;
 
   const SummaryFilterState({
     this.weeklyStartDate,
@@ -16,6 +17,7 @@ class SummaryFilterState {
     this.monthlyDate,
     this.quarterlyDate,
     this.lookbackMonths = 12,
+    this.copyContextPrefix = '',
   });
 
   SummaryFilterState copyWith({
@@ -24,6 +26,7 @@ class SummaryFilterState {
     DateTime? monthlyDate,
     DateTime? quarterlyDate,
     int? lookbackMonths,
+    String? copyContextPrefix,
     bool clearWeekly = false,
     bool clearMonthly = false,
     bool clearQuarterly = false,
@@ -38,6 +41,7 @@ class SummaryFilterState {
           ? null
           : (quarterlyDate ?? this.quarterlyDate),
       lookbackMonths: lookbackMonths ?? this.lookbackMonths,
+      copyContextPrefix: copyContextPrefix ?? this.copyContextPrefix,
     );
   }
 }
@@ -48,6 +52,7 @@ class SummaryFilterNotifier extends Notifier<SummaryFilterState> {
   static const String _keyMonthly = 'summary_filter_monthly';
   static const String _keyQuarterly = 'summary_filter_quarterly';
   static const String _keyLookback = 'summary_filter_lookback';
+  static const String _keyCopyPrefix = 'summary_filter_copy_prefix';
 
   late SharedPreferences _prefs;
 
@@ -60,6 +65,7 @@ class SummaryFilterNotifier extends Notifier<SummaryFilterState> {
     final monthlyStr = _prefs.getString(_keyMonthly);
     final quarterlyStr = _prefs.getString(_keyQuarterly);
     final lookback = _prefs.getInt(_keyLookback) ?? 12;
+    final copyPrefix = _prefs.getString(_keyCopyPrefix) ?? '';
 
     return SummaryFilterState(
       weeklyStartDate: weeklyStartStr != null
@@ -69,6 +75,7 @@ class SummaryFilterNotifier extends Notifier<SummaryFilterState> {
       monthlyDate: monthlyStr != null ? DateTime.parse(monthlyStr) : null,
       quarterlyDate: quarterlyStr != null ? DateTime.parse(quarterlyStr) : null,
       lookbackMonths: lookback,
+      copyContextPrefix: copyPrefix,
     );
   }
 
@@ -122,6 +129,11 @@ class SummaryFilterNotifier extends Notifier<SummaryFilterState> {
   Future<void> updateLookbackMonths(int months) async {
     await _prefs.setInt(_keyLookback, months);
     state = state.copyWith(lookbackMonths: months);
+  }
+
+  Future<void> updateCopyContextPrefix(String prefix) async {
+    await _prefs.setString(_keyCopyPrefix, prefix);
+    state = state.copyWith(copyContextPrefix: prefix);
   }
 }
 

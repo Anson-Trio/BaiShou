@@ -38,13 +38,22 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   }
 
   void _nextPage() {
-    if (_currentPage < 4) {
+    if (_currentPage < _numPages - 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
     } else {
       _finishOnboarding();
+    }
+  }
+
+  void _previousPage() {
+    if (_currentPage > 0) {
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
     }
   }
 
@@ -183,26 +192,32 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   }
 
   Widget _buildApiConfigSlide() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.psychology, size: 80, color: Colors.purple),
+          const Icon(Icons.cloud_queue_outlined, size: 80, color: Colors.black),
           const SizedBox(height: 32),
           Text(
-            t.onboarding.ai_setup_title,
-            style: Theme.of(context).textTheme.headlineSmall,
+            t.onboarding.api_guide_title,
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 16),
-          Text(t.onboarding.ai_setup_desc, textAlign: TextAlign.center),
           const SizedBox(height: 24),
-          TextField(
-            controller: _apiKeyController,
-            decoration: InputDecoration(
-              labelText: t.onboarding.api_key_label,
-              border: const OutlineInputBorder(),
-              hintText: t.onboarding.api_key_hint,
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceVariant.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: colorScheme.outlineVariant),
+            ),
+            child: Text(
+              t.onboarding.api_guide_desc,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16, height: 1.6),
             ),
           ),
         ],
@@ -256,13 +271,24 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
             }),
           ),
           // Button
-          FilledButton(
-            onPressed: _nextPage,
-            child: Text(
-              _currentPage == _numPages - 1
-                  ? t.onboarding.get_started
-                  : t.common.next,
-            ),
+          Row(
+            children: [
+              if (_currentPage > 0)
+                TextButton.icon(
+                  onPressed: _previousPage,
+                  icon: const Icon(Icons.arrow_back),
+                  label: Text(t.common.back),
+                ),
+              const SizedBox(width: 8),
+              FilledButton(
+                onPressed: _nextPage,
+                child: Text(
+                  _currentPage == _numPages - 1
+                      ? t.onboarding.get_started
+                      : t.common.next,
+                ),
+              ),
+            ],
           ),
         ],
       ),

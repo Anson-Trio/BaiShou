@@ -1,8 +1,11 @@
 import 'dart:io';
 
+import 'package:baishou/core/router/app_router.dart';
+import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:baishou/features/home/presentation/widgets/desktop_sidebar.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -34,6 +37,8 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     return 0; // 默认回到时间轴（branch 2 是桌面端专用的同步页）
   }
 
+  DateTime? _lastBackPress;
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -46,6 +51,50 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         final bool isLargeScreen = constraints.maxWidth >= 700;
         final bool isDesktop = isDesktopOS || isLargeScreen;
 
+        Widget content = widget.navigationShell;
+
+        // 仅在移动端或非桌面 OS 且小屏时应用返回逻辑
+        if (!isDesktop) {
+          final currentIndex = widget.navigationShell.currentIndex;
+          final GlobalKey<NavigatorState>? activeKey = switch (currentIndex) {
+            0 => diaryNavKey,
+            1 => summaryNavKey,
+            2 => syncNavKey,
+            3 => settingsNavKey,
+            _ => null,
+          };
+
+          final navState = activeKey?.currentState;
+          final bool canPopNested = navState?.canPop() ?? false;
+
+          content = PopScope(
+            canPop: canPopNested,
+            onPopInvokedWithResult: (didPop, result) {
+              if (didPop) return;
+
+              if (currentIndex != 0) {
+                // 延后执行以避免与系统返回预测发生短时堆栈争夺
+                Future.microtask(() => _goBranch(0));
+                return;
+              }
+
+              final now = DateTime.now();
+              if (_lastBackPress == null ||
+                  now.difference(_lastBackPress!) >
+                      const Duration(seconds: 2)) {
+                setState(() {
+                  _lastBackPress = now;
+                });
+                AppToast.show(context, t.common.exit_hint);
+                return;
+              }
+
+              SystemNavigator.pop();
+            },
+            child: widget.navigationShell,
+          );
+        }
+
         if (isDesktop) {
           return Scaffold(
             backgroundColor: Theme.of(context).colorScheme.surface,
@@ -56,7 +105,6 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
                   navigationShell: widget.navigationShell,
                   onBranchChange: _goBranch,
                 ),
-
                 // 主内容区域
                 Expanded(
                   child: Container(
@@ -84,7 +132,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         return Scaffold(
           body: Container(
             color: Theme.of(context).colorScheme.surface,
-            child: widget.navigationShell,
+            child: content,
           ),
           bottomNavigationBar: NavigationBar(
             selectedIndex: _getMobileNavIndex(),

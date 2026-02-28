@@ -68,7 +68,8 @@
     "network_error": "ネットワークエラー",
     "timeout": "タイムアウト",
     "copied": "クリップボードにコピーしました",
-    "copy_failed": "コピーに失敗しました"
+    "copy_failed": "コピーに失敗しました",
+    "back": "戻る"
   },
   "onboarding": {
     "welcome_title": "白守へようこそ",
@@ -81,6 +82,9 @@
     "ai_setup_desc": "白守自体はあなたの AI キーを保存しません。標準的な OpenAI 互換プロトコルを設定して、魂の対話を開始しましょう。",
     "api_key_label": "Gemini API キー",
     "api_key_hint": "任意、後で設定から変更可能です",
+    "api_guide_title": "API 接続の設定",
+    "api_guide_desc": "白守はあなたのキーを保存しません。「設定 > プロバイダー管理」で OpenAI または Gemini プロトコルを設定してください。",
+    "go_to_config": "設定へ",
     "privacy_title": "データは常にあなたのもの",
     "privacy_desc": "データはローカルにのみ保存されます。エンドツーエンドの同期により、記憶の主権を完全にコントロールできます。",
     "get_started": "白守の旅を始める",
@@ -368,6 +372,8 @@
     "tab_quarterly": "季報",
     "tab_yearly": "年鑑",
     "toast_copied": "共同の思い出をコピーしました",
+    "copy_prefix_label": "コピー接頭辞",
+    "copy_prefix_hint": "コピー内容の先頭に自動的に追加されます（例：こんにちは、これは私の思い出です...）",
     "range_selector": "統計範囲",
     "load_data": "データを読み込む",
     "loading": "読み込み中...",
