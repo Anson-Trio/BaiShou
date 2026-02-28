@@ -9,15 +9,16 @@
 .history
 .svn/
 
+# DevTools
+devtools_options.yaml
+
 # IntelliJ related
 *.iml
 *.ipr
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
+# VS Code
 .vscode/
 
 # Flutter/Dart/Pub related
@@ -56,7 +57,7 @@ app.*.map.json
 /android/app/release/
 
 # Project Specific
-# Database
+# Database (Only for local testing, vault data has its own shadow_index)
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
