@@ -12,6 +12,13 @@ sealed class Diary with _$Diary {
     @Default([]) List<String> tags,
     required DateTime createdAt,
     required DateTime updatedAt,
+    // [NEW] 扩展元数据字段以支持 YAML
+    String? weather,
+    String? mood,
+    String? location,
+    String? locationDetail,
+    @Default(false) bool isFavorite,
+    @Default([]) List<String> mediaPaths,
   }) = _Diary;
 
   factory Diary.fromJson(Map<String, dynamic> json) => _$DiaryFromJson(json);

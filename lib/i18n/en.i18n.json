@@ -68,8 +68,15 @@
     "network_error": "Network Error",
     "timeout": "Request Timeout",
     "copied": "Copied to clipboard",
-    "copy_failed": "Failed to copy",
-    "back": "Back"
+    "copy_failed": "Copy failed",
+    "back": "Back",
+    "errors": {
+      "storage_path_not_found": "Could not get base storage path for device",
+      "data_load_failed": "Failed to load data",
+      "save_failed": "Failed to save",
+      "delete_failed": "Failed to delete",
+      "no_active_vault": "No active vault detected"
+    }
   },
   "onboarding": {
     "welcome_title": "Welcome to BaiShou",

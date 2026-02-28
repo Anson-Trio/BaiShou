@@ -69,7 +69,14 @@
     "timeout": "タイムアウト",
     "copied": "クリップボードにコピーしました",
     "copy_failed": "コピーに失敗しました",
-    "back": "戻る"
+    "back": "戻る",
+    "errors": {
+      "storage_path_not_found": "デバイスのベースストレージパスを取得できませんでした",
+      "data_load_failed": "データの読み込みに失敗しました",
+      "save_failed": "保存に失敗しました",
+      "delete_failed": "削除に失敗しました",
+      "no_active_vault": "アクティブなヴォールト（Vault）が見つかりませんでした"
+    }
   },
   "onboarding": {
     "welcome_title": "白守へようこそ",

@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:baishou/core/database/app_database.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
-import 'package:baishou/features/diary/data/repositories/diary_repository_impl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:baishou/i18n/strings.g.dart';
@@ -24,17 +23,10 @@ class _DeveloperOptionsViewState extends ConsumerState<DeveloperOptionsView> {
   Future<void> _loadDemoData() async {
     setState(() => _isLoadingDemo = true);
     try {
-      final repo = ref.read(diaryRepositoryProvider);
-      if (repo is DiaryRepositoryImpl) {
-        await repo.ensureInitialData(force: true);
-        if (mounted) {
-          AppToast.showSuccess(
-            context,
-            t.developer.load_demo_success,
-            duration: const Duration(seconds: 3),
-          );
-        }
-      }
+      AppToast.showError(
+        context,
+        t.developer.load_demo_failed(e: 'Not supported'),
+      );
     } catch (e) {
       if (mounted) {
         AppToast.showError(

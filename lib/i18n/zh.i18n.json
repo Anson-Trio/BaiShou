@@ -69,7 +69,15 @@
     "timeout": "请求超时",
     "copied": "已复制到剪贴板",
     "copy_failed": "复制失败",
-    "back": "上一步"
+    "back": "上一步",
+    "errors": {
+      "storage_path_not_found": "无法获取设备的基础存储路径",
+      "data_load_failed": "数据加载失败",
+      "save_failed": "保存失败",
+      "delete_failed": "删除失败",
+      "no_active_vault": "没有检测到活跃的工作空间 (Vault)",
+      "physical_delete_failed": "物理文件无法彻底删除，已清理索引记录"
+    }
   },
   "onboarding": {
     "welcome_title": "欢迎来到白守",

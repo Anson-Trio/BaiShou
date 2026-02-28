@@ -69,7 +69,15 @@
     "timeout": "請求超時",
     "copied": "已複製到剪貼板",
     "copy_failed": "複製失敗",
-    "back": "上一步"
+    "back": "上一步",
+    "errors": {
+      "storage_path_not_found": "無法獲取設備的基礎儲存路徑",
+      "data_load_failed": "數據加載失敗",
+      "save_failed": "保存失敗",
+      "delete_failed": "刪除失敗",
+      "no_active_vault": "沒有檢測到活躍的工作空間 (Vault)",
+      "physical_delete_failed": "物理文件無法徹底刪除，已清理索引記錄"
+    }
   },
   "onboarding": {
     "welcome_title": "歡迎來到白守",
