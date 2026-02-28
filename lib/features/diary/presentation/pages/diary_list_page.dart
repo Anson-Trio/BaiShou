@@ -8,11 +8,10 @@ import 'package:baishou/features/diary/data/repositories/diary_repository_impl.d
 import 'package:baishou/features/diary/domain/entities/diary.dart';
 import 'package:baishou/features/diary/presentation/widgets/diary_card.dart';
 import 'package:collection/collection.dart';
-import 'package:baishou/core/widgets/app_toast.dart';
-import 'package:baishou/i18n/strings.g.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:baishou/core/localization/locale_service.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 /// 日记列表页面
 /// 使用 CustomScrollView 实现带有年份吸顶效果的高性能滚动列表。
@@ -28,7 +27,6 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
   String _searchQuery = '';
   bool _isSearching = false;
   final _scrollController = ScrollController();
-  DateTime? _lastPressedAt;
 
   @override
   void dispose() {
@@ -52,122 +50,104 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
     return SafeArea(
       top: isMobile,
       bottom: false,
-      child: PopScope(
-        canPop: false,
-        onPopInvokedWithResult: (didPop, result) {
-          if (didPop) return;
-          // 防止多层级或者桌面端意外退出
-          if (!isMobile) return;
-
-          final now = DateTime.now();
-          if (_lastPressedAt == null ||
-              now.difference(_lastPressedAt!) > const Duration(seconds: 2)) {
-            _lastPressedAt = now;
-            AppToast.show(context, t.common.exit_hint);
-            return;
-          }
-
-          SystemNavigator.pop();
-        },
-        child: Scaffold(
-          backgroundColor: Colors.transparent, // 让底层 Scaffold 的颜色透上来
-          appBar: AppBar(
-            centerTitle: false,
-            backgroundColor: Colors.transparent,
-            surfaceTintColor: Colors.transparent,
-            elevation: 0,
-            title: _isSearching && !isDesktop
-                ? TextField(
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      hintText: t.common.search_hint,
-                      border: InputBorder.none,
-                    ),
-                    onChanged: (val) => setState(() => _searchQuery = val),
-                  )
-                : isDesktop
-                ? _buildDesktopHeader(context)
-                : _buildMobileTitle(context),
-            actions: isDesktop
-                ? null
-                : [
-                    IconButton(
-                      onPressed: () {
-                        setState(() {
-                          _isSearching = !_isSearching;
-                          if (!_isSearching) _searchQuery = '';
-                        });
-                      },
-                      icon: Icon(_isSearching ? Icons.close : Icons.search),
-                    ),
-                  ],
-          ),
-          body: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: isDesktop ? 800 : double.infinity,
-              ),
-              child: StreamBuilder<List<Diary>>(
-                stream: diaryStream,
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: Text('${t.common.error}: ${snapshot.error}'),
-                    );
-                  }
-                  if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  final diaries = snapshot.data!;
-
-                  // 性能优化：使用 helper 方法进行分组与筛选
-                  final filteredDiaries = _getFilteredDiaries(diaries);
-                  if (filteredDiaries.isEmpty) return _buildEmptyState(context);
-
-                  final groupedData = _getGroupedDiaries(filteredDiaries);
-                  final sortedDates = groupedData.keys.toList()
-                    ..sort((a, b) => b.compareTo(a));
-
-                  return GestureDetector(
-                    behavior: HitTestBehavior.translucent,
-                    onDoubleTap: () {
-                      _scrollController.animateTo(
-                        0,
-                        duration: const Duration(milliseconds: 400),
-                        curve: Curves.easeOut,
-                      );
+      child: Scaffold(
+        backgroundColor: Colors.transparent, // 让底层 Scaffold 的颜色透上来
+        appBar: AppBar(
+          centerTitle: false,
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          title: _isSearching && !isDesktop
+              ? TextField(
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: t.common.search_hint,
+                    border: InputBorder.none,
+                  ),
+                  onChanged: (val) => setState(() => _searchQuery = val),
+                )
+              : isDesktop
+              ? _buildDesktopHeader(context)
+              : _buildMobileTitle(context),
+          actions: isDesktop
+              ? null
+              : [
+                  IconButton(
+                    onPressed: () {
+                      setState(() {
+                        _isSearching = !_isSearching;
+                        if (!_isSearching) _searchQuery = '';
+                      });
                     },
-                    child: CustomScrollView(
-                      controller: _scrollController,
-                      physics: const BouncingScrollPhysics(),
-                      slivers: [
-                        const SliverToBoxAdapter(child: SizedBox(height: 10)),
-                        ..._buildSlivers(
-                          context,
-                          groupedData,
-                          sortedDates,
-                          isDesktop,
-                        ),
-                        const SliverToBoxAdapter(child: SizedBox(height: 80)),
-                      ],
-                    ),
+                    icon: Icon(_isSearching ? Icons.close : Icons.search),
+                  ),
+                ],
+        ),
+        body: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: isDesktop ? 800 : double.infinity,
+            ),
+            child: StreamBuilder<List<Diary>>(
+              stream: diaryStream,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('${t.common.error}: ${snapshot.error}'),
                   );
-                },
-              ),
+                }
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final diaries = snapshot.data!;
+
+                // 性能优化：使用 helper 方法进行分组与筛选
+                final filteredDiaries = _getFilteredDiaries(diaries);
+                if (filteredDiaries.isEmpty) return _buildEmptyState(context);
+
+                final groupedData = _getGroupedDiaries(filteredDiaries);
+                final sortedDates = groupedData.keys.toList()
+                  ..sort((a, b) => b.compareTo(a));
+
+                return GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onDoubleTap: () {
+                    _scrollController.animateTo(
+                      0,
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeOut,
+                    );
+                  },
+                  child: CustomScrollView(
+                    controller: _scrollController,
+                    physics: const BouncingScrollPhysics(),
+                    slivers: [
+                      const SliverToBoxAdapter(child: SizedBox(height: 10)),
+                      ..._buildSlivers(
+                        context,
+                        groupedData,
+                        sortedDates,
+                        isDesktop,
+                      ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 80)),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
-          floatingActionButton: isDesktop
-              ? null
-              : FloatingActionButton(
-                  onPressed: () => context.push(
-                    '/diary/edit?date=${DateTime.now().toIso8601String()}',
-                  ),
-                  backgroundColor: AppTheme.primary,
-                  shape: const CircleBorder(),
-                  child: const Icon(Icons.add, color: Colors.white, size: 32),
-                ),
         ),
+        floatingActionButton: isDesktop
+            ? null
+            : FloatingActionButton(
+                onPressed: () => context.push(
+                  '/diary/edit?date=${DateTime.now().toIso8601String()}',
+                ),
+                backgroundColor: AppTheme.primary,
+                shape: const CircleBorder(),
+                child: const Icon(Icons.add, color: Colors.white, size: 32),
+              ),
       ),
     );
   }

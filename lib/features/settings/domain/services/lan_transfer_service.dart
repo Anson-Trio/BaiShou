@@ -183,33 +183,6 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
     final router = shelf_router.Router();
     final userProfile = ref.read(userProfileProvider);
 
-    // GET /download: 允许接收者主动拉取 (保留作为一种方式, 例如扫码)
-    router.get('/download', (Request request) async {
-      try {
-        final exportService = ref.read(exportServiceProvider);
-
-        // 1. Prepare Zip File (Optional pre-generation, usually not needed if serving on demand, but kept for cache)
-        // 不调用系统分享
-        final zipFile = await exportService.exportToZip(share: false);
-        if (zipFile == null) {
-          return Response.internalServerError(
-            body: t.settings.backup_create_failed,
-          );
-        }
-
-        return Response.ok(
-          zipFile.openRead(),
-          headers: {
-            'Content-Type': 'application/zip',
-            'Content-Disposition':
-                'attachment; filename="${path.basename(zipFile.path)}"',
-          },
-        );
-      } catch (e) {
-        return Response.internalServerError(body: '${t.common.error}: $e');
-      }
-    });
-
     // POST /upload: 接收发送者推送的文件 (Push 模式)
     router.post('/upload', (Request request) async {
       try {
@@ -417,70 +390,6 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
         );
       }
       return false;
-    }
-  }
-
-  // --- 下载文件 (Pull 模式 - 用于扫码或备用) ---
-
-  Future<File?> downloadFile(String hostStr, int port) async {
-    try {
-      final reachableHost = await _findReachableIp(hostStr, port);
-      if (reachableHost == null) {
-        throw TimeoutException(t.lan_transfer.no_reachable_ip);
-      }
-
-      final response = await http
-          .get(Uri.parse('http://$reachableHost:$port/download'))
-          .timeout(const Duration(seconds: 20));
-      if (response.statusCode == 200) {
-        final dir = await getApplicationDocumentsDirectory();
-        final contentDisposition = response.headers['content-disposition'];
-        String fileName =
-            'received_backup_${DateTime.now().millisecondsSinceEpoch}.zip';
-
-        if (contentDisposition != null) {
-          final match = RegExp(
-            r'filename="?([^"]+)"?',
-          ).firstMatch(contentDisposition);
-          if (match != null) {
-            fileName = match.group(1)!;
-          }
-        }
-
-        final file = File(path.join(dir.path, fileName));
-        await file.writeAsBytes(response.bodyBytes);
-
-        // 同样更新接收状态
-        state = state.copyWith(lastReceivedFile: file);
-
-        return file;
-      } else {
-        throw Exception(
-          t.lan_transfer.receive_failed(e: 'Status: ${response.statusCode}'),
-        );
-      }
-    } catch (e) {
-      if (e is TimeoutException) {
-        state = state.copyWith(error: t.lan_transfer.connect_timeout);
-      } else {
-        state = state.copyWith(
-          error: t.lan_transfer.receive_failed(e: e.toString()),
-        );
-      }
-      return null;
-    }
-  }
-
-  // 通过 URL 下载 (用于扫码)
-  Future<File?> downloadFromUrl(String url) async {
-    try {
-      final uri = Uri.parse(url);
-      return downloadFile(uri.host, uri.port);
-    } catch (e) {
-      state = state.copyWith(
-        error: t.lan_transfer.invalid_link(e: e.toString()),
-      );
-      return null;
     }
   }
 }

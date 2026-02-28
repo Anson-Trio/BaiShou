@@ -83,83 +83,38 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget _buildMobileLayout(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
-        context.go('/');
-      },
-      child: Scaffold(
-        backgroundColor: colorScheme.surface,
-        appBar: AppBar(title: Text(t.settings.title), centerTitle: true),
-        body: ListView(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.settings_outlined),
-              title: Text(t.settings.general),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => Scaffold(
-                      appBar: AppBar(title: Text(t.settings.general)),
-                      body: const GeneralSettingsView(),
-                    ),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.cloud_queue_outlined),
-              title: Text(t.settings.ai_services),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => Scaffold(
-                      appBar: AppBar(title: Text(t.settings.ai_services)),
-                      body: const AiModelServicesView(),
-                    ),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.star_border_rounded),
-              title: Text(t.settings.ai_global_models),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => Scaffold(
-                      appBar: AppBar(title: Text(t.settings.ai_global_models)),
-                      body: const AiGlobalModelsView(),
-                    ),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.sync_rounded),
-              title: Text(t.data_sync.title),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => Scaffold(
-                      appBar: AppBar(title: Text(t.data_sync.title)),
-                      body: const DataSyncPage(),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
+    return Scaffold(
+      backgroundColor: colorScheme.surface,
+      appBar: AppBar(title: Text(t.settings.title), centerTitle: true),
+      body: ListView(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.settings_outlined),
+            title: Text(t.settings.general),
+            trailing: const Icon(Icons.chevron_right),
+            // 使用 context.push 让子页走根 Navigator，脱离 settingsNavKey 内部栈，
+            // 防止切换到其它 Tab 后，隐藏中的子页被侧滑手势静默消耗
+            onTap: () => context.push('/settings/general'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.cloud_queue_outlined),
+            title: Text(t.settings.ai_services),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/settings/ai-services'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.star_border_rounded),
+            title: Text(t.settings.ai_global_models),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/settings/ai-models'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.sync_rounded),
+            title: Text(t.data_sync.title),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/settings/data-sync'),
+          ),
+        ],
       ),
     );
   }

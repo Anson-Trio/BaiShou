@@ -24,6 +24,7 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
   int _maxMonths = 60; // 动态计算的最大月数（至少60）
 
   late final TextEditingController _monthsController;
+  late final TextEditingController _prefixController;
   int _lastRefreshVersion = 0;
 
   @override
@@ -32,12 +33,15 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
     // 使用 Provider 的初始值
     final initialMonths = ref.read(summaryFilterProvider).lookbackMonths;
     _monthsController = TextEditingController(text: initialMonths.toString());
+    final initialPrefix = ref.read(summaryFilterProvider).copyContextPrefix;
+    _prefixController = TextEditingController(text: initialPrefix);
     _initRange();
   }
 
   @override
   void dispose() {
     _monthsController.dispose();
+    _prefixController.dispose();
     super.dispose();
   }
 
@@ -84,7 +88,11 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
   /// 复制共同回忆到剪贴板
   Future<void> _copyContext() async {
     if (_result == null) return;
-    await Clipboard.setData(ClipboardData(text: _result!.text));
+    final prefix = ref.read(summaryFilterProvider).copyContextPrefix;
+    final textToCopy = prefix.isEmpty
+        ? _result!.text
+        : "$prefix\n\n${_result!.text}";
+    await Clipboard.setData(ClipboardData(text: textToCopy));
     if (mounted) {
       AppToast.showSuccess(context, t.summary.toast_copied);
     }
@@ -161,6 +169,25 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _prefixController,
+                      style: theme.textTheme.bodyMedium,
+                      decoration: InputDecoration(
+                        labelText: t.summary.copy_prefix_label,
+                        hintText: t.summary.copy_prefix_hint,
+                        isDense: true,
+                        prefixIcon: const Icon(Icons.edit_note, size: 20),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onChanged: (v) {
+                        ref
+                            .read(summaryFilterProvider.notifier)
+                            .updateCopyContextPrefix(v);
+                      },
                     ),
                     const SizedBox(height: 16),
                     FilledButton.icon(

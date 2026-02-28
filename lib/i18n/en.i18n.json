@@ -68,7 +68,8 @@
     "network_error": "Network Error",
     "timeout": "Request Timeout",
     "copied": "Copied to clipboard",
-    "copy_failed": "Failed to copy"
+    "copy_failed": "Failed to copy",
+    "back": "Back"
   },
   "onboarding": {
     "welcome_title": "Welcome to BaiShou",
@@ -81,6 +82,9 @@
     "ai_setup_desc": "BaiShou itself does not store your AI keys. Configure standard OpenAI compatible protocols to start your soul dialogue.",
     "api_key_label": "Gemini API Key",
     "api_key_hint": "Optional, configure in settings later",
+    "api_guide_title": "Setup API Connectivity",
+    "api_guide_desc": "BaiShou doesn't store your keys. Please go to \"Settings > Provider Management\" to configure OpenAI or Gemini protocols.",
+    "go_to_config": "Go to Config",
     "privacy_title": "Data, always yours",
     "privacy_desc": "Your data is stored only locally. With end-to-end sync, you maintain complete control over your memory sovereignty.",
     "get_started": "Start Journey",
@@ -374,6 +378,8 @@
     "tab_quarterly": "Quarterly",
     "tab_yearly": "Yearly",
     "toast_copied": "Collective memory copied to clipboard",
+    "copy_prefix_label": "Copy Prefix",
+    "copy_prefix_hint": "Automatically added to the front of copied content (e.g., Hi, these are my memories...)",
     "range_selector": "Statistic Range",
     "load_data": "Load Data",
     "loading": "Loading data...",

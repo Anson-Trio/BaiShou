@@ -68,7 +68,8 @@
     "network_error": "網絡錯誤",
     "timeout": "請求超時",
     "copied": "已複製到剪貼板",
-    "copy_failed": "複製失敗"
+    "copy_failed": "複製失敗",
+    "back": "上一步"
   },
   "onboarding": {
     "welcome_title": "歡迎來到白守",
@@ -81,6 +82,9 @@
     "ai_setup_desc": "白守本身不存儲你的 AI 秘鑰。請配置標準的 OpenAI 兼容協議，開啟你們的靈魂對話。",
     "api_key_label": "Gemini API Key",
     "api_key_hint": "可選，稍後在設置中配置",
+    "api_guide_title": "獲取 API Key",
+    "api_guide_desc": "白守本身不存儲你的密鑰。請前往「設置 > 供應商管理」配置符合 OpenAI 兼容協議的服務，或直接配置 Gemini。",
+    "go_to_config": "去配置",
     "privacy_title": "數據，始終歸你所有",
     "privacy_desc": "你的數據僅保存在本地。通過端到端同步方案，你可以自由掌控自己的記憶主權。",
     "get_started": "開啟白守之旅",
@@ -374,6 +378,8 @@
     "tab_quarterly": "季報",
     "tab_yearly": "年鑑",
     "toast_copied": "共同回憶已複製",
+    "copy_prefix_label": "拷貝前綴",
+    "copy_prefix_hint": "會自動附加在拷貝內容的最前方（例如：Hi，這是我的回憶...）",
     "range_selector": "統計範圍",
     "load_data": "加載數據",
     "loading": "數據加載中...",

@@ -3,9 +3,11 @@ import 'package:baishou/features/diary/presentation/pages/diary_list_page.dart';
 import 'package:baishou/features/home/presentation/pages/main_scaffold.dart';
 import 'package:baishou/features/onboarding/data/providers/onboarding_provider.dart';
 import 'package:baishou/features/onboarding/presentation/pages/onboarding_page.dart';
-
 import 'package:baishou/features/settings/presentation/pages/data_sync_page.dart';
 import 'package:baishou/features/settings/presentation/pages/settings_page.dart';
+import 'package:baishou/features/settings/presentation/pages/views/ai_global_models_view.dart';
+import 'package:baishou/features/settings/presentation/pages/views/ai_model_services_view.dart';
+import 'package:baishou/features/settings/presentation/pages/views/general_settings_view.dart';
 import 'package:baishou/features/summary/presentation/pages/summary_page.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +16,11 @@ import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'app_router.g.dart';
+
+final diaryNavKey = GlobalKey<NavigatorState>(debugLabel: 'diary');
+final summaryNavKey = GlobalKey<NavigatorState>(debugLabel: 'summary');
+final syncNavKey = GlobalKey<NavigatorState>(debugLabel: 'sync');
+final settingsNavKey = GlobalKey<NavigatorState>(debugLabel: 'settings');
 
 // 临时的 Home Page，稍后会被 features/diary 里的页面替代
 class PlaceholderHomePage extends StatelessWidget {
@@ -79,6 +86,7 @@ GoRouter goRouter(Ref ref) {
         },
         branches: [
           StatefulShellBranch(
+            navigatorKey: diaryNavKey,
             routes: [
               GoRoute(
                 path: '/',
@@ -87,6 +95,7 @@ GoRouter goRouter(Ref ref) {
             ],
           ),
           StatefulShellBranch(
+            navigatorKey: summaryNavKey,
             routes: [
               GoRoute(
                 path: '/summary',
@@ -95,6 +104,7 @@ GoRouter goRouter(Ref ref) {
             ],
           ),
           StatefulShellBranch(
+            navigatorKey: syncNavKey,
             routes: [
               GoRoute(
                 path: '/sync',
@@ -104,6 +114,7 @@ GoRouter goRouter(Ref ref) {
           ),
           // Branch 3: 设置页（移动端用）
           StatefulShellBranch(
+            navigatorKey: settingsNavKey,
             routes: [
               GoRoute(
                 path: '/settings-mobile',
@@ -117,6 +128,41 @@ GoRouter goRouter(Ref ref) {
         parentNavigatorKey: rootNavigatorKey,
         path: '/settings',
         builder: (context, state) => const SettingsPage(),
+      ),
+      // 设置子页路由 —— 必须走 rootNavigatorKey，成为全屏覆盖层。
+      // 这样子页不会进入 settingsNavKey 的内部栈，
+      // 避免切换到其它 Tab 后，后台隐藏的子页被侧滑手势静默 pop。
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: '/settings/general',
+        builder: (context, state) => Scaffold(
+          appBar: AppBar(title: Text(t.settings.general)),
+          body: const GeneralSettingsView(),
+        ),
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: '/settings/ai-services',
+        builder: (context, state) => Scaffold(
+          appBar: AppBar(title: Text(t.settings.ai_services)),
+          body: const AiModelServicesView(),
+        ),
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: '/settings/ai-models',
+        builder: (context, state) => Scaffold(
+          appBar: AppBar(title: Text(t.settings.ai_global_models)),
+          body: const AiGlobalModelsView(),
+        ),
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: '/settings/data-sync',
+        builder: (context, state) => Scaffold(
+          appBar: AppBar(title: Text(t.data_sync.title)),
+          body: const DataSyncPage(),
+        ),
       ),
       GoRoute(
         parentNavigatorKey: rootNavigatorKey,
