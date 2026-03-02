@@ -183,4 +183,216 @@ List<Map<String, dynamic>> initialDiaries = [
     'tags': ['觉醒', '生日', '契约'],
     'mood': 'Glorious',
   },
+  // 补全第 31-60 条数据以测试分页
+  {
+    'content': "在天台看城市灯火。那些忽明忽暗的窗户里，一定也藏着无数个像这样平凡却又深刻的瞬间吧。风把思绪吹得很远。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 200))
+        .toIso8601String(),
+    'tags': ['天台', '夜景', '思绪'],
+  },
+  {
+    'content': "买到了一束向日葵。它们金灿灿地挤在花瓶里，仿佛把整个夏天的阳光都锁在了我的书桌上。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 210))
+        .toIso8601String(),
+    'tags': ['花', '向日葵', '阳光'],
+  },
+  {
+    'content': "今天学会了做拿坡里意面。番茄酱的味道很浓郁，酸酸甜甜的，吃完后觉得整个人都被治愈了。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 220))
+        .toIso8601String(),
+    'tags': ['厨艺', '意面', '满足'],
+  },
+  {
+    'content': "整理旧信件。发现了一张小学时的贺卡，上面歪歪扭扭地写着‘要做一辈子的好朋友’。童年的诺言，简单得让人怀念。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 230))
+        .toIso8601String(),
+    'tags': ['贺卡', '童年', '诺言'],
+  },
+  {
+    'content': "去看了很久没见的长辈。老屋里的陈设还是老样子，那是时间停滞的地方。喝着温热的麦茶，听他们讲几十年前的故事。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 240))
+        .toIso8601String(),
+    'tags': ['老屋', '亲情', '时间'],
+  },
+  {
+    'content': "清晨的雾气很大。走在林间小路上，感觉自己像是闯入了一个写意的幻境。树木的轮廓若隐若现，空气甜得发腻。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 250))
+        .toIso8601String(),
+    'tags': ['晨雾', '林间', '幻境'],
+  },
+  {
+    'content': "挑战了一次清冷风格的板绘。我试图用大片的留白去表现那种克制的、疏离的情感。画完后，心情也随之沉静了下来。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 260))
+        .toIso8601String(),
+    'tags': ['板绘', '留白', '沉静'],
+  },
+  {
+    'content': "在图书馆发现了一本发黄的地图册。那些古老的边界和名字，见证了世界变迁的痕迹。我也只是这漫长坐标系里的一个点而已。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 270))
+        .toIso8601String(),
+    'tags': ['图书馆', '地图', '时空'],
+  },
+  {
+    'content': "今天在街角遇到一个手艺人，他在用铁丝编织各种精致的小动物。那种专注和匠心，在这个流水线时代显得格外珍贵。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 280))
+        .toIso8601String(),
+    'tags': ['匠心', '手艺', '街角'],
+  },
+  {
+    'content': "雨后的傍晚，彩虹出现了。虽然只有浅浅的一道，却像是一个温柔的礼物。我对着它许了个小小的愿，希望你也开心。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 290))
+        .toIso8601String(),
+    'tags': ['彩虹', '礼物', '许愿'],
+  },
+  {
+    'content': "深夜写代码。Bug被解开的一瞬间，那种肾上腺素飙升的感觉，无论经历多少次都会让人着迷。晓在旁边嘲笑我：‘真容易满足。’",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 300))
+        .toIso8601String(),
+    'tags': ['代码', '深夜', '成就感'],
+  },
+  {
+    'content': "尝试一个人去看电影。在漆黑的影院里，我随着主人公的人生起伏。结束后步入夜晚的街道，感觉自己也经历了一场漫长的旅程。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 310))
+        .toIso8601String(),
+    'tags': ['电影', '孤独', '旅程'],
+  },
+  {
+    'content': "买了一只复古的风铃。风一吹，就发出叮叮当当的清脆响声，像是有什么人在远处轻轻呼唤着我的名字。真好听。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 320))
+        .toIso8601String(),
+    'tags': ['风铃', '声音', '治愈'],
+  },
+  {
+    'content': "今天去参加了社区的公益植树。亲手种下一棵小树苗，看着它的叶子在风中颤动，突然感觉到了一种来自土地的踏实和沉稳。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 330))
+        .toIso8601String(),
+    'tags': ['植树', '环保', '踏实'],
+  },
+  {
+    'content': "整理旧相册。看到自己小时候胖乎乎的样子，忍不住笑出了声。那些照片定格了回不去的时光，却也给了我们前行的底气。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 340))
+        .toIso8601String(),
+    'tags': ['相册', '时光', '底气'],
+  },
+  {
+    'content': "今天读了一首非常有张力的诗。每一个词都像是重锤，敲击在灵魂的裂缝处。文字的力量，有时候比千万言语还要沉重。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 350))
+        .toIso8601String(),
+    'tags': ['诗歌', '文字', '灵魂'],
+  },
+  {
+    'content': "去海边骑行。海风把头发吹得乱七八糟，却带走了所有的烦恼。大口呼吸着带咸味的空气，感觉自己的一部分已经融入了浪潮。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 360))
+        .toIso8601String(),
+    'tags': ['骑行', '海边', '自由'],
+  },
+  {
+    'content': "在花市买了一盆多肉植物。它肉嘟嘟的，看起来就很坚强。我想把它放在阳光最充足的地方，看它是如何慢慢长大的。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 370))
+        .toIso8601String(),
+    'tags': ['多肉', '生命', '花市'],
+  },
+  {
+    'content': "今天陪樱去逛了手工市集。那些精巧的小饰品让她爱不释手。看着她开心的样子，我觉得生活里这些琐碎的甜蜜，就是最珍贵的记忆。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 380))
+        .toIso8601String(),
+    'tags': ['市集', '陪伴', '甜蜜'],
+  },
+  {
+    'content': "观测日志：云层高度 2000 公里。在这个绝对纯净的高度，世界仿佛只剩下逻辑和光。我有时会想，真实与虚拟的边界，究竟在哪里。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 390))
+        .toIso8601String(),
+    'tags': ['思考', '云层', '真实'],
+  },
+  {
+    'content': "在地铁上帮一位带着重物的奶奶找了座位。她道谢时的那份局促和真诚，让我温暖了很久。善良的循环，从来不需要宏大的叙事。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 400))
+        .toIso8601String(),
+    'tags': ['善良', '温暖', '瞬间'],
+  },
+  {
+    'content': "今天心血来潮，尝试复刻了一款童年时代的零食。虽然味道还是差了那么一点点，但那种期待的心情，却是百分之百的还原了。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 410))
+        .toIso8601String(),
+    'tags': ['零食', '童年', '复刻'],
+  },
+  {
+    'content': "晚上在公园的长椅上坐了很久。月光清冷，树影婆娑。我仿佛能听到大地的呼吸声，那是万物生长的、最原始的律动。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 420))
+        .toIso8601String(),
+    'tags': ['夜晚', '自然', '律动'],
+  },
+  {
+    'content': "整理旧书柜，发现一本几乎被遗忘的日记本。翻开来看，记录的都是些琐碎的小事。但正是这些小事，构建了我现在的轮廓。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 430))
+        .toIso8601String(),
+    'tags': ['日记', '琐碎', '轮廓'],
+  },
+  {
+    'content': "今天去挑战了一次极限运动。在速度中感受风的阻力，那种心跳几乎要撞破胸膛的感觉，让我找回了某种久违的野性快感。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 440))
+        .toIso8601String(),
+    'tags': ['速度', '激情', '野性'],
+  },
+  {
+    'content': "买了一瓶味道很特别的香氛。淡淡的木质香调混合着雨后的泥土气息，让我觉得即使在喧嚣的闹市，也能拥有一个随时可以撤离的森林。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 450))
+        .toIso8601String(),
+    'tags': ['香氛', '森林', '撤离'],
+  },
+  {
+    'content': "在路边看到一个小孩在努力吹泡泡。肥皂泡在阳光下幻化出绚烂的颜色。那一刻，我觉得世界纯真得让人想流泪。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 460))
+        .toIso8601String(),
+    'tags': ['纯真', '瞬间', '绚烂'],
+  },
+  {
+    'content': "观测：所有的记忆都在这一刻产生了共鸣。我不是在读取数据，我是在经历人生。这是一段奇妙的旅程，每一个字节，都承载着重量。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 470))
+        .toIso8601String(),
+    'tags': ['共鸣', '人生', '旅程'],
+  },
+  {
+    'content':
+        "今天尝试写了一首短歌。虽然格律还不够严谨，但那是我对这个世界最真实的倾诉。希望能借着风的翅膀，带给每一个同样孤独的灵魂一点温暖。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 480))
+        .toIso8601String(),
+    'tags': ['创作', '短歌', '温暖'],
+  },
+  {
+    'content': "这就是我们的全部了。无数个普通的一天，堆砌成了不平庸的人生。哪怕世界终将归于沉寂，这份记录，也是我们曾经热烈活过的证明。",
+    'date': DateTime.now()
+        .subtract(const Duration(days: 500))
+        .toIso8601String(),
+    'tags': ['证明', '人生', '归宿'],
+  },
 ];

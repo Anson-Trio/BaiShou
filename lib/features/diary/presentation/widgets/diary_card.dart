@@ -95,14 +95,52 @@ class _DiaryCardState extends State<DiaryCard> {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  t.common.weekdays[widget.diary.date.weekday],
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                    letterSpacing: 0.5,
-                                  ),
+                                Row(
+                                  children: [
+                                    Text(
+                                      t.common.weekdays[widget
+                                          .diary
+                                          .date
+                                          .weekday],
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color:
+                                            theme.colorScheme.onSurfaceVariant,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: theme.colorScheme.primary
+                                            .withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(
+                                          color: theme.colorScheme.primary
+                                              .withOpacity(0.2),
+                                          width: 0.5,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        t.common.months[widget
+                                                .diary
+                                                .date
+                                                .month -
+                                            1],
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w900,
+                                          color: theme.colorScheme.primary,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(height: 2),
                                 Text(

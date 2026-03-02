@@ -27,6 +27,68 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
   String _searchQuery = '';
   bool _isSearching = false;
   final _scrollController = ScrollController();
+  List<Diary> _allDiaries = [];
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore &&
+        _hasMore) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_allDiaries.isEmpty) return;
+
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    try {
+      final lastDiary = _allDiaries.last;
+      final nextBatch = await ref
+          .read(diaryRepositoryProvider)
+          .getDiariesAfter(
+            dateCursor: lastDiary.date,
+            idCursor: lastDiary.id,
+            limit: 50,
+          );
+
+      if (mounted) {
+        setState(() {
+          if (nextBatch.isEmpty) {
+            _hasMore = false;
+          } else {
+            // 追加新数据，并去重（以防万一）
+            final existingIds = _allDiaries.map((e) => e.id).toSet();
+            final uniqueNext = nextBatch
+                .where((e) => !existingIds.contains(e.id))
+                .toList();
+            _allDiaries.addAll(uniqueNext);
+            if (nextBatch.length < 50) {
+              _hasMore = false;
+            }
+          }
+          _isLoadingMore = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingMore = false;
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -37,7 +99,9 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
   @override
   Widget build(BuildContext context) {
     ref.watch(localeProvider);
-    final diaryStream = ref.watch(diaryRepositoryProvider).watchAllDiaries();
+    final diaryStream = ref
+        .watch(diaryRepositoryProvider)
+        .watchDiaries(limit: 50);
 
     bool isMobile = false;
     try {
@@ -100,18 +164,47 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
                           child: Text('${t.common.error}: ${snapshot.error}'),
                         );
                       }
-                      if (!snapshot.hasData) {
+                      if (!snapshot.hasData && _allDiaries.isEmpty) {
                         return const Center(child: CircularProgressIndicator());
                       }
 
-                      final diaries = snapshot.data!;
-                      final filteredDiaries = _getFilteredDiaries(diaries);
+                      if (snapshot.hasData) {
+                        final firstPage = snapshot.data!;
+                        // 合并逻辑：
+                        // 如果 allDiaries 为空，则直接初始化
+                        // 如果不为空，则用首屏数据替换 allDiaries 的前部，保留之前 loadMore 加载的内容
+                        if (_allDiaries.isEmpty) {
+                          _allDiaries = List.from(firstPage);
+                        } else {
+                          // 这里采用简单的合并策略：
+                          // 如果首屏数据变化（可能有增删改），我们替换前 50 条。
+                          // 为了简单起见，如果首屏数据包含已有的后续内容，
+                          // 我们只需要保证 _allDiaries 整体有序且最新。
 
-                      // 降序排序，最新在最前
-                      filteredDiaries.sort((a, b) => b.date.compareTo(a.date));
+                          // 精细化合并：
+                          final resultList = List<Diary>.from(firstPage);
+                          final firstPageIds = firstPage
+                              .map((e) => e.id)
+                              .toSet();
 
-                      if (filteredDiaries.isEmpty)
+                          // 将原缓存中不在第一页的部分追加回来
+                          for (var d in _allDiaries) {
+                            if (!firstPageIds.contains(d.id)) {
+                              resultList.add(d);
+                            }
+                          }
+
+                          // 重新排序并更新状态
+                          resultList.sort((a, b) => b.date.compareTo(a.date));
+                          _allDiaries = resultList;
+                        }
+                      }
+
+                      final filteredDiaries = _getFilteredDiaries(_allDiaries);
+
+                      if (filteredDiaries.isEmpty) {
                         return _buildEmptyState(context);
+                      }
 
                       return GestureDetector(
                         behavior: HitTestBehavior.translucent,
@@ -137,8 +230,17 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
                               ),
                           mainAxisSpacing: 24,
                           crossAxisSpacing: 24,
-                          itemCount: filteredDiaries.length,
+                          itemCount:
+                              filteredDiaries.length + (_isLoadingMore ? 1 : 0),
                           itemBuilder: (context, index) {
+                            if (index == filteredDiaries.length) {
+                              return const Padding(
+                                padding: EdgeInsets.all(16.0),
+                                child: Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              );
+                            }
                             return DiaryCard(
                               diary: filteredDiaries[index],
                               onDelete: () => _confirmDelete(

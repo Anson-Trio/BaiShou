@@ -4,6 +4,9 @@ abstract class DiaryRepository {
   // 获取所有日记 (按日期倒序)
   Stream<List<Diary>> watchAllDiaries();
 
+  // 获取所有日记 (按日期倒序, 可选 limit)
+  Stream<List<Diary>> watchDiaries({int? limit});
+
   // 获取单个日记 (用于编辑)
   Future<Diary?> getDiaryById(int id);
 
@@ -26,12 +29,19 @@ abstract class DiaryRepository {
   Future<void> deleteDiary(int id);
   Future<List<Diary>> getDiariesByDateRange(DateTime start, DateTime end);
 
-  /// 获取所有日记（用于分析）
-  Future<List<Diary>> getAllDiaries();
+  /// 获取所有日记（支持分页）
+  Future<List<Diary>> getAllDiaries({int? limit, int? offset});
 
   /// 获取指定日期范围内的日记
   Future<List<Diary>> getDiariesInRange(DateTime start, DateTime end);
 
   /// 获取最早的一条日记的日期
   Future<DateTime?> getOldestDiaryDate();
+
+  /// 获取游标之后的日记（用于游标分页）
+  Future<List<Diary>> getDiariesAfter({
+    DateTime? dateCursor,
+    int? idCursor,
+    int limit = 50,
+  });
 }

@@ -52,11 +52,14 @@ class DiaryRepositoryImpl implements DiaryRepository {
     _streamController.close();
   }
 
+  // 简单的扩展：为了支持带 limit 的 watch，我们维护一个当前的 limit 状态
+  int? _currentWatchLimit;
+
   /// 【内部方法】：触发数据更新推送
   /// 它会从极速读取的 SQLite 影子表中抓取最新列表，并塞入广播流中。
   Future<void> _emitAllDiaries() async {
     try {
-      final list = await getAllDiaries();
+      final list = await getAllDiaries(limit: _currentWatchLimit);
       if (!_streamController.isClosed) {
         _streamController.add(list);
       }
@@ -69,12 +72,16 @@ class DiaryRepositoryImpl implements DiaryRepository {
   }
 
   /// 【核心监听入口】：供 UI 层订阅
-  /// 当 UI 层调用 watchAllDiaries().listen(...) 时，
-  /// 1. 它会立即触发一次 _emitAllDiaries() 抓取当前快照。
-  /// 2. 之后只要有任何写操作（save/delete）成功，都会再次触发 _emitAllDiaries()。
-  /// 这种机制保证了物理文件存储也能拥有像数据库一样的实时响应体验。
   @override
   Stream<List<Diary>> watchAllDiaries() {
+    _currentWatchLimit = null;
+    _emitAllDiaries();
+    return _streamController.stream;
+  }
+
+  @override
+  Stream<List<Diary>> watchDiaries({int? limit}) {
+    _currentWatchLimit = limit;
     _emitAllDiaries();
     return _streamController.stream;
   }
@@ -83,10 +90,12 @@ class DiaryRepositoryImpl implements DiaryRepository {
   Future<List<Diary>> _queryDiaries({
     String? where,
     List<Object?>? whereArgs,
+    int? limit,
+    int? offset,
   }) async {
     final db = await _dbService.database;
     // 联合查询 FTS 获取文本与标签
-    final sql =
+    String sql =
         '''
       SELECT i.*, f.content, f.tags
       FROM journals_index i
@@ -94,6 +103,13 @@ class DiaryRepositoryImpl implements DiaryRepository {
       ${where != null ? 'WHERE $where' : ''}
       ORDER BY i.date DESC, i.created_at DESC
     ''';
+
+    if (limit != null) {
+      sql += ' LIMIT $limit';
+      if (offset != null) {
+        sql += ' OFFSET $offset';
+      }
+    }
 
     final rows = await db.rawQuery(sql, whereArgs);
 
@@ -119,8 +135,8 @@ class DiaryRepositoryImpl implements DiaryRepository {
   }
 
   @override
-  Future<List<Diary>> getAllDiaries() async {
-    return _queryDiaries();
+  Future<List<Diary>> getAllDiaries({int? limit, int? offset}) async {
+    return _queryDiaries(limit: limit, offset: offset);
   }
 
   @override
@@ -308,6 +324,30 @@ class DiaryRepositoryImpl implements DiaryRepository {
       return DateTime.tryParse(result.first['min_date'] as String);
     }
     return null;
+  }
+
+  @override
+  Future<List<Diary>> getDiariesAfter({
+    DateTime? dateCursor,
+    int? idCursor,
+    int limit = 50,
+  }) async {
+    // 如果没有游标，则直接从头开始获取
+    if (dateCursor == null || idCursor == null) {
+      return getAllDiaries(limit: limit);
+    }
+
+    // 使用联合游标查询：
+    // 1. 日期比游标早的
+    // 2. 日期相同但 ID 比游标小的 (处理同日期多条)
+    final fmt = DateFormat('yyyy-MM-dd');
+    final dateStr = fmt.format(dateCursor);
+
+    return _queryDiaries(
+      where: 'i.date < ? OR (i.date = ? AND i.id < ?)',
+      whereArgs: [dateStr, dateStr, idCursor],
+      limit: limit,
+    );
   }
 }
 
