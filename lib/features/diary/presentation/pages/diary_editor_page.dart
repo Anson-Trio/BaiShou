@@ -1,7 +1,6 @@
 import 'package:baishou/core/theme/app_theme.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:baishou/features/diary/data/repositories/diary_repository_impl.dart';
-import 'package:baishou/features/diary/presentation/widgets/datetime_picker_sheet.dart';
 import 'package:baishou/features/diary/presentation/widgets/markdown_toolbar.dart';
 import 'package:baishou/features/diary/presentation/widgets/tag_input_widget.dart';
 import 'package:baishou/core/database/tables/summaries.dart';
@@ -32,7 +31,6 @@ class DiaryEditorPage extends ConsumerStatefulWidget {
 class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
   late DateTime _selectedDate;
   late TimeOfDay _selectedTime;
-  late TextEditingController _titleController;
   late TextEditingController _contentController;
 
   // 标签管理
@@ -47,6 +45,9 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
   // 编辑模式：false=日记，true=总结
   bool get _isSummaryMode => widget.summaryId != null;
 
+  // 内部追踪的实际日记 ID（处理“追加写入”机制）
+  int? _currentDiaryId;
+
   // 总结特定状态
   SummaryType? _summaryType;
   DateTime? _summaryStartDate;
@@ -58,18 +59,30 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
     final now = widget.initialDate ?? DateTime.now();
     _selectedDate = now;
     _selectedTime = TimeOfDay.fromDateTime(now);
-    _titleController = TextEditingController();
     _contentController = TextEditingController();
     _tagInputController = TextEditingController();
 
-    _titleController.addListener(_markDirty);
     _contentController.addListener(_markDirty);
 
     if (widget.diaryId != null) {
+      _isLoading = true; // 先设为加载中，防止日期闪烁
       _loadDiary(widget.diaryId!);
     } else if (widget.summaryId != null) {
+      _isLoading = true;
       _loadSummary(widget.summaryId!);
+    } else {
+      // 新增模式：直接创建干净的空白日记（不合并今日旧内容）
+      _initNewDiary();
     }
+  }
+
+  /// 初始化"新增日记"流程：仅插入当前时间戳，不合并今日旧内容
+  Future<void> _initNewDiary() async {
+    final timeMark = '##### ${DateFormat('HH:mm').format(DateTime.now())}\n\n';
+    _contentController.text = timeMark;
+    _contentController.selection = TextSelection.collapsed(
+      offset: timeMark.length,
+    );
   }
 
   /// 标记内容已修改
@@ -112,7 +125,6 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
           _summaryEndDate = summary.endDate;
         });
         // 总结没有标题和标签，直接填充内容
-        _titleController.text = '';
         _contentController.text = summary.content;
         _tags.clear();
 
@@ -130,23 +142,10 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
   /// 填充控制器内容
   /// 将 fullContent 拆分为标题和正文，并加载标签。
   void _populateControllers(String fullContent, List<String> tags) {
-    final splitIndex = fullContent.indexOf('\n');
-    String title = '';
-    String body = '';
-
-    if (splitIndex != -1) {
-      title = fullContent.substring(0, splitIndex);
-      body = fullContent.substring(splitIndex + 1);
-    } else {
-      title = fullContent;
-    }
-
-    _titleController.text = title;
-    _contentController.text = body;
+    _contentController.text = fullContent;
     _tags.clear();
     _tags.addAll(tags.where((t) => t.trim().isNotEmpty));
 
-    // 填充后需要重置 _isDirty，因为 listener 会在赋值时触发 _markDirty
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) setState(() => _isDirty = false);
     });
@@ -154,7 +153,6 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
 
   @override
   void dispose() {
-    _titleController.dispose();
     _contentController.dispose();
     _tagInputController.dispose();
     _tagFocusNode.dispose();
@@ -216,60 +214,19 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
     );
   }
 
-  // ─── 日期和时间选择器 ────────────────────────────
-
-  /// 显示自定义日期时间选择器
-  Future<void> _showDateTimePicker() async {
-    await showModalBottomSheet(
-      context: context,
-      useRootNavigator: true,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => DateTimePickerSheet(
-        initialDate: _selectedDate,
-        initialTime: _selectedTime,
-        onDateChanged: (d) => setState(() {
-          _selectedDate = d;
-          _isDirty = true;
-        }),
-        onTimeChanged: (t) => setState(() {
-          _selectedTime = t;
-          _isDirty = true;
-        }),
-      ),
-    );
-  }
-
-  /// 合并日期和时间
-  DateTime get _combinedDateTime => DateTime(
-    _selectedDate.year,
-    _selectedDate.month,
-    _selectedDate.day,
-    _selectedTime.hour,
-    _selectedTime.minute,
-  );
-
   // ─── 保存 ───────────────────────────────────────────
 
   /// 执行保存操作
   Future<void> _save() async {
-    final title = _titleController.text.trim();
-    final body = _contentController.text.trim();
-    // 将标题和正文拼接保存，标题作为第一行
-    // 注意：只 trimRight()，保留当 title 为空时的首个 \n，避免正文被当成标题解析
-    final combinedContent = '$title\n${body.trimRight()}';
+    final content = _contentController.text.trim();
 
-    if (combinedContent.trim().isEmpty) {
+    if (content.isEmpty) {
       AppToast.showSuccess(context, t.diary.editor_hint);
       return;
     }
 
     try {
       if (_isSummaryMode) {
-        // 总结模式：只更新总结的正文内容和可能变动的日期范围
         final summary = await ref
             .read(summaryRepositoryProvider)
             .getSummaryById(widget.summaryId!);
@@ -278,36 +235,87 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
               .read(summaryRepositoryProvider)
               .updateSummary(
                 summary.copyWith(
-                  content: _contentController.text.trim(),
+                  content: content,
                   startDate: _summaryStartDate,
                   endDate: _summaryEndDate,
                 ),
               );
         }
       } else {
-        // 日记模式：保存完整的日记实体
-        await ref
-            .read(diaryRepositoryProvider)
-            .saveDiary(
-              id: widget.diaryId,
-              date: _combinedDateTime,
-              content: combinedContent,
+        final repo = ref.read(diaryRepositoryProvider);
+
+        if (widget.diaryId != null) {
+          // ── 编辑模式：直接用原始 ID 更新，允许用户修改日期 ──
+          final diary = await repo.getDiaryById(widget.diaryId!);
+          if (diary != null) {
+            final updated = diary.copyWith(
+              content: content,
               tags: _tags,
+              date: _selectedDate,
+            );
+            await repo.saveDiary(
+              id: updated.id,
+              content: updated.content,
+              date: updated.date,
+              tags: updated.tags,
+            );
+            ref.read(fileSyncServiceProvider.notifier).syncDiaryToFile(updated);
+          }
+        } else {
+          // ── 新增模式：按日期查找，避免同一天出现两篇日记 ──
+          final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
+          final allDiaries = await repo.getAllDiaries();
+          final existingDiary = allDiaries
+              .where((d) => DateFormat('yyyy-MM-dd').format(d.date) == dateStr)
+              .firstOrNull;
+
+          if (existingDiary != null) {
+            // 该日期已有日记，执行追加（合并内容到已有日记）
+            // 先获取完整本体以确保内容完整
+            final fullExisting =
+                await repo.getDiaryById(existingDiary.id) ?? existingDiary;
+            final oldContent = fullExisting.content.trimRight();
+            final finalContent = oldContent.isEmpty
+                ? content
+                : '$oldContent\n\n$content';
+
+            // 合并标签
+            final mergedTags = {...fullExisting.tags, ..._tags}.toList();
+
+            await repo.saveDiary(
+              id: fullExisting.id,
+              content: finalContent,
+              date: _selectedDate,
+              tags: mergedTags,
             );
 
-        // 触发文件同步 (Task 4)
-        if (mounted) {
-          final diary = Diary(
-            id:
-                widget.diaryId ??
-                0, // 这里的 ID 如果是新建的可能需要从 DB 获取，但 FileSyncService 目前主要用日期
-            date: _combinedDateTime,
-            content: combinedContent,
-            tags: _tags,
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-          );
-          ref.read(fileSyncServiceProvider.notifier).syncDiaryToFile(diary);
+            final updated = fullExisting.copyWith(
+              content: finalContent,
+              tags: mergedTags,
+              date: _selectedDate,
+            );
+            ref.read(fileSyncServiceProvider.notifier).syncDiaryToFile(updated);
+          } else {
+            // 该日期没有日记，执行新建
+            final newId = DateTime.now().millisecondsSinceEpoch;
+            await repo.saveDiary(
+              id: newId,
+              content: content,
+              date: _selectedDate,
+              tags: _tags,
+            );
+            final newDiary = Diary(
+              id: newId,
+              content: content,
+              date: _selectedDate,
+              tags: _tags,
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            );
+            ref
+                .read(fileSyncServiceProvider.notifier)
+                .syncDiaryToFile(newDiary);
+          }
         }
       }
 
@@ -366,24 +374,8 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
                       vertical: 16,
                     ),
                     children: [
-                      // 标题（仅在日记模式下显示）
+                      // 标签（仅日记模式）
                       if (!_isSummaryMode) ...[
-                        TextField(
-                          controller: _titleController,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            height: 1.2,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: t.common.title,
-                            hintStyle: TextStyle(color: Colors.grey[400]),
-                            border: InputBorder.none,
-                          ),
-                          textInputAction: TextInputAction.next,
-                        ),
-
-                        // 标签（流式布局）
                         const SizedBox(height: 8),
                         TagInputWidget(
                           tags: _tags,
@@ -580,19 +572,18 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
     final dateStr = DateFormat(
       t.diary.date_format_editor,
     ).format(_selectedDate);
-    final timeStr = _selectedTime.format(context);
     final weekDay = DateFormat(
       'EEEE',
       LocaleSettings.instance.currentLocale.languageCode,
     ).format(_selectedDate);
 
     return GestureDetector(
-      onTap: _showDateTimePicker,
+      onTap: _pickDate,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            '$weekDay / $timeStr',
+            weekDay,
             style: TextStyle(
               fontSize: 12,
               color: Colors.grey[600],
@@ -611,6 +602,21 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _pickDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+        _isDirty = true;
+      });
+    }
   }
 
   Future<void> _pickSummaryDate() async {

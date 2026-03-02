@@ -380,8 +380,8 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(t.summary.delete_summary_title),
-        content: Text(t.summary.confirm_delete_summary),
+        title: Text(t.diary.delete_confirm_title),
+        content: Text(t.diary.delete_confirm_content),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),

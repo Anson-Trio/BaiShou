@@ -75,7 +75,8 @@
       "data_load_failed": "Failed to load data",
       "save_failed": "Failed to save",
       "delete_failed": "Failed to delete",
-      "no_active_vault": "No active vault detected"
+      "no_active_vault": "No active vault detected",
+      "physical_delete_failed": "Physical file could not be deleted completely, index record has been cleared"
     }
   },
   "onboarding": {
@@ -94,6 +95,12 @@
     "go_to_config": "Go to Config",
     "privacy_title": "Data, always yours",
     "privacy_desc": "Your data is stored only locally. With end-to-end sync, you maintain complete control over your memory sovereignty.",
+    "storage_title": "Choose a Home for Memories",
+    "storage_desc": "BaiShou stores data in the system Documents by default. You can specify a custom folder (e.g., USB drive or sync drive) to keep your memories mobile.",
+    "current_storage": "Current Storage:",
+    "select_storage": "Select Path",
+    "change_storage": "Change Path",
+    "storage_permission_error": "Cannot access selected directory, please ensure read/write permissions.",
     "get_started": "Start Journey",
     "skip": "Skip",
     "config_now": "Configure Now",
@@ -127,6 +134,10 @@
     "language_ja": "Japanese",
     "language_zh_tw": "Traditional Chinese",
     "profile_section": "Profile",
+    "storage_manager": "Storage Management",
+    "storage_root": "Root Directory",
+    "storage_root_desc": "Physical storage location for all BaiShou Vault data",
+    "change_storage_root": "Change Root",
     "edit_profile": "Edit Profile",
     "edit_nickname": "Edit Nickname",
     "no_nickname": "No nickname",

@@ -17,11 +17,10 @@ part 'journal_file_service.g.dart';
 /// 所有的 I/O 均受到当前活跃 Vault 边界的限制。
 @Riverpod(keepAlive: true)
 class JournalFileService extends _$JournalFileService {
-  late final StoragePathService _pathProvider;
+  StoragePathService get _pathProvider => ref.read(storagePathServiceProvider);
 
   @override
   FutureOr<void> build() async {
-    _pathProvider = ref.read(storagePathServiceProvider);
     // 监听当前活跃的 Vault，切换时抛错重新挂载边界防线
     ref.watch(vaultServiceProvider);
   }
@@ -65,34 +64,45 @@ class JournalFileService extends _$JournalFileService {
     return assetsDir;
   }
 
-  /// 写入单个原子日记到物理文件
-  /// 这个方法会将 Diary 对象序列化为包含 YAML Front Matter 的 Markdown 文本。
+  /// 写入日记到物理文件（覆盖写入当天全部内容）
+  /// 日记按天切分，一天对应一个 `yyyy-MM-dd.md` 文件。
   Future<String> writeJournal(Diary diary) async {
     final file = await _resolveDateTargetFile(diary.createdAt);
+    final isNewFile = !file.existsSync();
 
-    // 构建 YAML Front Matter
+    Map<String, dynamic> existingMeta = {};
+
+    if (!isNewFile) {
+      final content = await file.readAsString();
+      final regex = RegExp(r'^---\r?\n(.*?)\r?\n---\r?\n(.*)$', dotAll: true);
+      final match = regex.firstMatch(content);
+      if (match != null) {
+        final yamlStr = match.group(1) ?? '';
+        try {
+          final doc = loadYaml(yamlStr);
+          existingMeta = Map<String, dynamic>.from(doc as Map);
+        } catch (_) {}
+      }
+    }
+
     final yamlWriter = YamlWriter();
     final metaData = {
-      'id': diary.id,
-      'createdAt': diary.createdAt.toIso8601String(),
-      'updatedAt': diary.updatedAt.toIso8601String(),
-      'weather': diary.weather,
-      'mood': diary.mood,
-      'location': diary.location,
-      'locationDetail': diary.locationDetail,
+      'id': isNewFile ? diary.id : existingMeta['id'] ?? diary.id,
+      'createdAt': isNewFile
+          ? diary.createdAt.toIso8601String()
+          : existingMeta['createdAt'] ?? diary.createdAt.toIso8601String(),
+      'updatedAt': DateTime.now().toIso8601String(),
+      'weather': diary.weather ?? existingMeta['weather'],
+      'mood': diary.mood ?? existingMeta['mood'],
+      'location': diary.location ?? existingMeta['location'],
+      'locationDetail': diary.locationDetail ?? existingMeta['locationDetail'],
       'isFavorite': diary.isFavorite,
       'tags': diary.tags,
-      // 媒体资源如果是相对路径或网络 URL 会被保存，如果是新添加将被挪移到 Assets 待后续扩充逻辑
       'mediaPaths': diary.mediaPaths,
     };
 
     final yamlString = yamlWriter.write(metaData);
 
-    // 拼装最终内容:
-    // ---
-    // yaml...
-    // ---
-    // content...
     final buffer = StringBuffer();
     buffer.writeln('---');
     buffer.write(yamlString);
@@ -100,9 +110,8 @@ class JournalFileService extends _$JournalFileService {
       buffer.writeln();
     }
     buffer.writeln('---');
-    buffer.write(diary.content);
+    buffer.write(diary.content.trim());
 
-    // 文件操作锁控与刷入 (这里利用 Dart I/O 自身的异步写入阻塞)
     await file.writeAsString(buffer.toString(), flush: true);
     return file.path;
   }
@@ -156,7 +165,7 @@ class JournalFileService extends _$JournalFileService {
         mediaPaths: meta['mediaPaths'] != null
             ? List<String>.from(meta['mediaPaths'] as Iterable)
             : const [],
-        date: null,
+        date: date,
       );
     } catch (e) {
       // Yaml 抛出异常的防崩退逻辑

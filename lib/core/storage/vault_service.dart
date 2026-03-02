@@ -42,14 +42,13 @@ class VaultInfo {
 /// 负责读取 `vault_registry.json`，并对外暴露活跃 Vault 的状态。
 @Riverpod(keepAlive: true)
 class VaultService extends _$VaultService {
-  late final StoragePathService _pathProvider;
+  StoragePathService get _pathProvider => ref.read(storagePathServiceProvider);
   File? _registryFile;
 
   List<VaultInfo> _vaults = [];
 
   @override
   Future<VaultInfo?> build() async {
-    _pathProvider = ref.read(storagePathServiceProvider);
     await _initRegistry();
     return _getActiveVault();
   }

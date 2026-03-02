@@ -1,48 +1,81 @@
 import 'dart:io';
-import 'package:baishou/i18n/strings.g.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:baishou/core/providers/shared_preferences_provider.dart';
 
 part 'storage_path_provider.g.dart';
 
 /// 白守核心存储路径服务
-/// 遵循 "物理文件 + SQLite 影子索引" 架构，统管数据的根目录与空间目录。
+/// 遵循 "物理文件 + SQLite 索引" 架构，统管数据的根目录与空间目录。
 class StoragePathService {
+  final SharedPreferences _prefs;
+  StoragePathService(this._prefs);
+
   static const String rootFolderName = 'BaiShou_Root';
   static const String systemFolderName = '.baishou';
+  static const String _customRootKey = 'custom_storage_root';
 
   /// 获取白守数据的绝对物理根目录
-  ///
-  /// 该方法定义了白守在不同平台下的数据归宿：
-  /// - **Android**: 尝试使用外部存储的应用专属目录。这样做的好处是即便应用卸载，
-  ///   如果用户手动备份了该目录，数据依然存在，且用户可以通过系统文件管理器直接查看 Markdown 文件。
-  /// - **iOS/桌面端**: 使用标准的文档目录 (Documents)，确保数据的私密性与系统级备份。
   Future<Directory> getRootDirectory() async {
+    // 优先尝试获取用户自定义的存储路径
+    final customPath = _prefs.getString(_customRootKey);
+    if (customPath != null && customPath.isNotEmpty) {
+      final customDir = Directory(customPath);
+      try {
+        if (!customDir.existsSync()) {
+          await customDir.create(recursive: true);
+        }
+        // 增加一個簡單的可寫性檢查：嘗試在目錄下創建一個臨時文件
+        final testFile = File(p.join(customDir.path, '.write_test'));
+        await testFile.writeAsString('test');
+        // 嘗試刪除測試文件，如果失敗（如在 Windows 上被鎖定）也不影響「可寫」的判定
+        try {
+          if (await testFile.exists()) {
+            await testFile.delete();
+          }
+        } catch (e) {
+          // debugPrint(
+          //   'StoragePathService: Cleanup of test file failed (non-critical): $e',
+          // );
+        }
+
+        return customDir;
+      } catch (e) {
+        // 如果自定義路徑不可寫（如 Scoped Storage 限制或權限不足），則退回到預設邏輯
+        debugPrint(
+          'StoragePathService: Custom path $customPath is not writable: $e',
+        );
+      }
+    }
+
     Directory? baseDir;
 
     if (Platform.isAndroid) {
-      // 尝试获取可公开访问的外部存储，这是白守“数据主权”在 Android 上的体现
-      baseDir = await getExternalStorageDirectory();
+      // 默认使用內部存儲的 Documents 目录，这是最安全且不需要额外權限的
+      baseDir = await getApplicationDocumentsDirectory();
     } else if (Platform.isIOS) {
       baseDir = await getApplicationDocumentsDirectory();
     } else {
-      // Windows, macOS, Linux 默认放在用户的文档目录下，方便用户直接通过电脑浏览日记物理文件
       baseDir = await getApplicationDocumentsDirectory();
     }
 
-    if (baseDir == null) {
-      // [国际化改造]：利用 i18n 强类型 Key 替代硬编码错误提示
-      throw Exception(t.common.errors.storage_path_not_found);
-    }
-
-    // 拼装最终的 BaiShou_Root 路径，所有 Vault 都会在这个目录下并列存储
     final rootDir = Directory(p.join(baseDir.path, rootFolderName));
     if (!rootDir.existsSync()) {
       await rootDir.create(recursive: true);
     }
     return rootDir;
   }
+
+  /// 更新自定义根路径
+  Future<void> updateRootDirectory(String path) async {
+    await _prefs.setString(_customRootKey, path);
+  }
+
+  /// 获取当前配置的原始根路径字符串 (用于 UI 显示)
+  String? getCustomRootPath() => _prefs.getString(_customRootKey);
 
   /// 获取全局注册中心目录 (`<Root>/.baishou/`)
   Future<Directory> getGlobalRegistryDirectory() async {
@@ -56,7 +89,6 @@ class StoragePathService {
 
   /// 获取特定 Vault 的物理根目录 (`<Root>/VaultName/`)
   Future<Directory> getVaultDirectory(String vaultName) async {
-    // 基础防呆校验：移除可能导致目录跃迁的恶意字符
     final safeName = vaultName.replaceAll(RegExp(r'[/\\]'), '_');
     final root = await getRootDirectory();
     final vaultDir = Directory(p.join(root.path, safeName));
@@ -77,7 +109,6 @@ class StoragePathService {
   }
 
   /// 获取特定 Vault 下日志存放的物理基础路径 (`<Vault>/Journals`)
-  /// 分析文件在 `Year` 目录，日记详情在 `Year/Month` 目录。
   Future<Directory> getJournalsBaseDirectory(String vaultName) async {
     final vaultDir = await getVaultDirectory(vaultName);
     final journalsDir = Directory(p.join(vaultDir.path, 'Journals'));
@@ -90,5 +121,6 @@ class StoragePathService {
 
 @Riverpod(keepAlive: true)
 StoragePathService storagePathService(Ref ref) {
-  return StoragePathService();
+  final prefs = ref.watch(sharedPreferencesProvider);
+  return StoragePathService(prefs);
 }

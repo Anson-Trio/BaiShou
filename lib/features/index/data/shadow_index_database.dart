@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 import 'package:baishou/core/storage/storage_path_provider.dart';
 import 'package:baishou/core/storage/vault_service.dart';
@@ -44,7 +45,7 @@ class ShadowIndexDatabase extends _$ShadowIndexDatabase {
 
     _db = await openDatabase(
       dbPath,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         // 创建基础镜像表：记录物理文件的元数据和状态
         await db.execute('''
@@ -64,18 +65,52 @@ class ShadowIndexDatabase extends _$ShadowIndexDatabase {
           )
         ''');
 
-        // 创建全文检索虚拟表 (FTS5) - 未来扩展用
-        await db.execute('''
-          CREATE VIRTUAL TABLE journals_fts USING fts5(
-            content,
-            tags,
-            content='journals_index',
-            content_rowid='id'
-          )
-        ''');
+        // 创建全文检索虚拟表 (FTS5) - 存储内容与标签以加速搜索
+        try {
+          await db.execute('''
+            CREATE VIRTUAL TABLE journals_fts USING fts5(
+              content,
+              tags,
+              tokenize = 'unicode61'
+            )
+          ''');
+        } catch (e) {
+          // 兜底方案：如果系统 SQLite 不支持 FTS5 (常见于旧款 Android 或精简版系统)，则降级为普通表
+          debugPrint(
+            'ShadowIndexDatabase: FTS5 is not supported on this device, falling back to standard table: $e',
+          );
+          await db.execute('''
+            CREATE TABLE journals_fts (
+              rowid INTEGER PRIMARY KEY,
+              content TEXT,
+              tags TEXT
+            )
+          ''');
+        }
       },
       onUpgrade: (db, oldVersion, newVersion) async {
-        // 留作日后挂接 sqlite-vec 向量虚拟表用
+        if (oldVersion < 2) {
+          await db.execute('DROP TABLE IF EXISTS journals_fts');
+          // 重新运行建表逻辑以应用新结构
+          try {
+            await db.execute('''
+              CREATE VIRTUAL TABLE journals_fts USING fts5(
+                content,
+                tags,
+                tokenize = 'unicode61'
+              )
+            ''');
+          } catch (e) {
+            debugPrint('ShadowIndexDatabase: FTS5 fallback during upgrade: $e');
+            await db.execute('''
+              CREATE TABLE journals_fts (
+                rowid INTEGER PRIMARY KEY,
+                content TEXT,
+                tags TEXT
+              )
+            ''');
+          }
+        }
       },
     );
   }

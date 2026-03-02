@@ -8,23 +8,16 @@ import 'package:window_manager/window_manager.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:baishou/i18n/strings.g.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await initializeDateFormatting();
 
-  if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
-    await windowManager.ensureInitialized();
-    WindowOptions windowOptions = WindowOptions(
-      minimumSize: const Size(1200, 800),
-      center: true,
-      title: t.common.app_tagline,
-    );
-    windowManager.waitUntilReadyToShow(windowOptions, () async {
-      await windowManager.show();
-      await windowManager.focus();
-    });
+  if (!kIsWeb && (Platform.isWindows || Platform.isLinux)) {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
   }
 
   final prefs = await SharedPreferences.getInstance();
@@ -40,6 +33,19 @@ void main() async {
     }
   } else {
     await LocaleSettings.useDeviceLocale();
+  }
+
+  if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+    await windowManager.ensureInitialized();
+    WindowOptions windowOptions = WindowOptions(
+      minimumSize: const Size(1200, 800),
+      center: true,
+      title: t.common.app_tagline,
+    );
+    windowManager.waitUntilReadyToShow(windowOptions, () async {
+      await windowManager.show();
+      await windowManager.focus();
+    });
   }
 
   runApp(

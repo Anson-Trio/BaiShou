@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:baishou/features/index/data/shadow_index_database.dart';
 import 'package:baishou/features/storage/domain/services/journal_file_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:baishou/core/storage/vault_service.dart';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
@@ -13,13 +15,85 @@ part 'shadow_index_sync_service.g.dart';
 /// 负责扫描并建立/更新物理文件夹和 SQLite 数据之间的一致性
 @Riverpod(keepAlive: true)
 class ShadowIndexSyncService extends _$ShadowIndexSyncService {
+  StreamController<void>? _syncEventController;
+  StreamSubscription<FileSystemEvent>? _watchSubscription;
+
   @override
   FutureOr<void> build() {
-    // 【疑问解答】：为什么 build 里只有注释？
-    // 1. 在 Riverpod 的 Notifier 中，build 方法主要用于“初始化状态”。
-    // 2. 对于像同步器这种“纯触发型”的服务，它本身不需要持有一个持续变化的状态流。
-    // 3. 我们声明 build 为 FutureOr<void>，是为了让 Riverpod 知道这是一个单例式的 Provider，
-    //    它的真正逻辑体现在下面的异步方法（如 syncJournal）中。
+    // 监听 vault 变化重新绑定 watcher
+    ref.listen(vaultServiceProvider, (previous, next) {
+      if (next.value != null && next.value?.name != previous?.value?.name) {
+        startWatchingVault();
+      }
+    });
+  }
+
+  /// 对外暴露的同步事件流，用于通知 Repository 刷新 UI
+  Stream<void> get syncEvents {
+    _syncEventController ??= StreamController<void>.broadcast();
+    return _syncEventController!.stream;
+  }
+
+  /// 启动实时文件系统监视器 (类似 Obsidian)
+  Future<void> startWatchingVault() async {
+    await _watchSubscription?.cancel();
+    final activeVault = await ref.read(vaultServiceProvider.future);
+    if (activeVault == null) return;
+
+    final journalsDir = Directory(p.join(activeVault.path, 'Journals'));
+    if (!journalsDir.existsSync()) return;
+
+    // 监听文件夹变动
+    _watchSubscription = journalsDir.watch(recursive: true).listen((
+      event,
+    ) async {
+      final path = event.path;
+      if (!path.endsWith('.md')) return;
+
+      final fileName = p.basename(path);
+      final dateFileRegex = RegExp(r'^(\d{4}-\d{2}-\d{2})\.md$');
+      final match = dateFileRegex.firstMatch(fileName);
+      if (match == null) return;
+
+      final dateStr = match.group(1)!;
+
+      try {
+        if (event.type == FileSystemEvent.delete) {
+          // 外部删除了文件，查找数据库中对应的日期并删除
+          final dbService = ref.read(shadowIndexDatabaseProvider.notifier);
+          final db = await dbService.database;
+          final rows = await db.query(
+            'journals_index',
+            columns: ['id'],
+            where: 'date LIKE ?',
+            whereArgs: ['$dateStr%'],
+          );
+          for (var row in rows) {
+            await dbService.deleteJournalIndex(row['id'] as int);
+            debugPrint(
+              'ShadowIndexSyncService: Watcher detected delete, cleaned index for $dateStr',
+            );
+          }
+        } else if (event.type == FileSystemEvent.modify ||
+            event.type == FileSystemEvent.create) {
+          // 外部修改或新建了文件，重新解析并同步
+          final date = DateTime.parse(dateStr);
+          await syncJournal(date);
+          debugPrint(
+            'ShadowIndexSyncService: Watcher detected update, synced index for $dateStr',
+          );
+        }
+
+        // 触发 UI 刷新流
+        _syncEventController?.add(null);
+      } catch (e) {
+        debugPrint('ShadowIndexSyncService: Watch error - $e');
+      }
+    });
+
+    debugPrint(
+      'ShadowIndexSyncService: Started watching directory: ${journalsDir.path}',
+    );
   }
 
   /// 计算文件的 Hash 用以后续对比是否有脏数据
@@ -99,19 +173,39 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
       }
     }
 
-    // 2. 串行（或分批）执行同步
-    // 此处选择串行以保证 SQLite 写入时序的稳定性，且减少 IO 并发压力
+    // 2. 串行执行同步，并记录所有扫描到的日期
+    final Set<String> scannedDates = {};
+
     for (final file in targetFiles) {
       try {
         final fileName = p.basename(file.path);
         final dateStr = dateFileRegex.firstMatch(fileName)?.group(1);
         if (dateStr != null) {
+          scannedDates.add(dateStr);
           final date = DateTime.parse(dateStr);
           await syncJournal(date);
         }
       } catch (e) {
-        // 单个文件同步失败不应阻断整个扫描流程
         continue;
+      }
+    }
+
+    // 3. 【核心修复】：清理孤立索引 (Orphaned Index)
+    // 找出那些数据库里有，但物理磁盘上已经消失的日期条目
+    final dbService = ref.read(shadowIndexDatabaseProvider.notifier);
+    final db = await dbService.database;
+    final rows = await db.query('journals_index', columns: ['id', 'date']);
+
+    for (final row in rows) {
+      final id = row['id'] as int;
+      final dateStr = (row['date'] as String).split('T').first; // 提取 yyyy-MM-dd
+
+      if (!scannedDates.contains(dateStr)) {
+        // 物理文件已不存在，执行影子清理
+        await dbService.deleteJournalIndex(id);
+        debugPrint(
+          'ShadowIndexSyncService: Cleaned orphaned index for date $dateStr (ID: $id)',
+        );
       }
     }
   }

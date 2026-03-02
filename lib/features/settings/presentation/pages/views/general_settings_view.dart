@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:baishou/core/storage/storage_path_provider.dart';
 import 'package:baishou/core/theme/theme_service.dart';
 import 'package:baishou/features/settings/domain/services/user_profile_service.dart';
 import 'package:baishou/features/settings/presentation/pages/about_page.dart';
@@ -41,6 +42,7 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
       children: [
         _buildProfileSection(),
         _buildAppearanceSection(),
+        _buildStorageSection(),
         _buildDataManagementSection(),
         _buildAboutSection(),
       ],
@@ -362,6 +364,63 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
       case ThemeMode.dark:
         return t.settings.theme_dark;
     }
+  }
+
+  Widget _buildStorageSection() {
+    final storageService = ref.watch(storagePathServiceProvider);
+
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 16),
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: Column(
+        children: [
+          ExpansionTile(
+            leading: const Icon(Icons.folder_shared_outlined),
+            title: Text(t.settings.storage_manager),
+            subtitle: Text(t.settings.storage_root_desc),
+            children: [
+              ListTile(
+                title: Text(t.settings.storage_root),
+                subtitle: FutureBuilder<Directory>(
+                  future: storageService.getRootDirectory(),
+                  builder: (context, snapshot) {
+                    return Text(
+                      snapshot.data?.path ?? '...',
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    );
+                  },
+                ),
+                trailing: TextButton(
+                  onPressed: () async {
+                    String? selectedDirectory = await FilePicker.platform
+                        .getDirectoryPath();
+                    if (selectedDirectory != null) {
+                      await storageService.updateRootDirectory(
+                        selectedDirectory,
+                      );
+                      setState(() {});
+                      if (mounted) {
+                        AppToast.showSuccess(context, t.common.success);
+                      }
+                    }
+                  },
+                  child: Text(t.settings.change_storage_root),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildDataManagementSection() {

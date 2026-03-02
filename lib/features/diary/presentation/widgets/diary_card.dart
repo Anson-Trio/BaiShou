@@ -2,11 +2,11 @@ import 'package:baishou/core/theme/app_theme.dart';
 import 'package:baishou/features/diary/domain/entities/diary.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
-/// 日记卡片组件
-/// 在列表中展示单篇日记的摘要信息，包括日期、时间、内容预览以及标签。
+/// 日记 card 组件
+/// 在列表中展示单篇日记的摘要信息，使用 Markdown 直接渲染。
 class DiaryCard extends StatelessWidget {
   final Diary diary; // 日记实体数据
   final VoidCallback? onDelete; // 删除操作的回调
@@ -15,21 +15,6 @@ class DiaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 提取标题（第一行）和内容（其余部分）
-    final lines = diary.content.split('\n');
-    final String title = (lines.isNotEmpty && lines.first.trim().isNotEmpty)
-        ? lines.first
-        : t.diary.no_title;
-    final String body = lines.length > 1
-        ? lines
-              .sublist(1)
-              .take(3)
-              .join('\n')
-              .trim() // 最多预览 3 行
-        : '';
-
-    final timeStr = DateFormat('jm').format(diary.date); // e.g. 5:08 PM
-
     return Card(
       elevation: 0,
       color: Theme.of(context).cardTheme.color,
@@ -44,135 +29,129 @@ class DiaryCard extends StatelessWidget {
           context.push('/diary/edit?id=${diary.id}');
         },
         borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(20), // p-5 in Tailwind ~ 20px
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 头部：时间 + 菜单
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    timeStr,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.color?.withOpacity(0.8),
-                      fontFamily: 'Monospace',
+                  // 内容直接渲染 Markdown
+                  MarkdownBody(
+                    data: diary.content,
+                    selectable: false, // 列表页建议关闭选择以保持滚动手感
+                    styleSheet: MarkdownStyleSheet(
+                      p: TextStyle(
+                        fontSize: 15,
+                        height: 1.5,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
+                      ),
+                      h5: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primary.withOpacity(0.8),
+                        height: 1.6,
+                      ),
+                      h6: TextStyle(
+                        // 兼容旧的 6 级标题
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: const Color.fromARGB(255, 255, 173, 218),
+                        height: 1.6,
+                      ),
+                      listBullet: TextStyle(
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
+                      ),
+                      blockSpacing: 8, // 压缩段落间距
                     ),
                   ),
-                  PopupMenuButton<String>(
-                    icon: Icon(
-                      Icons.more_horiz,
-                      size: 18,
-                      color: Colors.grey[400],
+
+                  // 标签 - 仅在有非空标签时显示
+                  if (diary.tags
+                      .where((t) => t.trim().isNotEmpty)
+                      .isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: diary.tags
+                          .where((t) => t.trim().isNotEmpty)
+                          .map((tag) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color:
+                                    Theme.of(context).brightness ==
+                                        Brightness.light
+                                    ? AppTheme.backgroundLight
+                                    : Colors.grey[800],
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: Theme.of(
+                                    context,
+                                  ).dividerColor.withOpacity(0.1),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Text(
+                                '#$tag',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color:
+                                      Theme.of(context).brightness ==
+                                          Brightness.light
+                                      ? AppTheme.textSecondaryLight
+                                      : AppTheme.textSecondaryDark,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            );
+                          })
+                          .toList(),
                     ),
-                    onSelected: (value) {
-                      if (value == 'delete') {
-                        onDelete?.call();
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.delete_outline,
-                              size: 20,
-                              color: Colors.red,
-                            ),
-                            SizedBox(width: 8),
-                            Text(
-                              t.common.delete,
-                              style: const TextStyle(color: Colors.red),
-                            ),
-                          ],
+                  ],
+                ],
+              ),
+            ),
+
+            // 头部：菜单（右上角绝对定位）
+            Positioned(
+              top: 4,
+              right: 4,
+              child: PopupMenuButton<String>(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: Icon(Icons.more_horiz, size: 18, color: Colors.grey[400]),
+                onSelected: (value) {
+                  if (value == 'delete') {
+                    onDelete?.call();
+                  }
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.delete_outline,
+                          size: 20,
+                          color: Colors.red,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 8),
+                        Text(
+                          t.common.delete,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
-
-              const SizedBox(height: 8),
-
-              // 标题
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500, // Medium
-                  height: 1.4,
-                  // Color handled by theme
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-
-              // 内容预览
-              if (body.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  body,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 14,
-                    height: 1.5,
-                    color: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.color?.withOpacity(0.8),
-                  ),
-                ),
-              ],
-
-              // 标签 - 仅在有非空标签时显示
-              if (diary.tags.where((t) => t.trim().isNotEmpty).isNotEmpty) ...[
-                const SizedBox(height: 16), // mt-4
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: diary.tags.where((t) => t.trim().isNotEmpty).map((
-                    tag,
-                  ) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).brightness == Brightness.light
-                            ? AppTheme.backgroundLight
-                            : Colors.grey[800], // slate-100 or slate-800
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Theme.of(
-                            context,
-                          ).dividerColor.withOpacity(0.1),
-                          width: 1,
-                        ),
-                      ),
-                      child: Text(
-                        '#$tag',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color:
-                              Theme.of(context).brightness == Brightness.light
-                              ? AppTheme.textSecondaryLight
-                              : AppTheme.textSecondaryDark,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

@@ -1,7 +1,9 @@
 import 'package:baishou/core/services/api_config_service.dart';
+import 'package:baishou/core/storage/storage_path_provider.dart';
 import 'package:baishou/features/onboarding/data/providers/onboarding_provider.dart';
 import 'package:baishou/features/onboarding/presentation/widgets/compression_chart.dart';
 import 'package:baishou/i18n/strings.g.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -19,7 +21,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
   final TextEditingController _apiKeyController = TextEditingController();
-  static const int _numPages = 5;
+  static const int _numPages = 6;
 
   @override
   void dispose() {
@@ -95,6 +97,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                   _buildWelcomeSlide(),
                   _buildPhilosophySlide(),
                   _buildCompressionSlide(),
+                  _buildStorageSlide(),
                   _buildApiConfigSlide(),
                   _buildPrivacySlide(),
                 ],
@@ -103,6 +106,87 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
             _buildBottomControls(),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildStorageSlide() {
+    final storageService = ref.watch(storagePathServiceProvider);
+
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.folder_shared_outlined,
+            size: 80,
+            color: Colors.amber,
+          ),
+          const SizedBox(height: 32),
+          Text(
+            t.onboarding.storage_title,
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            t.onboarding.storage_desc,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 16, height: 1.5),
+          ),
+          const SizedBox(height: 32),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(
+                context,
+              ).colorScheme.surfaceVariant.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  t.onboarding.current_storage,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                FutureBuilder(
+                  future: storageService.getRootDirectory(),
+                  builder: (context, snapshot) {
+                    return Text(
+                      snapshot.data?.path ?? '...',
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 13,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          FilledButton.icon(
+            onPressed: () async {
+              String? selectedDirectory = await FilePicker.platform
+                  .getDirectoryPath();
+              if (selectedDirectory != null) {
+                await storageService.updateRootDirectory(selectedDirectory);
+                setState(() {});
+              }
+            },
+            icon: const Icon(Icons.edit_location_alt_outlined),
+            label: Text(t.onboarding.change_storage),
+          ),
+        ],
       ),
     );
   }
@@ -256,11 +340,12 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
         children: [
           // Indicators
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: List.generate(_numPages, (index) {
               return Container(
                 margin: const EdgeInsets.only(right: 8),
-                width: 10,
-                height: 10,
+                width: 8,
+                height: 8,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: _currentPage == index
@@ -270,25 +355,41 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
               );
             }),
           ),
-          // Button
-          Row(
-            children: [
-              if (_currentPage > 0)
-                TextButton.icon(
-                  onPressed: _previousPage,
-                  icon: const Icon(Icons.arrow_back),
-                  label: Text(t.common.back),
+          const SizedBox(width: 16),
+          // Buttons
+          Flexible(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_currentPage > 0)
+                  Flexible(
+                    child: TextButton.icon(
+                      onPressed: _previousPage,
+                      icon: const Icon(Icons.arrow_back, size: 18),
+                      label: Text(
+                        t.common.back,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: FilledButton(
+                    onPressed: _nextPage,
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                    ),
+                    child: Text(
+                      _currentPage == _numPages - 1
+                          ? t.onboarding.get_started
+                          : t.common.next,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ),
-              const SizedBox(width: 8),
-              FilledButton(
-                onPressed: _nextPage,
-                child: Text(
-                  _currentPage == _numPages - 1
-                      ? t.onboarding.get_started
-                      : t.common.next,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),

@@ -1,5 +1,6 @@
 import 'package:baishou/i18n/strings.g.dart';
 import 'dart:async';
+import 'package:intl/intl.dart';
 
 import 'package:baishou/features/diary/domain/entities/diary.dart';
 import 'package:baishou/features/diary/domain/repositories/diary_repository.dart';
@@ -26,8 +27,25 @@ class DiaryRepositoryImpl implements DiaryRepository {
   final _streamController = StreamController<List<Diary>>.broadcast();
 
   DiaryRepositoryImpl(this._dbService, this._fileService, this._syncService) {
-    // 仓库初始化时，立即执行一次全量拉取，确保订阅流的 UI 能第一时间拿到数据
-    _emitAllDiaries();
+    // 仓库初始化时，立即执行一次全量扫描，确保物理文件和数据库影子索引一致（支持手动删除同步）
+    _initRepositoryData();
+  }
+
+  Future<void> _initRepositoryData() async {
+    try {
+      // 1. 初始化时先执行一次全量扫描，拉平现有状态
+      await _syncService.fullScanVault();
+
+      // 2. 挂载实时文件系统监听器事件流
+      _syncService.syncEvents.listen((_) {
+        _emitAllDiaries();
+      });
+    } catch (e) {
+      debugPrint('DiaryRepository: Full scan failed on startup: $e');
+    } finally {
+      // 2. 无论如何都触发一次流推送，确保 UI 有数据显示
+      _emitAllDiaries();
+    }
   }
 
   void dispose() {
@@ -42,9 +60,11 @@ class DiaryRepositoryImpl implements DiaryRepository {
       if (!_streamController.isClosed) {
         _streamController.add(list);
       }
-    } catch (e) {
-      // 这里的错误通常不应该中断主流程，仅作为调试日志记录
+    } catch (e, stack) {
       debugPrint('DiaryRepository: Failed to emit diaries. Error: $e');
+      if (!_streamController.isClosed) {
+        _streamController.addError(e, stack);
+      }
     }
   }
 
@@ -140,10 +160,31 @@ class DiaryRepositoryImpl implements DiaryRepository {
     final targetId = id ?? DateTime.now().millisecondsSinceEpoch;
     final now = DateTime.now();
 
+    // 如果是更新操作，需要检查日期是否发生变化，以便清理旧的物理文件
+    DateTime? oldFileDate;
+    if (id != null) {
+      final db = await _dbService.database;
+      final rows = await db.query(
+        'journals_index',
+        columns: ['created_at', 'date'],
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      if (rows.isNotEmpty) {
+        final oldDateStr = rows.first['date'] as String;
+        final oldCreatedAtStr = rows.first['created_at'] as String;
+        // 比较逻辑日期 YYYY-MM-DD
+        final fmt = DateFormat('yyyy-MM-dd');
+        if (oldDateStr != fmt.format(date)) {
+          oldFileDate = DateTime.parse(oldCreatedAtStr);
+        }
+      }
+    }
+
     final diary = Diary(
       id: targetId,
       date: date,
-      createdAt: id == null ? now : date, // 如果是强补更新，应该读出再写，这里简化处理 createdAt
+      createdAt: id == null ? now : date, // 编辑模式下将 createdAt 对齐到目标 date 以移动文件
       updatedAt: now,
       content: content,
       tags: tags,
@@ -156,9 +197,20 @@ class DiaryRepositoryImpl implements DiaryRepository {
     );
 
     try {
-      // --- 核心“双写”逻辑开始 ---
+      // --- 核心"双写"逻辑开始 ---
 
-      // 第一步：保存物理文件 (Markdown)
+      // 第一步：如果日期发生变化，先行清理旧物理文件
+      if (oldFileDate != null) {
+        try {
+          await _fileService.deleteJournalFile(oldFileDate);
+        } catch (e) {
+          debugPrint(
+            'DiaryRepository: Failed to delete old file during move: $e',
+          );
+        }
+      }
+
+      // 第二步：保存物理文件 (Markdown)
       // 这是“数据主权”的物理载体。即使应用没了，这行代码产生的文件也是你永恒的记忆备份。
       await _fileService.writeJournal(diary);
 
