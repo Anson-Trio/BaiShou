@@ -5,9 +5,9 @@
 #### 看板娘：Latte
 
 **"时光流逝，记忆消散。而我，已在此守候了很久很久。"**
-![Latte-Banner-01](.\Latte\assets\Latte-Banner-01.png)
+![Latte-Banner-01](https://github.com/Anson-Trio/BaiShou/blob/main/Latte/assets/Latte-Banner-01.png?raw=true)
 
-关于Latte的设定，请看[Latte/角色设定.md](.\Latte\角色设定.md)
+关于Latte的设定，请看[Latte/角色设定.md](https://github.com/Anson-Trio/BaiShou/blob/main/Latte/%E8%A7%92%E8%89%B2%E8%AE%BE%E5%AE%9A.md)
 
 
 
