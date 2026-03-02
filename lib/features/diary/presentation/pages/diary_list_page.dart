@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/services.dart';
 import 'package:baishou/core/theme/app_theme.dart';
 import 'package:baishou/core/widgets/year_month_picker_sheet.dart';
 import 'package:baishou/features/diary/data/repositories/diary_repository_impl.dart';
@@ -12,9 +11,10 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:baishou/core/localization/locale_service.dart';
 import 'package:baishou/i18n/strings.g.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 /// 日记列表页面
-/// 使用 CustomScrollView 实现带有年份吸顶效果的高性能滚动列表。
+/// 使用 MasonryGridView 实现类似草稿纸变体3的瀑布流。
 class DiaryListPage extends ConsumerStatefulWidget {
   const DiaryListPage({super.key});
 
@@ -54,7 +54,9 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
         backgroundColor: Colors.transparent, // 让底层 Scaffold 的颜色透上来
         appBar: AppBar(
           centerTitle: false,
-          backgroundColor: Colors.transparent,
+          backgroundColor: Theme.of(
+            context,
+          ).colorScheme.surface.withOpacity(0.8),
           surfaceTintColor: Colors.transparent,
           elevation: 0,
           title: _isSearching && !isDesktop
@@ -66,9 +68,7 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
                   ),
                   onChanged: (val) => setState(() => _searchQuery = val),
                 )
-              : isDesktop
-              ? _buildDesktopHeader(context)
-              : _buildMobileTitle(context),
+              : _buildHeader(context, isDesktop),
           actions: isDesktop
               ? null
               : [
@@ -81,62 +81,89 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
                     },
                     icon: Icon(_isSearching ? Icons.close : Icons.search),
                   ),
+                  IconButton(
+                    onPressed: () {},
+                    icon: const Icon(Icons.filter_list),
+                  ),
                 ],
         ),
-        body: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: isDesktop ? 800 : double.infinity,
-            ),
-            child: StreamBuilder<List<Diary>>(
-              stream: diaryStream,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Text('${t.common.error}: ${snapshot.error}'),
-                  );
-                }
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+        body: Stack(
+          children: [
+            Column(
+              children: [
+                Expanded(
+                  child: StreamBuilder<List<Diary>>(
+                    stream: diaryStream,
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return Center(
+                          child: Text('${t.common.error}: ${snapshot.error}'),
+                        );
+                      }
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
 
-                final diaries = snapshot.data!;
+                      final diaries = snapshot.data!;
+                      final filteredDiaries = _getFilteredDiaries(diaries);
 
-                // 性能优化：使用 helper 方法进行分组与筛选
-                final filteredDiaries = _getFilteredDiaries(diaries);
-                if (filteredDiaries.isEmpty) return _buildEmptyState(context);
+                      // 降序排序，最新在最前
+                      filteredDiaries.sort((a, b) => b.date.compareTo(a.date));
 
-                final groupedData = _getGroupedDiaries(filteredDiaries);
-                final sortedDates = groupedData.keys.toList()
-                  ..sort((a, b) => b.compareTo(a));
+                      if (filteredDiaries.isEmpty)
+                        return _buildEmptyState(context);
 
-                return GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onDoubleTap: () {
-                    _scrollController.animateTo(
-                      0,
-                      duration: const Duration(milliseconds: 400),
-                      curve: Curves.easeOut,
-                    );
-                  },
-                  child: CustomScrollView(
-                    controller: _scrollController,
-                    physics: const BouncingScrollPhysics(),
-                    slivers: [
-                      const SliverToBoxAdapter(child: SizedBox(height: 10)),
-                      ..._buildSlivers(
-                        context,
-                        groupedData,
-                        sortedDates,
-                        isDesktop,
-                      ),
-                      const SliverToBoxAdapter(child: SizedBox(height: 80)),
-                    ],
+                      return GestureDetector(
+                        behavior: HitTestBehavior.translucent,
+                        onDoubleTap: () {
+                          if (_scrollController.hasClients) {
+                            _scrollController.animateTo(
+                              0,
+                              duration: const Duration(milliseconds: 400),
+                              curve: Curves.easeOut,
+                            );
+                          }
+                        },
+                        child: MasonryGridView.builder(
+                          controller: _scrollController,
+                          physics: const BouncingScrollPhysics(),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isDesktop ? 32 : 16,
+                            vertical: 24,
+                          ),
+                          gridDelegate:
+                              SliverSimpleGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: _getCrossAxisCount(context),
+                              ),
+                          mainAxisSpacing: 24,
+                          crossAxisSpacing: 24,
+                          itemCount: filteredDiaries.length,
+                          itemBuilder: (context, index) {
+                            return DiaryCard(
+                              diary: filteredDiaries[index],
+                              onDelete: () => _confirmDelete(
+                                context,
+                                ref,
+                                filteredDiaries[index],
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
+                ),
+              ],
             ),
-          ),
+
+            // Floating Action Buttons (Bottom Right for Desktop)
+            if (isDesktop)
+              Positioned(
+                bottom: 32,
+                right: 32,
+                child: _buildDesktopFABs(context, diaryStream),
+              ),
+          ],
         ),
         floatingActionButton: isDesktop
             ? null
@@ -152,227 +179,198 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
     );
   }
 
-  Widget _buildMobileTitle(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        _showMonthPicker(context);
-      },
-      onDoubleTap: () {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            0,
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeOut,
-          );
-        }
-      },
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            _selectedMonth == null
-                ? t.diary.all_diaries
-                : DateFormat(
-                    t.diary.export_month_format,
-                    LocaleSettings.instance.currentLocale.languageCode,
-                  ).format(_selectedMonth!),
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              fontSize: 22,
+  int _getCrossAxisCount(BuildContext context) {
+    double width = MediaQuery.of(context).size.width;
+    // 考虑左侧导航栏大约占 256px
+    if (width > 1200) return 3; // 变体3的三栏
+    if (width > 700) return 2; // 变体3的双栏
+    return 1;
+  }
+
+  Widget _buildDesktopFABs(
+    BuildContext context,
+    Stream<List<Diary>> diaryStream,
+  ) {
+    return StreamBuilder<List<Diary>>(
+      stream: diaryStream,
+      builder: (context, snapshot) {
+        final diaries = snapshot.data ?? [];
+        final todayDiary = diaries.firstWhereOrNull(
+          (d) => DateUtils.isSameDay(d.date, DateTime.now()),
+        );
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Edit Today button (直接打开今天)
+            Material(
+              color: Theme.of(context).colorScheme.surface,
+              shape: const CircleBorder(),
+              elevation: 4,
+              shadowColor: Colors.black.withOpacity(0.15),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: () {
+                  if (todayDiary != null) {
+                    context.push('/diary/edit?id=${todayDiary.id}');
+                  } else {
+                    context.push(
+                      '/diary/edit?date=${DateTime.now().toIso8601String()}',
+                    );
+                  }
+                },
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.edit_note,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    size: 24,
+                  ),
+                ),
+              ),
             ),
-          ),
-          const SizedBox(width: 4),
-          const Icon(Icons.keyboard_arrow_down_rounded),
-        ],
-      ),
+            const SizedBox(height: 16),
+            // Add Entry button (始终触发新增逻辑块，利用 Editor 内容追加机制)
+            Material(
+              color: AppTheme.primary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              elevation: 8,
+              shadowColor: AppTheme.primary.withOpacity(0.4),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () {
+                  context.push(
+                    '/diary/edit?date=${DateTime.now().toIso8601String()}',
+                  );
+                },
+                child: Container(
+                  width: 64,
+                  height: 64,
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.add, color: Colors.white, size: 32),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildDesktopHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, bool isDesktop) {
     final theme = Theme.of(context);
+    final isEn = LocaleSettings.instance.currentLocale == AppLocale.en;
+
+    // Header content: 年份/月份 selection
+    final now = DateTime.now();
+    final dateToDisplay = _selectedMonth ?? now;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 0),
+      padding: EdgeInsets.symmetric(horizontal: isDesktop ? 16 : 0),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              GestureDetector(
-                onTap: () => _showMonthPicker(context),
-                child: Row(
-                  children: [
-                    Text(
-                      _selectedMonth == null
-                          ? DateFormat(
-                              t.diary.export_month_format,
-                              LocaleSettings
-                                  .instance
-                                  .currentLocale
-                                  .languageCode,
-                            ).format(DateTime.now())
-                          : DateFormat(
-                              t.diary.export_month_format,
-                              LocaleSettings
-                                  .instance
-                                  .currentLocale
-                                  .languageCode,
-                            ).format(_selectedMonth!),
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const Icon(Icons.keyboard_arrow_down_rounded, size: 28),
-                  ],
-                ),
-              ),
-              Text(
-                t.settings.tagline_short,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-          const Spacer(),
-          // 搜索框
-          Container(
-            width: 240,
-            height: 40,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+          // Left: Date filter
+          GestureDetector(
+            onTap: () => _showMonthPicker(context),
             child: Row(
               children: [
-                Icon(
-                  Icons.search,
-                  size: 18,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    onChanged: (val) => setState(() => _searchQuery = val),
-                    decoration: InputDecoration(
-                      hintText: t.common.search_hint,
-                      hintStyle: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      border: InputBorder.none,
-                      isDense: true,
-                    ),
+                Text(
+                  _selectedMonth == null
+                      ? t.diary.all_diaries
+                      : '${dateToDisplay.year}',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
+                if (_selectedMonth != null) ...[
+                  Icon(
+                    Icons.arrow_drop_down,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  Text(
+                    ' / ',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant.withOpacity(
+                        0.5,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    isEn
+                        ? DateFormat('MMM').format(dateToDisplay)
+                        : '${dateToDisplay.month}${t.common.month_suffix}',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+                Icon(Icons.arrow_drop_down, color: theme.colorScheme.onSurface),
               ],
             ),
           ),
-          const SizedBox(width: 16),
-          // 添加按钮
-          IconButton.filled(
-            onPressed: () => context.push(
-              '/diary/edit?date=${DateTime.now().toIso8601String()}',
-            ),
-            icon: const Icon(Icons.add),
-            style: IconButton.styleFrom(
-              backgroundColor: theme.colorScheme.primary,
-              foregroundColor: theme.colorScheme.onPrimary,
-              fixedSize: const Size(44, 44),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.edit_note,
-            size: 80,
-            color: AppTheme.primary.withOpacity(0.5),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            _selectedMonth != null
-                ? t.diary.no_diaries_month
-                : t.diary.no_diaries,
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(color: Colors.grey),
-          ),
-          if (_selectedMonth != null) ...[
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () => setState(() => _selectedMonth = null),
-              child: Text(t.common.view_all),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTimelineItem(
-    BuildContext context,
-    WidgetRef ref,
-    Diary diary,
-    bool isDesktop,
-  ) {
-    return Stack(
-      children: [
-        // 左侧连续线条
-        Positioned(
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: 2,
-          child: Container(
-            color: Theme.of(context).dividerColor.withOpacity(0.5),
-          ),
-        ),
-        // 内容区域
-        Padding(
-          padding: EdgeInsets.only(
-            left: isDesktop ? 40 : 20,
-            bottom: 24,
-            right: 20,
-          ),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              // 时间轴节点
-              Positioned(
-                left: isDesktop ? -46 : -26, // 调整以在直线上居中
-                top: 20,
-                child: Container(
-                  width: 10,
-                  height: 10,
+          // Right: Search and Filter (Desktop only)
+          if (isDesktop)
+            Row(
+              children: [
+                Container(
+                  width: 200,
+                  height: 36,
                   decoration: BoxDecoration(
-                    color: AppTheme.primary,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Theme.of(context).scaffoldBackgroundColor,
-                      width: 2,
-                    ),
+                    color: theme.colorScheme.surfaceContainerHighest
+                        .withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.search,
+                        size: 18,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          onChanged: (val) =>
+                              setState(() => _searchQuery = val),
+                          decoration: InputDecoration(
+                            hintText: t.common.search_hint,
+                            hintStyle: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              DiaryCard(
-                diary: diary,
-                onDelete: () {
-                  _confirmDelete(context, ref, diary);
-                },
-              ),
-            ],
-          ),
-        ),
-      ],
+                const SizedBox(width: 16),
+                Container(width: 1, height: 24, color: theme.dividerColor),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: () {},
+                  icon: Icon(
+                    Icons.filter_list,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  tooltip: 'Filter',
+                ),
+              ],
+            ),
+        ],
+      ),
     );
   }
 
@@ -394,64 +392,6 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: Text(t.common.delete),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 构建年份分割线
-  Widget _buildYearDivider(BuildContext context, int year) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Container(
-              height: 1,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.transparent,
-                    Theme.of(context).dividerColor.withOpacity(0.5),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            margin: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: Theme.of(context).scaffoldBackgroundColor,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: Theme.of(context).dividerColor.withOpacity(0.2),
-              ),
-            ),
-            child: Text(
-              '$year${t.common.year_suffix}',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                letterSpacing: 2,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Container(
-              height: 1,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Theme.of(context).dividerColor.withOpacity(0.5),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
           ),
         ],
       ),
@@ -494,164 +434,34 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
     return diaries;
   }
 
-  Map<DateTime, List<Diary>> _getGroupedDiaries(List<Diary> diaries) {
-    return groupBy(diaries, (Diary d) {
-      return DateTime(d.date.year, d.date.month, d.date.day);
-    });
-  }
-
-  List<Widget> _buildSlivers(
-    BuildContext context,
-    Map<DateTime, List<Diary>> grouped,
-    List<DateTime> sortedDates,
-    bool isDesktop,
-  ) {
-    final List<Widget> slivers = [];
-    int? lastYear;
-
-    for (var date in sortedDates) {
-      if (lastYear != null && date.year != lastYear) {
-        slivers.add(
-          SliverToBoxAdapter(child: _buildYearDivider(context, date.year)),
-        );
-      }
-      lastYear = date.year;
-
-      final dayDiaries = grouped[date]!;
-      slivers.add(
-        SliverMainAxisGroup(
-          slivers: [
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _DateHeaderDelegate(date: date, isDesktop: isDesktop),
-            ),
-            SliverPadding(
-              padding: EdgeInsets.only(left: isDesktop ? 40 : 20, bottom: 32),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) => _buildTimelineItem(
-                    context,
-                    ref,
-                    dayDiaries[index],
-                    isDesktop,
-                  ),
-                  childCount: dayDiaries.length,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-    return slivers;
-  }
-}
-
-/// 日期吸顶头部委托
-/// 用于在 CustomScrollView 中显示吸顶的日期信息（月、日、星期）。
-class _DateHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final DateTime date;
-  final bool isDesktop;
-
-  _DateHeaderDelegate({required this.date, this.isDesktop = false});
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    final isToday = DateUtils.isSameDay(date, DateTime.now());
-    final bool isEn = LocaleSettings.instance.currentLocale == AppLocale.en;
-    final dayStr = DateFormat('dd').format(date);
-
-    // 手动计算星期几，避免本地化未就绪时的依赖
-    final weekdayStr = t.common.weekdays[date.weekday];
-
-    return Container(
-      color: Theme.of(context).colorScheme.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      alignment: Alignment.centerLeft,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
+  Widget _buildEmptyState(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (isEn) ...[
-            Text(
-              DateFormat('MMM').format(date),
-              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w300),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              dayStr,
-              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w300),
-            ),
-          ] else ...[
-            Text(
-              DateFormat('MM').format(date),
-              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w300),
-            ),
-            Text(
-              t.common.month_suffix,
-              style: TextStyle(
-                fontSize: 16,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            Text(
-              dayStr,
-              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w300),
-            ),
-            Text(
-              t.common.day_suffix,
-              style: TextStyle(
-                fontSize: 16,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-
-          const SizedBox(width: 8),
-          Text(
-            weekdayStr,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+          Icon(
+            Icons.edit_note,
+            size: 80,
+            color: AppTheme.primary.withOpacity(0.5),
           ),
-
-          if (isToday) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                t.common.today,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primary,
-                ),
-              ),
+          const SizedBox(height: 16),
+          Text(
+            _selectedMonth != null
+                ? t.diary.no_diaries_month
+                : t.diary.no_diaries,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(color: Colors.grey),
+          ),
+          if (_selectedMonth != null) ...[
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => setState(() => _selectedMonth = null),
+              child: Text(t.common.view_all),
             ),
           ],
         ],
       ),
     );
-  }
-
-  @override
-  double get maxExtent => 70;
-
-  @override
-  double get minExtent => 70;
-
-  @override
-  bool shouldRebuild(covariant _DateHeaderDelegate oldDelegate) {
-    return oldDelegate.date != date || oldDelegate.isDesktop != isDesktop;
   }
 }

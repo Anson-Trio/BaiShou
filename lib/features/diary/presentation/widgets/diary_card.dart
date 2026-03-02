@@ -4,154 +4,345 @@ import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import 'package:baishou/core/localization/locale_service.dart';
 
 /// 日记 card 组件
-/// 在列表中展示单篇日记的摘要信息，使用 Markdown 直接渲染。
-class DiaryCard extends StatelessWidget {
+/// 在列表中展示单篇日记的摘要信息，适配瀑布流的圆角阴影卡片风格。
+class DiaryCard extends StatefulWidget {
   final Diary diary; // 日记实体数据
   final VoidCallback? onDelete; // 删除操作的回调
 
   const DiaryCard({super.key, required this.diary, this.onDelete});
 
   @override
+  State<DiaryCard> createState() => _DiaryCardState();
+}
+
+class _DiaryCardState extends State<DiaryCard> {
+  bool _isHovered = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      color: Theme.of(context).cardTheme.color,
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide.none,
-      ),
-      child: InkWell(
-        onTap: () {
-          // 传递 ID，以便编辑器获取特定条目
-          context.push('/diary/edit?id=${diary.id}');
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 内容直接渲染 Markdown
-                  MarkdownBody(
-                    data: diary.content,
-                    selectable: false, // 列表页建议关闭选择以保持滚动手感
-                    styleSheet: MarkdownStyleSheet(
-                      p: TextStyle(
-                        fontSize: 15,
-                        height: 1.5,
-                        color: Theme.of(context).textTheme.bodyLarge?.color,
-                      ),
-                      h5: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primary.withOpacity(0.8),
-                        height: 1.6,
-                      ),
-                      h6: TextStyle(
-                        // 兼容旧的 6 级标题
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: const Color.fromARGB(255, 255, 173, 218),
-                        height: 1.6,
-                      ),
-                      listBullet: TextStyle(
-                        color: Theme.of(context).textTheme.bodyLarge?.color,
-                      ),
-                      blockSpacing: 8, // 压缩段落间距
-                    ),
-                  ),
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
-                  // 标签 - 仅在有非空标签时显示
-                  if (diary.tags
-                      .where((t) => t.trim().isNotEmpty)
-                      .isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: diary.tags
-                          .where((t) => t.trim().isNotEmpty)
-                          .map((tag) {
-                            return Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color:
-                                    Theme.of(context).brightness ==
-                                        Brightness.light
-                                    ? AppTheme.backgroundLight
-                                    : Colors.grey[800],
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: Theme.of(
-                                    context,
-                                  ).dividerColor.withOpacity(0.1),
-                                  width: 1,
-                                ),
-                              ),
-                              child: Text(
-                                '#$tag',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color:
-                                      Theme.of(context).brightness ==
-                                          Brightness.light
-                                      ? AppTheme.textSecondaryLight
-                                      : AppTheme.textSecondaryDark,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            );
-                          })
-                          .toList(),
-                    ),
-                  ],
-                ],
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          color: theme.cardTheme.color ?? theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(24), // 变体3使用了大圆角 2xl / 24px
+          boxShadow: [
+            if (_isHovered)
+              BoxShadow(
+                color: isDark
+                    ? Colors.black.withOpacity(0.3)
+                    : Colors.black.withOpacity(0.08),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              )
+            else
+              BoxShadow(
+                color: isDark
+                    ? Colors.black.withOpacity(0.15)
+                    : Colors.black.withOpacity(0.04),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
               ),
-            ),
-
-            // 头部：菜单（右上角绝对定位）
-            Positioned(
-              top: 4,
-              right: 4,
-              child: PopupMenuButton<String>(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                icon: Icon(Icons.more_horiz, size: 18, color: Colors.grey[400]),
-                onSelected: (value) {
-                  if (value == 'delete') {
-                    onDelete?.call();
-                  }
-                },
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
+          ],
+          border: Border.all(
+            color: isDark
+                ? theme.dividerColor.withOpacity(0.2)
+                : theme.dividerColor.withOpacity(0.4),
+            width: 1,
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                context.push('/diary/edit?id=${widget.diary.id}');
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // ===== Header: Day, Weekday, Time =====
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(
-                          Icons.delete_outline,
-                          size: 20,
-                          color: Colors.red,
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(
+                              DateFormat('dd').format(widget.diary.date),
+                              style: TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.w800,
+                                color: theme.colorScheme.onSurface,
+                                height: 1.0,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  t.common.weekdays[widget.diary.date.weekday],
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  DateFormat('HH:mm').format(widget.diary.date),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: theme.colorScheme.onSurfaceVariant
+                                        .withOpacity(0.7),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          t.common.delete,
-                          style: const TextStyle(color: Colors.red),
+                        // 可以预留天气图标位置
+                        Icon(
+                          Icons.notes_rounded,
+                          size: 20,
+                          color: theme.colorScheme.onSurfaceVariant.withOpacity(
+                            0.3,
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 20),
+
+                    // ===== Markdown content =====
+                    MarkdownBody(
+                      data: widget.diary.content,
+                      selectable: false,
+                      styleSheet: MarkdownStyleSheet(
+                        p: TextStyle(
+                          fontSize: 15,
+                          height: 1.6,
+                          color: theme.textTheme.bodyLarge?.color?.withOpacity(
+                            0.9,
+                          ),
+                        ),
+                        h1: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: theme.textTheme.bodyLarge?.color,
+                          height: 1.4,
+                        ),
+                        h2: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: theme.textTheme.bodyLarge?.color,
+                          height: 1.4,
+                        ),
+                        h3: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: theme.textTheme.bodyLarge?.color,
+                          height: 1.4,
+                        ),
+                        h4: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: theme.textTheme.bodyLarge?.color,
+                          height: 1.4,
+                        ),
+                        h5: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primary.withOpacity(0.8),
+                          height: 1.6,
+                        ),
+                        h6: TextStyle(
+                          // 旧的时间戳样式兼容
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: const Color.fromARGB(255, 255, 173, 218),
+                          height: 1.6,
+                        ),
+                        listBullet: TextStyle(
+                          color: theme.textTheme.bodyLarge?.color,
+                        ),
+                        blockSpacing: 12,
+                        blockquoteDecoration: BoxDecoration(
+                          color: isDark
+                              ? Colors.white.withOpacity(0.05)
+                              : Colors.black.withOpacity(0.03),
+                          borderRadius: const BorderRadius.only(
+                            topRight: Radius.circular(8),
+                            bottomRight: Radius.circular(8),
+                          ),
+                          border: Border(
+                            left: BorderSide(
+                              color: AppTheme.primary.withOpacity(0.5),
+                              width: 3,
+                            ),
+                          ),
+                        ),
+                        blockquotePadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                      ),
+                    ),
+
+                    // ===== Tags =====
+                    if (widget.diary.tags
+                        .where((t) => t.trim().isNotEmpty)
+                        .isNotEmpty) ...[
+                      const SizedBox(height: 20),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: widget.diary.tags
+                            .where((t) => t.trim().isNotEmpty)
+                            .map((tag) {
+                              // 生成伪随机柔和标签背景色
+                              final colors = isDark
+                                  ? [
+                                      Colors.blue[900]!.withOpacity(0.3),
+                                      Colors.green[900]!.withOpacity(0.3),
+                                      Colors.orange[900]!.withOpacity(0.3),
+                                      Colors.purple[900]!.withOpacity(0.3),
+                                    ]
+                                  : [
+                                      Colors.blue[50],
+                                      Colors.green[50],
+                                      Colors.orange[50],
+                                      Colors.purple[50],
+                                    ];
+                              final fgColors = isDark
+                                  ? [
+                                      Colors.blue[300],
+                                      Colors.green[300],
+                                      Colors.orange[300],
+                                      Colors.purple[300],
+                                    ]
+                                  : [
+                                      Colors.blue[700],
+                                      Colors.green[700],
+                                      Colors.orange[700],
+                                      Colors.purple[700],
+                                    ];
+                              final idx =
+                                  tag.codeUnits.fold(0, (a, b) => a + b) %
+                                  colors.length;
+
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: colors[idx],
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '#$tag',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: fgColors[idx],
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              );
+                            })
+                            .toList(),
+                      ),
+                    ],
+
+                    // ===== Actions divider (Hover reveal) =====
+                    AnimatedOpacity(
+                      opacity: _isHovered ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SizedBox(height: 20),
+                          Divider(
+                            color: theme.dividerColor.withOpacity(0.3),
+                            height: 1,
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              TextButton.icon(
+                                onPressed: () {
+                                  context.push(
+                                    '/diary/edit?id=${widget.diary.id}',
+                                  );
+                                },
+                                style: TextButton.styleFrom(
+                                  foregroundColor:
+                                      theme.colorScheme.onSurfaceVariant,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  minimumSize: Size.zero,
+                                ),
+                                icon: const Icon(Icons.edit_rounded, size: 16),
+                                label: Text(
+                                  t.common.edit,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              TextButton.icon(
+                                onPressed: widget.onDelete,
+                                style: TextButton.styleFrom(
+                                  foregroundColor: theme.colorScheme.error,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  minimumSize: Size.zero,
+                                ),
+                                icon: const Icon(
+                                  Icons.delete_rounded,
+                                  size: 16,
+                                ),
+                                label: Text(
+                                  t.common.delete,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
