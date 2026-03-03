@@ -12,6 +12,9 @@ import 'package:baishou/features/settings/domain/services/import_service.dart'
     as baishou_import;
 import 'package:baishou/core/services/data_refresh_notifier.dart'
     as baishou_refresh;
+import 'package:baishou/core/storage/vault_service.dart';
+import 'package:baishou/features/diary/data/vault_index_notifier.dart';
+import 'package:baishou/features/index/data/shadow_index_sync_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
@@ -403,13 +406,57 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
                   onPressed: () async {
                     String? selectedDirectory = await FilePicker.platform
                         .getDirectoryPath();
-                    if (selectedDirectory != null) {
-                      await storageService.updateRootDirectory(
-                        selectedDirectory,
+                    if (selectedDirectory == null || !mounted) return;
+
+                    // 1. 保存新路径并全局触发层叠失效（Cascade Invalidation）
+                    await storageService.updateRootDirectory(selectedDirectory);
+                    // 核心：强制使当前的 vaultServiceProvider 失效，这样下游所有的
+                    // 数据库、路径服务、文件服务 都会基于新路径重新构建（Hot-Swap）
+                    ref.invalidate(vaultServiceProvider);
+
+                    setState(() {});
+
+                    if (!mounted) return;
+
+                    // 2. 显示"正在扫描"的加载 Dialog
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (ctx) => AlertDialog(
+                        content: Row(
+                          children: [
+                            const CircularProgressIndicator(),
+                            const SizedBox(width: 16),
+                            const Text('正在扫描新目录的日记...'),
+                          ],
+                        ),
+                      ),
+                    );
+
+                    try {
+                      // 3. 重新扫描新目录，同步影子索引
+                      final syncService = ref.read(
+                        shadowIndexSyncServiceProvider.notifier,
                       );
-                      setState(() {});
+                      await syncService.fullScanVault();
+
+                      // 4. 重载 VaultIndex 内存（UI 立即更新）
+                      await ref.read(vaultIndexProvider.notifier).forceReload();
+
+                      if (!mounted) return;
+                      Navigator.of(context, rootNavigator: true).pop();
+
+                      // 5. 显示成功提示（含日记数量）
+                      final count = ref.read(vaultIndexProvider).length;
+                      AppToast.showSuccess(
+                        context,
+                        '已切换至新目录，共找到 $count 篇日记',
+                        duration: const Duration(seconds: 4),
+                      );
+                    } catch (e) {
                       if (mounted) {
-                        AppToast.showSuccess(context, t.common.success);
+                        Navigator.of(context, rootNavigator: true).pop();
+                        AppToast.showError(context, '扫描新目录失败：$e');
                       }
                     }
                   },

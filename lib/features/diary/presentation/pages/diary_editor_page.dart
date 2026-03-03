@@ -39,6 +39,7 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
 
   bool _isDirty = false; // 标记内容是否有未保存的更改
   bool _isLoading = false; // 标记数据加载状态
+  bool _isTransitioning = true; // 标记是否处于路由转场期间（防止 Markdown 阻塞动画）
   bool _isPreview = false; // 标记是否处于 Markdown 预览模式
 
   // 编辑模式：false=日记，true=总结
@@ -63,12 +64,24 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
 
     _contentController.addListener(_markDirty);
 
+    // 设置 300ms 的严格保护期，在此期间不渲染 Markdown（避免转场掉帧）
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() => _isTransitioning = false);
+      }
+    });
+
     if (widget.diaryId != null) {
       _isLoading = true; // 先设为加载中，防止日期闪烁
-      _loadDiary(widget.diaryId!);
+      // 延迟到第一帧绘制完成后再加载，避免阻塞路由转场动画（掉帧）
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadDiary(widget.diaryId!);
+      });
     } else if (widget.summaryId != null) {
       _isLoading = true;
-      _loadSummary(widget.summaryId!);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadSummary(widget.summaryId!);
+      });
     } else {
       // 新增模式：直接创建干净的空白日记（不合并今日旧内容）
       _initNewDiary();
@@ -363,7 +376,7 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
           ),
         ],
       ),
-      body: _isLoading
+      body: (_isLoading || _isTransitioning)
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
