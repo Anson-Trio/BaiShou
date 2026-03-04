@@ -91,6 +91,10 @@
       "delete_failed": "删除失败",
       "no_active_vault": "没有检测到活跃的工作空间 (Vault)",
       "physical_delete_failed": "物理文件无法彻底删除，已清理索引记录"
+    },
+    "permission": {
+      "storage_granted": "权限已获得，正在扫描日记...",
+      "storage_denied": "权限被拒绝，无法读取日记文件"
     }
   },
   "onboarding": {

@@ -12,6 +12,9 @@ import 'package:collection/collection.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:baishou/core/localization/locale_service.dart';
+import 'package:baishou/core/widgets/app_toast.dart';
+import 'package:baishou/core/storage/permission_service.dart';
+import 'package:baishou/features/index/data/shadow_index_sync_service.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
@@ -41,8 +44,8 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
   Widget build(BuildContext context) {
     ref.watch(localeProvider);
 
-    // 直接绑定内存 VaultIndex：增删改不重置列表，不闪烁，不丢失滚动位置
-    final allMeta = ref.watch(vaultIndexProvider);
+    // 直接绑定内存 VaultIndex：现在是 AsyncValue
+    final allMetaAsync = ref.watch(vaultIndexProvider);
 
     bool isMobile = false;
     try {
@@ -88,83 +91,110 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
                   ),
                 ],
         ),
-        body: Stack(
-          children: [
-            Column(
+        body: allMetaAsync.when(
+          data: (allMeta) {
+            final filteredMeta = _getFilteredMeta(allMeta);
+
+            if (filteredMeta.isEmpty) {
+              return _buildEmptyState(context);
+            }
+
+            return GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onDoubleTap: () {
+                if (_scrollController.hasClients) {
+                  _scrollController.animateTo(
+                    0,
+                    duration: const Duration(milliseconds: 400),
+                    curve: Curves.easeOut,
+                  );
+                }
+              },
+              child: AlignedGridView.count(
+                controller: _scrollController,
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isDesktop ? 32 : 16,
+                  vertical: 24,
+                ),
+                crossAxisCount: _getCrossAxisCount(context),
+                mainAxisSpacing: 24,
+                crossAxisSpacing: 24,
+                itemCount: filteredMeta.length,
+                itemBuilder: (context, index) {
+                  final meta = filteredMeta[index];
+                  return _DiaryMetaCard(
+                    meta: meta,
+                    onDelete: () => _confirmDelete(context, ref, meta),
+                  );
+                },
+              ),
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, stack) => Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Expanded(
-                  child: Builder(
-                    builder: (context) {
-                      // VaultIndex 初始为空列表（await loading），直接显示 loading
-                      if (allMeta.isEmpty &&
-                          ref.read(vaultIndexProvider).isEmpty) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-
-                      final filteredMeta = _getFilteredMeta(allMeta);
-
-                      if (filteredMeta.isEmpty) {
-                        return _buildEmptyState(context);
-                      }
-
-                      return GestureDetector(
-                        behavior: HitTestBehavior.translucent,
-                        onDoubleTap: () {
-                          if (_scrollController.hasClients) {
-                            _scrollController.animateTo(
-                              0,
-                              duration: const Duration(milliseconds: 400),
-                              curve: Curves.easeOut,
-                            );
-                          }
-                        },
-                        child: AlignedGridView.count(
-                          controller: _scrollController,
-                          physics: const BouncingScrollPhysics(),
-                          padding: EdgeInsets.symmetric(
-                            horizontal: isDesktop ? 32 : 16,
-                            vertical: 24,
-                          ),
-                          crossAxisCount: _getCrossAxisCount(context),
-                          mainAxisSpacing: 24,
-                          crossAxisSpacing: 24,
-                          itemCount: filteredMeta.length,
-                          itemBuilder: (context, index) {
-                            final meta = filteredMeta[index];
-                            return _DiaryMetaCard(
-                              meta: meta,
-                              onDelete: () =>
-                                  _confirmDelete(context, ref, meta),
-                            );
-                          },
-                        ),
-                      );
-                    },
-                  ),
+                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                const SizedBox(height: 16),
+                Text('Error: $err'),
+                TextButton(
+                  onPressed: () => ref.invalidate(vaultIndexProvider),
+                  child: const Text('Retry'),
                 ),
               ],
             ),
-
-            // Floating Action Buttons (Desktop)
-            if (isDesktop)
-              Positioned(
-                bottom: 32,
-                right: 32,
-                child: _buildDesktopFABs(context, allMeta),
-              ),
-          ],
+          ),
         ),
         floatingActionButton: isDesktop
             ? null
-            : FloatingActionButton(
-                onPressed: () => context.push(
-                  '/diary/edit?date=${DateTime.now().toIso8601String()}',
-                ),
-                backgroundColor: AppTheme.primary,
-                shape: const CircleBorder(),
-                child: const Icon(Icons.add, color: Colors.white, size: 32),
+            : allMetaAsync.when(
+                data: (allMeta) => _buildMobileFABs(context, allMeta),
+                loading: () => null,
+                error: (_, __) => null,
               ),
       ),
+    );
+  }
+
+  Widget _buildMobileFABs(BuildContext context, List<DiaryMeta> allMeta) {
+    final todayMeta = allMeta.firstWhereOrNull(
+      (m) => DateUtils.isSameDay(m.date, DateTime.now()),
+    );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // 编辑今日按钮 (仅在存在今日日记时显示更明显的图标)
+        FloatingActionButton.small(
+          heroTag: 'editToday',
+          onPressed: () {
+            if (todayMeta != null) {
+              context.push('/diary/edit?id=${todayMeta.id}');
+            } else {
+              context.push(
+                '/diary/edit?date=${DateTime.now().toIso8601String()}',
+              );
+            }
+          },
+          backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+          child: Icon(
+            todayMeta != null ? Icons.edit_note : Icons.today,
+            color: Theme.of(context).colorScheme.onSecondaryContainer,
+          ),
+        ),
+        const SizedBox(height: 12),
+        // 新增按钮
+        FloatingActionButton(
+          heroTag: 'addNew',
+          onPressed: () => context.push(
+            '/diary/edit?date=${DateTime.now().toIso8601String()}',
+          ),
+          backgroundColor: AppTheme.primary,
+          child: const Icon(Icons.add, color: Colors.white, size: 28),
+        ),
+      ],
     );
   }
 
@@ -173,72 +203,6 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
     if (width > 1200) return 3;
     if (width > 700) return 2;
     return 1;
-  }
-
-  Widget _buildDesktopFABs(BuildContext context, List<DiaryMeta> allMeta) {
-    final todayMeta = allMeta.firstWhereOrNull(
-      (m) => DateUtils.isSameDay(m.date, DateTime.now()),
-    );
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        // Edit Today button
-        Material(
-          color: Theme.of(context).colorScheme.surface,
-          shape: const CircleBorder(),
-          elevation: 4,
-          shadowColor: Colors.black.withOpacity(0.15),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: () {
-              if (todayMeta != null) {
-                context.push('/diary/edit?id=${todayMeta.id}');
-              } else {
-                context.push(
-                  '/diary/edit?date=${DateTime.now().toIso8601String()}',
-                );
-              }
-            },
-            child: Container(
-              width: 48,
-              height: 48,
-              alignment: Alignment.center,
-              child: Icon(
-                Icons.edit_note,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                size: 24,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        // Add Entry button
-        Material(
-          color: AppTheme.primary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          elevation: 8,
-          shadowColor: AppTheme.primary.withOpacity(0.4),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: () {
-              context.push(
-                '/diary/edit?date=${DateTime.now().toIso8601String()}',
-              );
-            },
-            child: Container(
-              width: 64,
-              height: 64,
-              alignment: Alignment.center,
-              child: const Icon(Icons.add, color: Colors.white, size: 32),
-            ),
-          ),
-        ),
-      ],
-    );
   }
 
   Widget _buildHeader(BuildContext context, bool isDesktop) {
@@ -385,32 +349,73 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
   }
 
   Widget _buildEmptyState(BuildContext context) {
+    bool isAndroid = false;
+    try {
+      if (Platform.isAndroid) isAndroid = true;
+    } catch (e) {}
+
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.edit_note,
-            size: 80,
-            color: AppTheme.primary.withOpacity(0.5),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            _selectedMonth != null
-                ? t.diary.no_diaries_month
-                : t.diary.no_diaries,
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(color: Colors.grey),
-          ),
-          if (_selectedMonth != null) ...[
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () => setState(() => _selectedMonth = null),
-              child: Text(t.common.view_all),
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.edit_note,
+              size: 80,
+              color: AppTheme.primary.withOpacity(0.5),
             ),
+            const SizedBox(height: 16),
+            Text(
+              _selectedMonth != null
+                  ? t.diary.no_diaries_month
+                  : t.diary.no_diaries,
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(color: Colors.grey),
+            ),
+            const SizedBox(height: 24),
+            if (_selectedMonth != null)
+              TextButton(
+                onPressed: () => setState(() => _selectedMonth = null),
+                child: Text(t.common.view_all),
+              ),
+            if (isAndroid) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final granted = await ref
+                      .read(permissionServiceProvider.notifier)
+                      .requestStoragePermission();
+                  if (granted) {
+                    if (!mounted) return;
+                    AppToast.showSuccess(
+                      context,
+                      t.common.permission.storage_granted,
+                    );
+
+                    // 关键：权限获得后需要触发一次全量扫描，否则数据库是空的
+                    await ref
+                        .read(shadowIndexSyncServiceProvider.notifier)
+                        .fullScanVault();
+
+                    // 扫描完成后再刷新内存索引
+                    ref.invalidate(vaultIndexProvider);
+                  } else {
+                    if (!mounted) return;
+                    AppToast.showError(
+                      context,
+                      t.common.permission.storage_denied,
+                    );
+                  }
+                },
+                icon: const Icon(Icons.security_rounded),
+                label: const Text('检查存储权限'),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

@@ -52,6 +52,7 @@ dependencies:
   collection: ^1.19.1
   google_fonts: ^6.2.1
   http: ^1.6.0
+  permission_handler: ^11.3.1
 
   shared_preferences: ^2.5.4
   url_launcher: ^6.3.2

@@ -91,6 +91,10 @@
       "delete_failed": "刪除失敗",
       "no_active_vault": "沒有檢測到活躍的工作空間 (Vault)",
       "physical_delete_failed": "物理文件無法徹底刪除，已清理索引記錄"
+    },
+    "permission": {
+      "storage_granted": "權限已獲得，正在掃描日記...",
+      "storage_denied": "權限被拒絕，無法讀取日記文件"
     }
   },
   "onboarding": {

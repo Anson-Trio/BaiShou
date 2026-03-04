@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:baishou/core/theme/app_theme.dart';
 import 'package:baishou/features/diary/domain/entities/diary.dart';
 import 'package:baishou/i18n/strings.g.dart';
@@ -314,76 +315,90 @@ class _DiaryCardState extends State<DiaryCard> {
                       ),
                     ],
 
-                    // ===== Actions divider (Hover reveal) =====
-                    AnimatedOpacity(
-                      opacity: _isHovered ? 1.0 : 0.0,
-                      duration: const Duration(milliseconds: 200),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const SizedBox(height: 20),
-                          Divider(
-                            color: theme.dividerColor.withOpacity(0.3),
-                            height: 1,
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
+                    // ===== Actions divider (Hover reveal on Desktop, Always on Mobile) =====
+                    Builder(
+                      builder: (context) {
+                        bool isMobile = false;
+                        try {
+                          if (Platform.isAndroid || Platform.isIOS) {
+                            isMobile = true;
+                          }
+                        } catch (e) {}
+
+                        return AnimatedOpacity(
+                          opacity: (_isHovered || isMobile) ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 200),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              TextButton.icon(
-                                onPressed: () async {
-                                  final result = await context.push<Diary?>(
-                                    '/diary/edit?id=${widget.diary.id}',
-                                  );
-                                  if (result != null) {
-                                    widget.onUpdated?.call(result);
-                                  }
-                                },
-                                style: TextButton.styleFrom(
-                                  foregroundColor:
-                                      theme.colorScheme.onSurfaceVariant,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
-                                  ),
-                                  minimumSize: Size.zero,
-                                ),
-                                icon: const Icon(Icons.edit_rounded, size: 16),
-                                label: Text(
-                                  t.common.edit,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
+                              const SizedBox(height: 20),
+                              Divider(
+                                color: theme.dividerColor.withOpacity(0.3),
+                                height: 1,
                               ),
-                              const SizedBox(width: 8),
-                              TextButton.icon(
-                                onPressed: widget.onDelete,
-                                style: TextButton.styleFrom(
-                                  foregroundColor: theme.colorScheme.error,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
+                              const SizedBox(height: 12),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  TextButton.icon(
+                                    onPressed: () async {
+                                      final result = await context.push<Diary?>(
+                                        '/diary/edit?id=${widget.diary.id}',
+                                      );
+                                      if (result != null) {
+                                        widget.onUpdated?.call(result);
+                                      }
+                                    },
+                                    style: TextButton.styleFrom(
+                                      foregroundColor:
+                                          theme.colorScheme.onSurfaceVariant,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      minimumSize: Size.zero,
+                                    ),
+                                    icon: const Icon(
+                                      Icons.edit_rounded,
+                                      size: 16,
+                                    ),
+                                    label: Text(
+                                      t.common.edit,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                   ),
-                                  minimumSize: Size.zero,
-                                ),
-                                icon: const Icon(
-                                  Icons.delete_rounded,
-                                  size: 16,
-                                ),
-                                label: Text(
-                                  t.common.delete,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
+                                  const SizedBox(width: 8),
+                                  TextButton.icon(
+                                    onPressed: widget.onDelete,
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: theme.colorScheme.error,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      minimumSize: Size.zero,
+                                    ),
+                                    icon: const Icon(
+                                      Icons.delete_rounded,
+                                      size: 16,
+                                    ),
+                                    label: Text(
+                                      t.common.delete,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
                   ],
                 ),

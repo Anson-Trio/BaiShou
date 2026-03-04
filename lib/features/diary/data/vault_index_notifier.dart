@@ -20,26 +20,26 @@ class VaultIndex extends _$VaultIndex {
   StreamSubscription<JournalSyncEvent>? _syncSubscription;
 
   @override
-  List<DiaryMeta> build() {
+  FutureOr<List<DiaryMeta>> build() async {
     // 异步初始化：从 SQLite 加载所有元数据
-    _init();
-    return []; // 初始空列表，_init 完成后通过 state = ... 更新
-  }
+    final metas = await _loadFromDb();
 
-  Future<void> _init() async {
-    await _loadFromDb();
     // 订阅文件 Watcher 事件：只处理外部变化
     final syncService = ref.read(shadowIndexSyncServiceProvider.notifier);
-    _syncSubscription = syncService.syncEvents.listen((path) {
-      _onExternalChange(path);
+    _syncSubscription?.cancel();
+    _syncSubscription = syncService.syncEvents.listen((event) {
+      _onExternalChange(event);
     });
+
     ref.onDispose(() {
       _syncSubscription?.cancel();
     });
+
+    return metas;
   }
 
-  /// 从 SQLite 加载所有元数据（仅启动 + 外部文件变化时调用）
-  Future<void> _loadFromDb() async {
+  /// 从 SQLite 加载所有元数据
+  Future<List<DiaryMeta>> _loadFromDb() async {
     try {
       final dbService = ref.read(shadowIndexDatabaseProvider.notifier);
       final db = await dbService.database;
@@ -64,15 +64,15 @@ class VaultIndex extends _$VaultIndex {
         );
       }).toList();
 
-      state = metas;
       debugPrint('VaultIndex: Loaded ${metas.length} entries from DB');
+      return metas;
     } catch (e) {
       debugPrint('VaultIndex: Failed to load from DB: $e');
+      rethrow;
     }
   }
 
   /// 接收由 SyncService 传递过来的外部变更事件
-  /// 此时由于 Scheduler 已经拦截了自身写入产生的回声，这里的事件100%是真正的外部变更
   void _onExternalChange(JournalSyncEvent event) {
     debugPrint('VaultIndex: Received external change event for ${event.path}');
     final result = event.result;
@@ -83,24 +83,27 @@ class VaultIndex extends _$VaultIndex {
         debugPrint('VaultIndex: Memory updated via event for ${event.path}');
       } else {
         // 如果 meta 为 null 且 isChanged 为 true，说明是删除了
-        // 我们从内存中找到对应路径的日记并移除
         final fileName = p.basename(event.path);
         final dateStr = fileName.replaceAll('.md', '');
 
-        final list = List<DiaryMeta>.from(state);
-        final idx = list.indexWhere((m) {
-          return m.date.toIso8601String().startsWith(dateStr);
-        });
+        state.whenData((list) {
+          final newList = List<DiaryMeta>.from(list);
+          final idx = newList.indexWhere((m) {
+            return m.date.toIso8601String().startsWith(dateStr);
+          });
 
-        if (idx != -1) {
-          remove(list[idx].id);
-          debugPrint('VaultIndex: Memory removed via event for $dateStr');
-        }
+          if (idx != -1) {
+            final idToRemove = newList[idx].id;
+            state = AsyncValue.data(
+              newList.where((m) => m.id != idToRemove).toList(),
+            );
+            debugPrint('VaultIndex: Memory removed via event for $dateStr');
+          }
+        });
       }
     } else {
-      // 如果不是日记文件（可能是注册表或其他），降级为全量重载
       debugPrint('VaultIndex: Non-diary external change, reloading from DB');
-      _loadFromDb();
+      ref.invalidateSelf();
     }
   }
 
@@ -110,33 +113,39 @@ class VaultIndex extends _$VaultIndex {
 
   /// 添加或更新一条日记元数据
   void upsert(DiaryMeta meta) {
-    final list = List<DiaryMeta>.from(state);
-    final idx = list.indexWhere((m) => m.id == meta.id);
-    if (idx != -1) {
-      list[idx] = meta;
-    } else {
-      // 找到正确插入位置（date DESC, id DESC）
-      final insertAt = list.indexWhere(
-        (m) =>
-            m.date.isBefore(meta.date) ||
-            (m.date.isAtSameMomentAs(meta.date) && m.id < meta.id),
-      );
-      if (insertAt == -1) {
-        list.add(meta);
+    state.whenData((list) {
+      final newList = List<DiaryMeta>.from(list);
+      final idx = newList.indexWhere((m) => m.id == meta.id);
+      if (idx != -1) {
+        newList[idx] = meta;
       } else {
-        list.insert(insertAt, meta);
+        // 找到正确插入位置（date DESC, id DESC）
+        final insertAt = newList.indexWhere(
+          (m) =>
+              m.date.isBefore(meta.date) ||
+              (m.date.isAtSameMomentAs(meta.date) && m.id < meta.id),
+        );
+        if (insertAt == -1) {
+          newList.add(meta);
+        } else {
+          newList.insert(insertAt, meta);
+        }
       }
-    }
-    state = list;
-    debugPrint('VaultIndex: upsert id=${meta.id} date=${meta.date}');
+      state = AsyncValue.data(newList);
+      debugPrint('VaultIndex: upsert id=${meta.id} date=${meta.date}');
+    });
   }
 
   /// 删除一条日记元数据
   void remove(int id) {
-    state = state.where((m) => m.id != id).toList();
-    debugPrint('VaultIndex: removed id=$id');
+    state.whenData((list) {
+      state = AsyncValue.data(list.where((m) => m.id != id).toList());
+      debugPrint('VaultIndex: removed id=$id');
+    });
   }
 
-  /// 强制从 DB 重新加载（用于开发者选项或调试）
-  Future<void> forceReload() => _loadFromDb();
+  /// 强制从 DB 重新加载
+  Future<void> forceReload() => _loadFromDb().then((metas) {
+    state = AsyncValue.data(metas);
+  });
 }

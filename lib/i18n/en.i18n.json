@@ -91,6 +91,10 @@
       "delete_failed": "Failed to delete",
       "no_active_vault": "No active vault detected",
       "physical_delete_failed": "Physical file could not be deleted completely, index record has been cleared"
+    },
+    "permission": {
+      "storage_granted": "Permission granted, scanning diaries...",
+      "storage_denied": "Permission denied, cannot read diary files"
     }
   },
   "onboarding": {

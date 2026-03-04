@@ -91,6 +91,10 @@
       "delete_failed": "削除に失敗しました",
       "no_active_vault": "アクティブなヴォールト（Vault）が見つかりませんでした",
       "physical_delete_failed": "物理ファイルを完全に削除できませんでした。インデックス記録はクリーンアップされました"
+    },
+    "permission": {
+      "storage_granted": "権限を取得しました。日記をスキャンしています...",
+      "storage_denied": "権限が拒否されました。日記ファイルを読み取ることができません"
     }
   },
   "onboarding": {

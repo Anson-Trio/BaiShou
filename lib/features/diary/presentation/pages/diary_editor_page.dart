@@ -64,8 +64,8 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
 
     _contentController.addListener(_markDirty);
 
-    // 设置 300ms 的严格保护期，在此期间不渲染 Markdown（避免转场掉帧）
-    Future.delayed(const Duration(milliseconds: 300), () {
+    // 设置 200ms 的严格保护期，在此期间不渲染 Markdown（避免转场掉帧）
+    Future.delayed(const Duration(milliseconds: 200), () {
       if (mounted) {
         setState(() => _isTransitioning = false);
       }

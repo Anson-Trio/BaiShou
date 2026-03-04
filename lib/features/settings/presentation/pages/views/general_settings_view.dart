@@ -447,7 +447,8 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
                       Navigator.of(context, rootNavigator: true).pop();
 
                       // 5. 显示成功提示（含日记数量）
-                      final count = ref.read(vaultIndexProvider).length;
+                      final count =
+                          ref.read(vaultIndexProvider).value?.length ?? 0;
                       AppToast.showSuccess(
                         context,
                         '已切换至新目录，共找到 $count 篇日记',
