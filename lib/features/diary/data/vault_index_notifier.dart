@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:path/path.dart' as p;
 import 'package:baishou/features/diary/domain/entities/diary_meta.dart';
 import 'package:baishou/features/index/data/shadow_index_database.dart';
 import 'package:baishou/features/index/data/shadow_index_sync_service.dart';
@@ -16,9 +17,7 @@ part 'vault_index_notifier.g.dart';
 /// 4. 内部写入触发的 Watcher 事件通过"suppress"时间窗口忽略，不重置 UI。
 @Riverpod(keepAlive: true)
 class VaultIndex extends _$VaultIndex {
-  // suppress 路径 → 过期时间：在此时间前忽略同路径的 watcher 事件
-  final Map<String, DateTime> _suppressedPaths = {};
-  StreamSubscription<String>? _syncSubscription;
+  StreamSubscription<JournalSyncEvent>? _syncSubscription;
 
   @override
   List<DiaryMeta> build() {
@@ -72,36 +71,37 @@ class VaultIndex extends _$VaultIndex {
     }
   }
 
-  /// 外部文件系统变化时重新从 DB 加载
-  /// 通过 suppress 机制忽略 App 自身写入触发的 watcher 事件
-  void _onExternalChange(String changedPath) {
-    // 检查此特定路径是否正在被 suppress
-    final now = DateTime.now();
-    final expiry = _suppressedPaths[changedPath];
+  /// 接收由 SyncService 传递过来的外部变更事件
+  /// 此时由于 Scheduler 已经拦截了自身写入产生的回声，这里的事件100%是真正的外部变更
+  void _onExternalChange(JournalSyncEvent event) {
+    debugPrint('VaultIndex: Received external change event for ${event.path}');
+    final result = event.result;
 
-    if (expiry != null && expiry.isAfter(now)) {
-      debugPrint(
-        'VaultIndex: Ignoring watcher event for $changedPath (internal write suppressed)',
-      );
-      return;
+    if (result.isChanged) {
+      if (result.meta != null) {
+        upsert(result.meta!);
+        debugPrint('VaultIndex: Memory updated via event for ${event.path}');
+      } else {
+        // 如果 meta 为 null 且 isChanged 为 true，说明是删除了
+        // 我们从内存中找到对应路径的日记并移除
+        final fileName = p.basename(event.path);
+        final dateStr = fileName.replaceAll('.md', '');
+
+        final list = List<DiaryMeta>.from(state);
+        final idx = list.indexWhere((m) {
+          return m.date.toIso8601String().startsWith(dateStr);
+        });
+
+        if (idx != -1) {
+          remove(list[idx].id);
+          debugPrint('VaultIndex: Memory removed via event for $dateStr');
+        }
+      }
+    } else {
+      // 如果不是日记文件（可能是注册表或其他），降级为全量重载
+      debugPrint('VaultIndex: Non-diary external change, reloading from DB');
+      _loadFromDb();
     }
-    debugPrint(
-      'VaultIndex: External change detected on $changedPath, reloading from DB',
-    );
-    _loadFromDb();
-  }
-
-  /// 注册一个"suppress"时间窗口：在此时间内忽略该路径的 watcher 事件
-  /// 在 App 写文件前调用，防止自身写入被当成外部变化处理
-  void suppressPath(
-    String path, {
-    Duration duration = const Duration(seconds: 3),
-  }) {
-    _suppressedPaths[path] = DateTime.now().add(duration);
-    // 清理过期条目
-    _suppressedPaths.removeWhere(
-      (_, expiry) => expiry.isBefore(DateTime.now()),
-    );
   }
 
   // ──────────────────────────────────────────────

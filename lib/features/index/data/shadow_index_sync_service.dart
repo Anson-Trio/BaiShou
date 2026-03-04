@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:baishou/features/diary/domain/entities/diary_meta.dart';
 import 'package:baishou/features/index/data/shadow_index_database.dart';
 import 'package:baishou/features/storage/domain/services/journal_file_service.dart';
 import 'package:flutter/foundation.dart';
@@ -9,91 +10,77 @@ import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import 'package:baishou/features/storage/domain/services/file_state_scheduler.dart';
+
 part 'shadow_index_sync_service.g.dart';
 
+/// 日记同步结果
+class JournalSyncResult {
+  final DiaryMeta? meta; // 最新元数据（如果是删除则为 null）
+  final bool isChanged; // 是否发生了变动（内容更新或删除）
+
+  JournalSyncResult({this.meta, this.isChanged = false});
+}
+
+/// 包装后的同步事件，包含路径和同步结果
+class JournalSyncEvent {
+  final String path;
+  final JournalSyncResult result;
+
+  JournalSyncEvent(this.path, this.result);
+}
+
 /// 影子同步器 (Shadow Index Sync Service)
-/// 负责扫描并建立/更新物理文件夹和 SQLite 数据之间的一致性
+/// 负责将外部清洗过的路径变动，同步到 SQLite 数据库中，并通知给 VaultIndex
 @Riverpod(keepAlive: true)
 class ShadowIndexSyncService extends _$ShadowIndexSyncService {
-  StreamController<String>? _syncEventController;
-  StreamSubscription<FileSystemEvent>? _watchSubscription;
+  StreamController<JournalSyncEvent>? _syncEventController;
+  StreamSubscription<String>? _schedulerSubscription;
 
   @override
-  FutureOr<void> build() {
-    // 监听 vault 变化重新绑定 watcher
-    ref.listen(vaultServiceProvider, (previous, next) {
-      if (next.value != null && next.value?.name != previous?.value?.name) {
-        startWatchingVault();
-      }
-    });
-  }
+  FutureOr<void> build() async {
+    final scheduler = ref.read(fileStateSchedulerProvider.notifier);
 
-  /// 对外暴露的同步事件流，用于通知 Repository 刷新 UI（参数为发生变更的文件绝对路径）
-  Stream<String> get syncEvents {
-    _syncEventController ??= StreamController<String>.broadcast();
-    return _syncEventController!.stream;
-  }
-
-  /// 启动实时文件系统监视器 (类似 Obsidian)
-  Future<void> startWatchingVault() async {
-    await _watchSubscription?.cancel();
-    final activeVault = await ref.read(vaultServiceProvider.future);
-    if (activeVault == null) return;
-
-    final journalsDir = Directory(p.join(activeVault.path, 'Journals'));
-    if (!journalsDir.existsSync()) return;
-
-    // 监听文件夹变动
-    _watchSubscription = journalsDir.watch(recursive: true).listen((
-      event,
+    // 订阅经过 FileStateScheduler 防抖和 Suppress 过滤后的纯净事件
+    _schedulerSubscription = scheduler.cleanFileEvents.listen((
+      changedPath,
     ) async {
-      final path = event.path;
-      if (!path.endsWith('.md')) return;
-
-      final fileName = p.basename(path);
+      final fileName = p.basename(changedPath);
       final dateFileRegex = RegExp(r'^(\d{4}-\d{2}-\d{2})\.md$');
       final match = dateFileRegex.firstMatch(fileName);
       if (match == null) return;
 
       final dateStr = match.group(1)!;
+      final date = DateTime.parse(dateStr);
 
       try {
-        if (event.type == FileSystemEvent.delete) {
-          // 外部删除了文件，查找数据库中对应的日期并删除
-          final dbService = ref.read(shadowIndexDatabaseProvider.notifier);
-          final db = await dbService.database;
-          final rows = await db.query(
-            'journals_index',
-            columns: ['id'],
-            where: 'date LIKE ?',
-            whereArgs: ['$dateStr%'],
-          );
-          for (var row in rows) {
-            await dbService.deleteJournalIndex(row['id'] as int);
-            debugPrint(
-              'ShadowIndexSyncService: Watcher detected delete, cleaned index for $dateStr',
-            );
-          }
-        } else if (event.type == FileSystemEvent.modify ||
-            event.type == FileSystemEvent.create) {
-          // 外部修改或新建了文件，重新解析并同步
-          final date = DateTime.parse(dateStr);
-          await syncJournal(date);
+        final result = await syncJournal(date);
+        if (result.isChanged) {
           debugPrint(
-            'ShadowIndexSyncService: Watcher detected update, synced index for $dateStr',
+            'ShadowIndexSyncService: Sync successful for $dateStr, emitting event.',
+          );
+          // 把处理结果直接发给上层，避免上层再次触发重复的 syncJournal (Hash 撞车)
+          _syncEventController?.add(JournalSyncEvent(changedPath, result));
+        } else {
+          debugPrint(
+            'ShadowIndexSyncService: Sync no-op (No change) for $dateStr',
           );
         }
-
-        // 触发 UI 刷新流，带上具体的路径
-        _syncEventController?.add(path);
       } catch (e) {
-        debugPrint('ShadowIndexSyncService: Watch error - $e');
+        debugPrint('ShadowIndexSyncService: Sync error for $dateStr - $e');
       }
     });
 
-    debugPrint(
-      'ShadowIndexSyncService: Started watching directory: ${journalsDir.path}',
-    );
+    ref.onDispose(() {
+      _schedulerSubscription?.cancel();
+      _syncEventController?.close();
+    });
+  }
+
+  /// 对外暴露的同步事件流，用于通知 Repository 和 VaultIndex 刷新内容
+  Stream<JournalSyncEvent> get syncEvents {
+    _syncEventController ??= StreamController<JournalSyncEvent>.broadcast();
+    return _syncEventController!.stream;
   }
 
   /// 计算文件的 Hash 用以后续对比是否有脏数据
@@ -104,18 +91,60 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
   }
 
   /// 触发单条目标日记的强同步 (通常在 UI 执行 Save 操作后被调用)
-  Future<void> syncJournal(DateTime date) async {
+  /// 返回同步结果，供增量更新内存索引使用
+  Future<JournalSyncResult> syncJournal(DateTime date) async {
     final journalService = ref.read(journalFileServiceProvider.notifier);
     final dbService = ref.read(shadowIndexDatabaseProvider.notifier);
 
-    final diary = await journalService.readJournal(date);
-    if (diary == null) {
-      // 如果文件不存在，可能是删除了
-      return;
+    // 1. 获取物理文件对象
+    final file = await journalService
+        .getExactFilePath(date)
+        .then((p) => File(p));
+
+    final db = await dbService.database;
+    final dateStr = date.toIso8601String();
+
+    // 2. 如果文件不存在，检查数据库中是否还有索引（如果是，则说明是外部删除了）
+    if (!file.existsSync()) {
+      final existingRows = await db.query(
+        'journals_index',
+        columns: ['id'],
+        where: 'date = ?',
+        whereArgs: [dateStr],
+      );
+      if (existingRows.isNotEmpty) {
+        // 发现孤儿索引，执行物理清理
+        await dbService.deleteJournalIndex(existingRows.first['id'] as int);
+        debugPrint(
+          'ShadowIndexSyncService: Deleted index for missing file $dateStr',
+        );
+        return JournalSyncResult(isChanged: true); // 标记变更（删除）
+      }
+      return JournalSyncResult(isChanged: false);
     }
 
-    // 重新获取一下那个真实的文件句柄，由于写锁在这个上下文无法暴露，此处假设 readJournal 反推出其安全路径
-    final mockHash = md5.convert(diary.content.codeUnits).toString();
+    // 3. 检查数据库中已有的 Hash，避免无意义的解析和 UI 重绘
+    final existingRows = await db.query(
+      'journals_index',
+      columns: ['content_hash'],
+      where: 'date = ?',
+      whereArgs: [dateStr],
+    );
+
+    final currentHash = await _computeFileHash(file);
+    if (existingRows.isNotEmpty) {
+      final oldHash = existingRows.first['content_hash'] as String;
+      if (oldHash == currentHash) {
+        // 数据一致，无需任何操作
+        return JournalSyncResult(isChanged: false);
+      }
+    }
+
+    // 4. 有变动（新增或修改），执行完整解析
+    final diary = await journalService.readJournal(date);
+    if (diary == null) return JournalSyncResult(isChanged: false);
+
+    final mockHash = currentHash;
 
     await dbService.upsertJournalIndex(
       id: diary.id,
@@ -141,6 +170,19 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
       hasMedia: diary.mediaPaths.isNotEmpty,
       rawContent: diary.content,
       tags: diary.tags.join(','),
+    );
+
+    // 返回最新的元数据，方便上层更新内存状态
+    final content = diary.content;
+    return JournalSyncResult(
+      isChanged: true,
+      meta: DiaryMeta(
+        id: diary.id,
+        date: diary.date,
+        preview: content.length > 120 ? content.substring(0, 120) : content,
+        tags: diary.tags,
+        updatedAt: diary.updatedAt,
+      ),
     );
   }
 

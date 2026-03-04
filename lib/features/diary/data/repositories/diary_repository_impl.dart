@@ -9,6 +9,7 @@ import 'package:baishou/features/diary/domain/repositories/diary_repository.dart
 import 'package:baishou/features/index/data/shadow_index_database.dart';
 import 'package:baishou/features/index/data/shadow_index_sync_service.dart';
 import 'package:baishou/features/storage/domain/services/journal_file_service.dart';
+import 'package:baishou/features/storage/domain/services/file_state_scheduler.dart';
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -19,6 +20,7 @@ class DiaryRepositoryImpl implements DiaryRepository {
   final JournalFileService _fileService;
   final ShadowIndexSyncService _syncService;
   final VaultIndex _vaultIndex;
+  final FileStateScheduler _fileStateScheduler;
 
   // ==========================================
   // 响应式流处理部分 (Reactive Stream)
@@ -34,6 +36,7 @@ class DiaryRepositoryImpl implements DiaryRepository {
     this._fileService,
     this._syncService,
     this._vaultIndex,
+    this._fileStateScheduler,
   ) {
     // 仓库初始化时，立即执行一次全量扫描，确保物理文件和数据库影子索引一致（支持手动删除同步）
     _initRepositoryData();
@@ -45,7 +48,10 @@ class DiaryRepositoryImpl implements DiaryRepository {
       await _syncService.fullScanVault();
 
       // 2. 挂载实时文件系统监听器事件流
-      _syncService.syncEvents.listen((_) {
+      _syncService.syncEvents.listen((event) {
+        debugPrint(
+          'DiaryRepository: External sync event for ${event.path}, refreshing list.',
+        );
         _emitAllDiaries();
       });
     } catch (e) {
@@ -238,9 +244,11 @@ class DiaryRepositoryImpl implements DiaryRepository {
         }
       }
 
-      // 第二步：suppress watcher 并保存物理文件 (Markdown)
+      // 第二步：给调度器发送 suppress 信号，防止 Watcher 回声
       final filePath = await _fileService.getExactFilePath(diary.date);
-      _vaultIndex.suppressPath(filePath);
+      _fileStateScheduler.suppressPath(filePath);
+
+      // 第三步：保存物理文件 (Markdown)
       await _fileService.writeJournal(diary);
 
       // 第三步：将这次保存操作强同步给 SQLite 影子图谱
@@ -296,8 +304,10 @@ class DiaryRepositoryImpl implements DiaryRepository {
       final dateStr = rows.first['date'] as String;
       try {
         final logicalDate = DateTime.parse(dateStr);
+        // 借用调度器屏蔽这条路径后续不可预测的监听杂音
         final filePath = await _fileService.getExactFilePath(logicalDate);
-        _vaultIndex.suppressPath(filePath);
+        _fileStateScheduler.suppressPath(filePath);
+        // 第一步：清理物理文件和缓存
         await _fileService.deleteJournalFile(logicalDate);
       } catch (e) {
         // 物理删除失败后，我们依然继续删除索引，但需要把这个“部分失效”的信息传给 UI
@@ -385,12 +395,14 @@ DiaryRepository diaryRepository(Ref ref) {
   final fileService = ref.watch(journalFileServiceProvider.notifier);
   final syncService = ref.watch(shadowIndexSyncServiceProvider.notifier);
   final vaultIndex = ref.watch(vaultIndexProvider.notifier);
+  final fileStateScheduler = ref.watch(fileStateSchedulerProvider.notifier);
 
   final repo = DiaryRepositoryImpl(
     dbService,
     fileService,
     syncService,
     vaultIndex,
+    fileStateScheduler,
   );
 
   ref.onDispose(() {
