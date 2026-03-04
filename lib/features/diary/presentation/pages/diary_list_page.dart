@@ -29,7 +29,10 @@ class DiaryListPage extends ConsumerStatefulWidget {
 }
 
 class _DiaryListPageState extends ConsumerState<DiaryListPage> {
-  DateTime? _selectedMonth;
+  DateTime? _selectedMonth = DateTime(
+    DateTime.now().year,
+    DateTime.now().month,
+  );
   String _searchQuery = '';
   bool _isSearching = false;
   final _scrollController = ScrollController();
