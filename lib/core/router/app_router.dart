@@ -171,17 +171,20 @@ GoRouter goRouter(Ref ref) {
           final dateStr = state.uri.queryParameters['date'];
           final idStr = state.uri.queryParameters['id'];
           final summaryIdStr = state.uri.queryParameters['summaryId'];
+          final appendStr = state.uri.queryParameters['append'];
 
           final date = dateStr != null ? DateTime.tryParse(dateStr) : null;
           final id = idStr != null ? int.tryParse(idStr) : null;
           final summaryId = summaryIdStr != null
               ? int.tryParse(summaryIdStr)
               : null;
+          final shouldAppend = appendStr == '1';
 
           return DiaryEditorPage(
             diaryId: id,
             summaryId: summaryId,
             initialDate: date,
+            appendOnLoad: shouldAppend,
           );
         },
       ),

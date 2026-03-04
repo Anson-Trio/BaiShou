@@ -21,6 +21,7 @@ class ApiConfigService {
   static const String _keyGlobalSummaryProviderId =
       'global_summary_provider_id';
   static const String _keyGlobalSummaryModelId = 'global_summary_model_id';
+  static const String _keyMonthlySummarySource = 'monthly_summary_source';
 
   final SharedPreferences _prefs;
 
@@ -195,6 +196,16 @@ class ApiConfigService {
   Future<void> setGlobalSummaryModel(String providerId, String modelId) async {
     await _prefs.setString(_keyGlobalSummaryProviderId, providerId);
     await _prefs.setString(_keyGlobalSummaryModelId, modelId);
+  }
+
+  /// 获取月度总结的数据源：'weeklies'（仅周记） 或 'diaries'（全量日记）
+  String get monthlySummarySource {
+    return _prefs.getString(_keyMonthlySummarySource) ?? 'weeklies';
+  }
+
+  /// 设置月度总结的数据源
+  Future<void> setMonthlySummarySource(String source) async {
+    await _prefs.setString(_keyMonthlySummarySource, source);
   }
 
   /// 获取所有可用的模型列表，返回一个 Map 列表，方便 UI 渲染下拉框

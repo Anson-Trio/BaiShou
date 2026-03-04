@@ -13,6 +13,13 @@
     "monthly_label": "月報",
     "raw_quarterly_data": "### 原始季度總結數據 ($year年)",
     "summary_label": "總結",
+    "raw_diary_data_monthly": "### 原始日記數據（本月全量） ($year年$month月)",
+    "quarterly_weeklies_section": "### 本季度週記",
+    "quarterly_monthlies_section": "### 本季度月報",
+    "monthly_weeklies_section": "### 本月週記",
+    "yearly_weeklies_section": "### 本年度週記",
+    "yearly_monthlies_section": "### 本年度月報",
+    "yearly_quarterlies_section": "### 本年度季報",
     "raw_data_export_title": "# 原始數據導出",
     "export_range": "範圍: $start ~ $end",
     "total_diaries_count": "總計: $count 篇日記"
@@ -399,11 +406,11 @@
     "error_dual_edit": "不能同時編輯日記和總結"
   },
   "summary": {
-    "dashboard_title": "白守數據概覽",
+    "dashboard_title": "回憶",
     "lookback_period": "過去 $months 個月",
     "collective_memories_title": "回憶",
     "copy_memories": "複製共同回憶",
-    "algorithm_desc": "基於白守級聯折疊算法，自動過濾冗余數據，構築我們共同的記憶脈絡。",
+    "algorithm_desc": "基於白守級聯折疊算法，自動過濾冗餘數據，構築我們共同的記憶脈絡。",
     "stats_yearly": "年度",
     "stats_quarterly": "季度",
     "stats_monthly": "月度",

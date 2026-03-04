@@ -174,7 +174,7 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
           heroTag: 'editToday',
           onPressed: () {
             if (todayMeta != null) {
-              context.push('/diary/edit?id=${todayMeta.id}');
+              context.push('/diary/edit?id=${todayMeta.id}&append=1');
             } else {
               context.push(
                 '/diary/edit?date=${DateTime.now().toIso8601String()}',
@@ -300,7 +300,9 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
                           tooltip: todayMeta != null ? '编辑今天' : '写今天',
                           onPressed: () {
                             if (todayMeta != null) {
-                              context.push('/diary/edit?id=${todayMeta.id}');
+                              context.push(
+                                '/diary/edit?id=${todayMeta.id}&append=1',
+                              );
                             } else {
                               context.push(
                                 '/diary/edit?date=${DateTime.now().toIso8601String()}',

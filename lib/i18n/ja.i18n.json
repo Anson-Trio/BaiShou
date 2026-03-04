@@ -13,6 +13,13 @@
     "monthly_label": "月報",
     "raw_quarterly_data": "### 原始四半期まとめデータ ($year年)",
     "summary_label": "まとめ",
+    "raw_diary_data_monthly": "### 原始日記データ（全月分） ($year年$month月)",
+    "quarterly_weeklies_section": "### 今四半期の週記",
+    "quarterly_monthlies_section": "### 今四半期の月報",
+    "monthly_weeklies_section": "### 今月の週記",
+    "yearly_weeklies_section": "### 今年度の週記",
+    "yearly_monthlies_section": "### 今年度の月報",
+    "yearly_quarterlies_section": "### 今年度の四半期報",
     "raw_data_export_title": "# 原始データエクスポート",
     "export_range": "範囲: $start ～ $end",
     "total_diaries_count": "合計: $count 篇の日記"
@@ -399,7 +406,7 @@
     "error_dual_edit": "日記と要約を同時に編集することはできません"
   },
   "summary": {
-    "dashboard_title": "白守データ概要",
+    "dashboard_title": "思い出",
     "lookback_period": "過去 $months ヶ月",
     "collective_memories_title": "共同の思い出",
     "copy_memories": "思い出をコピー",

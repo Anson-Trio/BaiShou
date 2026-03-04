@@ -19,9 +19,15 @@ class DiaryEditorPage extends ConsumerStatefulWidget {
   final int? diaryId; // 如果是非空，则进入日记编辑模式
   final int? summaryId; // 如果是非空，则进入总结编辑模式，与 diaryId 互斥
   final DateTime? initialDate; // 新建日记时的默认日期
+  final bool appendOnLoad; // 如果为 true，加载已有日记后自动在末尾追加 ##### HH:mm 时间戳
 
-  DiaryEditorPage({super.key, this.diaryId, this.summaryId, this.initialDate})
-    : assert(diaryId == null || summaryId == null, t.diary.error_dual_edit);
+  DiaryEditorPage({
+    super.key,
+    this.diaryId,
+    this.summaryId,
+    this.initialDate,
+    this.appendOnLoad = false,
+  }) : assert(diaryId == null || summaryId == null, t.diary.error_dual_edit);
 
   @override
   ConsumerState<DiaryEditorPage> createState() => _DiaryEditorPageState();
@@ -113,6 +119,17 @@ class _DiaryEditorPageState extends ConsumerState<DiaryEditorPage> {
           _selectedTime = TimeOfDay.fromDateTime(diary.date);
         });
         _populateControllers(diary.content, diary.tags);
+
+        // 追加模式：在已有内容末尾插入新的时间戳，方便用户继续记录
+        if (widget.appendOnLoad) {
+          final timeMark =
+              '\n\n##### ${DateFormat('HH:mm').format(DateTime.now())}\n\n';
+          final newText = _contentController.text.trimRight() + timeMark;
+          _contentController.value = TextEditingValue(
+            text: newText,
+            selection: TextSelection.collapsed(offset: newText.length),
+          );
+        }
       }
     } catch (e) {
       debugPrint('Err load diary: $e');

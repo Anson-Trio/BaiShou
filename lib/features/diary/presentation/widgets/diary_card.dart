@@ -150,15 +150,6 @@ class _DiaryCardState extends State<DiaryCard> {
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  DateFormat('HH:mm').format(widget.diary.date),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: theme.colorScheme.onSurfaceVariant
-                                        .withOpacity(0.7),
-                                  ),
-                                ),
                               ],
                             ),
                           ],

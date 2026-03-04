@@ -114,101 +114,224 @@ class SummaryGeneratorService {
     return buffer.toString();
   }
 
-  /// 构建月报所需的上下文数据（周记列表）
+  /// 构建月报所需的上下文数据
+  /// 可配置：读取周记或读取本月全量日记
   Future<String> _buildMonthlyContext(DateTime start, DateTime end) async {
-    // 获取从指定开始日期之后的所有总结
-    // 获取所有 startDate 在该月份内的周记。
-    final summaries = await _summaryRepo.getSummaries(start: start);
+    final apiConfig = _ref.read(apiConfigServiceProvider);
+    final source = apiConfig.monthlySummarySource;
 
-    final weeklies = summaries
-        .where((s) => s.type == SummaryType.weekly)
-        // 内存过滤：只保留开始日期在范围内的周记
-        .where((s) => s.startDate.isBefore(end.add(const Duration(seconds: 1))))
-        .toList();
-
-    if (weeklies.isEmpty) return '';
-
-    final buffer = StringBuffer();
-    buffer.writeln(
-      '${t.ai_prompt.raw_weekly_data(start: '${start.year}-${start.month}')}',
-    );
-    for (final s in weeklies) {
-      buffer.writeln(
-        '\n#### ${s.startDate.toString().split(' ')[0]} ~ ${s.endDate.toString().split(' ')[0]} ${t.ai_prompt.weekly_label}',
-      );
-      buffer.writeln(s.content);
-    }
-    return buffer.toString();
-  }
-
-  /// 构建季报所需的上下文数据（月报列表）
-  Future<String> _buildQuarterlyContext(DateTime start, DateTime end) async {
-    // 获取 startDate 在该季度内的所有月报
-    final summaries = await _summaryRepo.getSummaries(start: start);
-    final monthlies = summaries
-        .where((s) => s.type == SummaryType.monthly)
-        .where((s) => s.startDate.isBefore(end.add(const Duration(seconds: 1))))
-        .toList();
-
-    if (monthlies.isEmpty) return '';
-
-    final buffer = StringBuffer();
-    buffer.writeln(
-      '${t.ai_prompt.raw_monthly_data(year: start.year.toString(), q: (start.month / 3).ceil().toString())}',
-    );
-    for (final s in monthlies) {
-      buffer.writeln(
-        '\n#### ${s.startDate.year}-${s.startDate.month} ${t.ai_prompt.monthly_label}',
-      );
-      buffer.writeln(s.content);
-    }
-    return buffer.toString();
-  }
-
-  /// 构建年鉴所需的上下文数据（优先使用季报，回退至月报）
-  Future<String> _buildYearlyContext(DateTime start, DateTime end) async {
-    final summaries = await _summaryRepo.getSummaries(start: start);
-    // 优先使用季报
-    final quarterlies = summaries
-        .where((s) => s.type == SummaryType.quarterly)
-        .where((s) => s.startDate.isBefore(end.add(const Duration(seconds: 1))))
-        .toList();
-
-    if (quarterlies.isEmpty) {
-      // 如果没有找到季报，则回退到月报
-      final monthlies = summaries
-          .where((s) => s.type == SummaryType.monthly)
+    if (source == 'diaries') {
+      // 模式：全量日记 + 本月周记（最丰富的原始素材）
+      final diaries = await _diaryRepo.getDiariesInRange(start, end);
+      final summaries = await _summaryRepo.getSummaries(start: start);
+      final startBound = start.subtract(const Duration(seconds: 1));
+      final endBound = end.add(const Duration(seconds: 1));
+      final weeklies = summaries
+          .where((s) => s.type == SummaryType.weekly)
           .where(
-            (s) => s.startDate.isBefore(end.add(const Duration(seconds: 1))),
+            (s) =>
+                s.startDate.isAfter(startBound) &&
+                s.startDate.isBefore(endBound),
           )
           .toList();
-      if (monthlies.isNotEmpty) {
-        final buffer = StringBuffer();
+
+      if (diaries.isEmpty && weeklies.isEmpty) return '';
+
+      final buffer = StringBuffer();
+
+      if (diaries.isNotEmpty) {
         buffer.writeln(
-          '### ${t.ai_prompt.raw_monthly_data(year: start.year.toString(), q: 'MISSING')}',
+          t.ai_prompt.raw_diary_data_monthly(
+            year: '${start.year}',
+            month: '${start.month}',
+          ),
         );
-        for (final s in monthlies) {
+        for (final d in diaries) {
+          buffer.writeln('\n#### ${d.date.year}-${d.date.month}-${d.date.day}');
+          buffer.writeln(d.content);
+          if (d.tags.isNotEmpty)
+            buffer.writeln('${t.diary.tag_label}: ${d.tags.join(", ")}');
+        }
+      }
+
+      if (weeklies.isNotEmpty) {
+        buffer.writeln('\n${t.ai_prompt.monthly_weeklies_section}');
+        for (final s in weeklies) {
           buffer.writeln(
-            '\n#### ${s.startDate.year}-${s.startDate.month} ${t.ai_prompt.monthly_label}',
+            '\n#### ${s.startDate.toString().split(' ')[0]} ~ ${s.endDate.toString().split(' ')[0]} ${t.ai_prompt.weekly_label}',
           );
           buffer.writeln(s.content);
         }
-        return buffer.toString();
       }
-      return '';
-    }
 
+      return buffer.toString();
+    } else {
+      // 模式：仅读取本月的周记（默认）
+      final summaries = await _summaryRepo.getSummaries(start: start);
+      final startBound = start.subtract(const Duration(seconds: 1));
+      final endBound = end.add(const Duration(seconds: 1));
+      final weeklies = summaries
+          .where((s) => s.type == SummaryType.weekly)
+          .where(
+            (s) =>
+                s.startDate.isAfter(startBound) &&
+                s.startDate.isBefore(endBound),
+          )
+          .toList();
+
+      if (weeklies.isEmpty) return '';
+
+      final buffer = StringBuffer();
+      buffer.writeln(
+        t.ai_prompt.raw_weekly_data(start: '${start.year}-${start.month}'),
+      );
+      for (final s in weeklies) {
+        buffer.writeln(
+          '\n#### ${s.startDate.toString().split(' ')[0]} ~ ${s.endDate.toString().split(' ')[0]} ${t.ai_prompt.weekly_label}',
+        );
+        buffer.writeln(s.content);
+      }
+      return buffer.toString();
+    }
+  }
+
+  /// 构建季报所需的上下文数据（周记 + 月记）
+  Future<String> _buildQuarterlyContext(DateTime start, DateTime end) async {
+    final summaries = await _summaryRepo.getSummaries(start: start);
+    final startBound = start.subtract(const Duration(seconds: 1));
+    final endBound = end.add(const Duration(seconds: 1));
+
+    final weeklies =
+        summaries
+            .where((s) => s.type == SummaryType.weekly)
+            .where(
+              (s) =>
+                  s.startDate.isAfter(startBound) &&
+                  s.startDate.isBefore(endBound),
+            )
+            .toList()
+          ..sort((a, b) => a.startDate.compareTo(b.startDate));
+
+    final monthlies =
+        summaries
+            .where((s) => s.type == SummaryType.monthly)
+            .where(
+              (s) =>
+                  s.startDate.isAfter(startBound) &&
+                  s.startDate.isBefore(endBound),
+            )
+            .toList()
+          ..sort((a, b) => a.startDate.compareTo(b.startDate));
+
+    if (weeklies.isEmpty && monthlies.isEmpty) return '';
+
+    final q = (start.month / 3).ceil();
     final buffer = StringBuffer();
     buffer.writeln(
-      '${t.ai_prompt.raw_quarterly_data(year: start.year.toString())}',
+      t.ai_prompt.raw_monthly_data(
+        year: start.year.toString(),
+        q: q.toString(),
+      ),
     );
-    for (final s in quarterlies) {
-      final q = (s.startDate.month / 3).ceil();
-      buffer.writeln(
-        '\n#### ${s.startDate.year} Q$q ${t.ai_prompt.summary_label}',
-      );
-      buffer.writeln(s.content);
+
+    if (weeklies.isNotEmpty) {
+      buffer.writeln('\n${t.ai_prompt.quarterly_weeklies_section}');
+      for (final s in weeklies) {
+        buffer.writeln(
+          '\n#### ${s.startDate.toString().split(' ')[0]} ~ ${s.endDate.toString().split(' ')[0]} ${t.ai_prompt.weekly_label}',
+        );
+        buffer.writeln(s.content);
+      }
     }
+
+    if (monthlies.isNotEmpty) {
+      buffer.writeln('\n${t.ai_prompt.quarterly_monthlies_section}');
+      for (final s in monthlies) {
+        buffer.writeln(
+          '\n#### ${s.startDate.year}-${s.startDate.month} ${t.ai_prompt.monthly_label}',
+        );
+        buffer.writeln(s.content);
+      }
+    }
+
+    return buffer.toString();
+  }
+
+  /// 构建年鉴所需的上下文数据（周记 + 月记 + 季记）
+  Future<String> _buildYearlyContext(DateTime start, DateTime end) async {
+    final summaries = await _summaryRepo.getSummaries(start: start);
+    final startBound = start.subtract(const Duration(seconds: 1));
+    final endBound = end.add(const Duration(seconds: 1));
+
+    final weeklies =
+        summaries
+            .where((s) => s.type == SummaryType.weekly)
+            .where(
+              (s) =>
+                  s.startDate.isAfter(startBound) &&
+                  s.startDate.isBefore(endBound),
+            )
+            .toList()
+          ..sort((a, b) => a.startDate.compareTo(b.startDate));
+
+    final monthlies =
+        summaries
+            .where((s) => s.type == SummaryType.monthly)
+            .where(
+              (s) =>
+                  s.startDate.isAfter(startBound) &&
+                  s.startDate.isBefore(endBound),
+            )
+            .toList()
+          ..sort((a, b) => a.startDate.compareTo(b.startDate));
+
+    final quarterlies =
+        summaries
+            .where((s) => s.type == SummaryType.quarterly)
+            .where(
+              (s) =>
+                  s.startDate.isAfter(startBound) &&
+                  s.startDate.isBefore(endBound),
+            )
+            .toList()
+          ..sort((a, b) => a.startDate.compareTo(b.startDate));
+
+    if (weeklies.isEmpty && monthlies.isEmpty && quarterlies.isEmpty) return '';
+
+    final buffer = StringBuffer();
+    buffer.writeln(t.ai_prompt.raw_quarterly_data(year: start.year.toString()));
+
+    if (weeklies.isNotEmpty) {
+      buffer.writeln('\n${t.ai_prompt.yearly_weeklies_section}');
+      for (final s in weeklies) {
+        buffer.writeln(
+          '\n#### ${s.startDate.toString().split(' ')[0]} ~ ${s.endDate.toString().split(' ')[0]} ${t.ai_prompt.weekly_label}',
+        );
+        buffer.writeln(s.content);
+      }
+    }
+
+    if (monthlies.isNotEmpty) {
+      buffer.writeln('\n${t.ai_prompt.yearly_monthlies_section}');
+      for (final s in monthlies) {
+        buffer.writeln(
+          '\n#### ${s.startDate.year}-${s.startDate.month} ${t.ai_prompt.monthly_label}',
+        );
+        buffer.writeln(s.content);
+      }
+    }
+
+    if (quarterlies.isNotEmpty) {
+      buffer.writeln('\n${t.ai_prompt.yearly_quarterlies_section}');
+      for (final s in quarterlies) {
+        final q = (s.startDate.month / 3).ceil();
+        buffer.writeln(
+          '\n#### ${s.startDate.year} Q$q ${t.ai_prompt.summary_label}',
+        );
+        buffer.writeln(s.content);
+      }
+    }
+
     return buffer.toString();
   }
 

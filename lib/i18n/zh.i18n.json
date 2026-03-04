@@ -13,6 +13,13 @@
     "monthly_label": "月报",
     "raw_quarterly_data": "### 原始季度总结数据 ($year年)",
     "summary_label": "总结",
+    "raw_diary_data_monthly": "### 原始日记数据（本月全量） ($year年$month月)",
+    "quarterly_weeklies_section": "### 本季度周记",
+    "quarterly_monthlies_section": "### 本季度月报",
+    "monthly_weeklies_section": "### 本月周记",
+    "yearly_weeklies_section": "### 本年度周记",
+    "yearly_monthlies_section": "### 本年度月报",
+    "yearly_quarterlies_section": "### 本年度季报",
     "raw_data_export_title": "# 原始数据导出",
     "export_range": "范围: $start ~ $end",
     "total_diaries_count": "总计: $count 篇日记"
@@ -399,7 +406,7 @@
     "error_dual_edit": "不能同时编辑日记和总结"
   },
   "summary": {
-    "dashboard_title": "白守数据概览",
+    "dashboard_title": "回忆",
     "lookback_period": "过去 $months 个月",
     "collective_memories_title": "回忆",
     "copy_memories": "复制共同回忆",

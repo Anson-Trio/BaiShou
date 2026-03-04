@@ -19,6 +19,7 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
   String? _globalDialogueModel;
   String? _globalNamingModel;
   String? _globalSummaryModel;
+  String _monthlySummarySource = 'weeklies'; // 月度总结数据源
 
   @override
   void initState() {
@@ -47,6 +48,7 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
         service.globalSummaryProviderId,
         service.globalSummaryModelId,
       );
+      _monthlySummarySource = service.monthlySummarySource;
     });
   }
 
@@ -164,6 +166,7 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
   Widget build(BuildContext context) {
     final service = ref.watch(apiConfigServiceProvider);
     final allModels = service.getAllAvailableModels();
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
       color: Theme.of(context).colorScheme.surface,
@@ -202,6 +205,73 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
               onChanged: (val) {
                 setState(() => _globalSummaryModel = val);
               },
+            ),
+
+            const SizedBox(height: 16),
+
+            // 月度总结数据源选项
+            Container(
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest.withOpacity(0.4),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: colorScheme.outlineVariant.withOpacity(0.35),
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.menu_book_rounded,
+                        color: colorScheme.primary,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '月度总结数据源',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '选择 AI 在生成月报时读取的原始素材',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(
+                        value: 'weeklies',
+                        label: Text('仅读取周记'),
+                        icon: Icon(Icons.calendar_view_week_rounded, size: 16),
+                      ),
+                      ButtonSegment(
+                        value: 'diaries',
+                        label: Text('读取全部日记'),
+                        icon: Icon(Icons.article_outlined, size: 16),
+                      ),
+                    ],
+                    selected: {_monthlySummarySource},
+                    onSelectionChanged: (sel) async {
+                      final chosen = sel.first;
+                      setState(() => _monthlySummarySource = chosen);
+                      await ref
+                          .read(apiConfigServiceProvider)
+                          .setMonthlySummarySource(chosen);
+                    },
+                    style: ButtonStyle(visualDensity: VisualDensity.compact),
+                  ),
+                ],
+              ),
             ),
 
             const SizedBox(height: 32),

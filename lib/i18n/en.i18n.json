@@ -13,6 +13,13 @@
     "monthly_label": "Monthly",
     "raw_quarterly_data": "### Raw Quarterly Summary Data ($year)",
     "summary_label": "Summary",
+    "raw_diary_data_monthly": "### Raw Diary Data (Full Month) ($year/$month)",
+    "quarterly_weeklies_section": "### Weekly Summaries This Quarter",
+    "quarterly_monthlies_section": "### Monthly Summaries This Quarter",
+    "monthly_weeklies_section": "### Weekly Summaries This Month",
+    "yearly_weeklies_section": "### Weekly Summaries This Year",
+    "yearly_monthlies_section": "### Monthly Summaries This Year",
+    "yearly_quarterlies_section": "### Quarterly Summaries This Year",
     "raw_data_export_title": "# Raw Data Export",
     "export_range": "Range: $start ~ $end",
     "total_diaries_count": "Total: $count diaries"
