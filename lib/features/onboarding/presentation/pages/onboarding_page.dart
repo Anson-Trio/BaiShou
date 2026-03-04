@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-/// 新手引导页面
 /// 向用户介绍应用核心理念（灵魂备份、记忆压缩）并引导其完成基础配置（如 API Key）。
 class OnboardingPage extends ConsumerStatefulWidget {
   const OnboardingPage({super.key});
@@ -81,6 +80,10 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
 
   @override
   Widget build(BuildContext context) {
+    return _buildNormalOnboarding(context);
+  }
+
+  Widget _buildNormalOnboarding(BuildContext context) {
     return Scaffold(
       body: SafeArea(
         child: Column(

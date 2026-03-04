@@ -5,6 +5,9 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+import java.util.Properties
+import java.util.Base64
+
 android {
     namespace = "com.baishou.baishou"
     compileSdk = flutter.compileSdkVersion
@@ -16,7 +19,7 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+        jvmTarget = "17"
     }
 
     defaultConfig {
@@ -30,11 +33,43 @@ android {
         versionName = flutter.versionName
     }
 
+    val keystorePropertiesFile = rootProject.file("key.properties")
+    val keystoreProperties = Properties()
+    if (keystorePropertiesFile.exists()) {
+        keystoreProperties.load(keystorePropertiesFile.inputStream())
+    }
+
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties.getProperty("keyAlias")
+            keyPassword = keystoreProperties.getProperty("keyPassword")
+            
+            val storeBase64 = keystoreProperties.getProperty("storeBase64")
+            val storeFilePath = keystoreProperties.getProperty("storeFile")
+            
+            if (!storeBase64.isNullOrEmpty()) {
+                // Decode Base64 to a temporary file
+                val tmpKeystore = file(layout.buildDirectory.dir("tmp_keystore").get().file("upload.jks").asFile.path)
+                tmpKeystore.parentFile.mkdirs()
+                val decodedBytes = Base64.getDecoder().decode(storeBase64)
+                tmpKeystore.writeBytes(decodedBytes)
+                storeFile = tmpKeystore
+            } else if (storeFilePath != null) {
+                storeFile = file(storeFilePath)
+            }
+            
+            storePassword = keystoreProperties.getProperty("storePassword")
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (keystoreProperties.containsKey("storeBase64") || keystoreProperties.containsKey("storeFile")) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
+
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

@@ -23,6 +23,8 @@ import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:baishou/i18n/strings.g.dart';
+import 'package:baishou/features/storage/domain/services/journal_file_service.dart';
+import 'package:baishou/features/index/data/shadow_index_sync_service.dart';
 
 /// 导入结果
 class ImportResult {
@@ -114,6 +116,8 @@ class ImportService {
   final ThemeNotifier _themeNotifier;
   final ApiConfigService _apiConfig;
   final DataSyncConfigService _dataSyncConfig;
+  final JournalFileService _journalFileService;
+  final ShadowIndexSyncService _shadowIndexSyncService;
 
   ImportService({
     required DiaryRepository diaryRepository,
@@ -123,13 +127,17 @@ class ImportService {
     required ThemeNotifier themeNotifier,
     required ApiConfigService apiConfig,
     required DataSyncConfigService dataSyncConfig,
+    required JournalFileService journalFileService,
+    required ShadowIndexSyncService shadowIndexSyncService,
   }) : _diaryRepository = diaryRepository,
        _summaryRepository = summaryRepository,
        _exportService = exportService,
        _profileNotifier = profileNotifier,
        _themeNotifier = themeNotifier,
        _apiConfig = apiConfig,
-       _dataSyncConfig = dataSyncConfig;
+       _dataSyncConfig = dataSyncConfig,
+       _journalFileService = journalFileService,
+       _shadowIndexSyncService = shadowIndexSyncService;
 
   /// 从 ZIP 文件导入备份（覆盖模式：先自动创建快照，再清空数据，最后写入）
   Future<ImportResult> importFromZip(File zipFile) async {
@@ -242,7 +250,15 @@ class ImportService {
         error: t.settings.import_failed_with_error(error: e.toString()),
       );
     } finally {
-      // 8. 彻底清理临时文件逻辑
+      // 8. 触发索引全量同步
+      try {
+        await _shadowIndexSyncService.fullScanVault();
+        debugPrint('Import: Shadow index sync triggered');
+      } catch (e) {
+        debugPrint('Import: Failed to trigger index sync: $e');
+      }
+
+      // 9. 彻底清理临时文件逻辑
       if (tempZipFile.existsSync()) {
         try {
           tempZipFile.deleteSync();
@@ -268,20 +284,30 @@ class ImportService {
           date: date,
           content: map['content'] as String? ?? '',
           tags: (map['tags'] as List<dynamic>?)?.cast<String>() ?? [],
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
+          createdAt: map['created_at'] != null
+              ? DateTime.parse(map['created_at'] as String)
+              : DateTime.now(),
+          updatedAt: map['updated_at'] != null
+              ? DateTime.parse(map['updated_at'] as String)
+              : DateTime.now(),
+          weather: map['weather'] as String?,
+          mood: map['mood'] as String?,
+          location: map['location'] as String?,
+          locationDetail: map['location_detail'] as String?,
+          isFavorite: map['is_favorite'] as bool? ?? false,
+          mediaPaths:
+              (map['media_paths'] as List<dynamic>?)?.cast<String>() ?? [],
         ),
       );
     }
 
-    // 2. 批量插入（数据已被清空，无需去重）
+    // 2. 写入物理文件（不写入数据库，由 fullScanVault 处理）
     if (parsedDiaries.isNotEmpty) {
-      const batchSize = 500;
-      for (var i = 0; i < parsedDiaries.length; i += batchSize) {
-        final end = (i + batchSize < parsedDiaries.length)
-            ? i + batchSize
-            : parsedDiaries.length;
-        await _diaryRepository.batchSaveDiaries(parsedDiaries.sublist(i, end));
+      debugPrint(
+        'Import: Writing ${parsedDiaries.length} diaries to physical files',
+      );
+      for (final diary in parsedDiaries) {
+        await _journalFileService.writeJournal(diary);
       }
     }
 
@@ -560,5 +586,7 @@ final importServiceProvider = Provider<ImportService>((ref) {
     themeNotifier: ref.watch(themeProvider.notifier),
     apiConfig: ref.watch(apiConfigServiceProvider),
     dataSyncConfig: ref.watch(dataSyncConfigServiceProvider),
+    journalFileService: ref.watch(journalFileServiceProvider.notifier),
+    shadowIndexSyncService: ref.watch(shadowIndexSyncServiceProvider.notifier),
   );
 });

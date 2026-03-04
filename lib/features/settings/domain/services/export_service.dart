@@ -194,6 +194,12 @@ class ExportService {
       'tags': diary.tags,
       'created_at': diary.createdAt.toIso8601String(),
       'updated_at': diary.updatedAt.toIso8601String(),
+      'weather': diary.weather,
+      'mood': diary.mood,
+      'location': diary.location,
+      'location_detail': diary.locationDetail,
+      'is_favorite': diary.isFavorite,
+      'media_paths': diary.mediaPaths,
     };
   }
 
