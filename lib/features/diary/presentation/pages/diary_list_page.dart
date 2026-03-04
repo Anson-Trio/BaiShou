@@ -286,6 +286,50 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
                     ],
                   ),
                 ),
+                const SizedBox(width: 8),
+                // 桌面端新增日记与今天日记编辑按钮
+                Consumer(
+                  builder: (context, ref, child) {
+                    final allMeta = ref.watch(vaultIndexProvider).value ?? [];
+                    final todayMeta = allMeta.firstWhereOrNull(
+                      (m) => DateUtils.isSameDay(m.date, DateTime.now()),
+                    );
+                    return Row(
+                      children: [
+                        IconButton(
+                          tooltip: todayMeta != null ? '编辑今天' : '写今天',
+                          onPressed: () {
+                            if (todayMeta != null) {
+                              context.push('/diary/edit?id=${todayMeta.id}');
+                            } else {
+                              context.push(
+                                '/diary/edit?date=${DateTime.now().toIso8601String()}',
+                              );
+                            }
+                          },
+                          icon: Icon(
+                            todayMeta != null ? Icons.edit_note : Icons.today,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        FilledButton.icon(
+                          onPressed: () => context.push(
+                            '/diary/edit?date=${DateTime.now().toIso8601String()}',
+                          ),
+                          icon: const Icon(Icons.add, size: 18),
+                          label: const Text('写日记'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppTheme.primary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ],
             ),
         ],

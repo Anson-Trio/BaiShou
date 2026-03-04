@@ -176,76 +176,79 @@ class _DiaryCardState extends State<DiaryCard> {
                     const SizedBox(height: 20),
 
                     // ===== Markdown content =====
-                    MarkdownBody(
-                      data: widget.diary.content,
-                      selectable: false,
-                      styleSheet: MarkdownStyleSheet(
-                        p: TextStyle(
-                          fontSize: 15,
-                          height: 1.6,
-                          color: theme.textTheme.bodyLarge?.color?.withOpacity(
-                            0.9,
-                          ),
-                        ),
-                        h1: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: theme.textTheme.bodyLarge?.color,
-                          height: 1.4,
-                        ),
-                        h2: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: theme.textTheme.bodyLarge?.color,
-                          height: 1.4,
-                        ),
-                        h3: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: theme.textTheme.bodyLarge?.color,
-                          height: 1.4,
-                        ),
-                        h4: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: theme.textTheme.bodyLarge?.color,
-                          height: 1.4,
-                        ),
-                        h5: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primary.withOpacity(0.8),
-                          height: 1.6,
-                        ),
-                        h6: TextStyle(
-                          // 旧的时间戳样式兼容
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: const Color.fromARGB(255, 255, 173, 218),
-                          height: 1.6,
-                        ),
-                        listBullet: TextStyle(
-                          color: theme.textTheme.bodyLarge?.color,
-                        ),
-                        blockSpacing: 12,
-                        blockquoteDecoration: BoxDecoration(
-                          color: isDark
-                              ? Colors.white.withOpacity(0.05)
-                              : Colors.black.withOpacity(0.03),
-                          borderRadius: const BorderRadius.only(
-                            topRight: Radius.circular(8),
-                            bottomRight: Radius.circular(8),
-                          ),
-                          border: Border(
-                            left: BorderSide(
-                              color: AppTheme.primary.withOpacity(0.5),
-                              width: 3,
+                    Flexible(
+                      child: ClipRect(
+                        child: MarkdownBody(
+                          data: widget.diary.content,
+                          selectable: false,
+                          styleSheet: MarkdownStyleSheet(
+                            p: TextStyle(
+                              fontSize: 15,
+                              height: 1.6,
+                              color: theme.textTheme.bodyLarge?.color
+                                  ?.withOpacity(0.9),
+                            ),
+                            h1: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: theme.textTheme.bodyLarge?.color,
+                              height: 1.4,
+                            ),
+                            h2: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: theme.textTheme.bodyLarge?.color,
+                              height: 1.4,
+                            ),
+                            h3: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: theme.textTheme.bodyLarge?.color,
+                              height: 1.4,
+                            ),
+                            h4: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: theme.textTheme.bodyLarge?.color,
+                              height: 1.4,
+                            ),
+                            h5: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primary.withOpacity(0.8),
+                              height: 1.6,
+                            ),
+                            h6: TextStyle(
+                              // 旧的时间戳样式兼容
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: const Color.fromARGB(255, 255, 173, 218),
+                              height: 1.6,
+                            ),
+                            listBullet: TextStyle(
+                              color: theme.textTheme.bodyLarge?.color,
+                            ),
+                            blockSpacing: 12,
+                            blockquoteDecoration: BoxDecoration(
+                              color: isDark
+                                  ? Colors.white.withOpacity(0.05)
+                                  : Colors.black.withOpacity(0.03),
+                              borderRadius: const BorderRadius.only(
+                                topRight: Radius.circular(8),
+                                bottomRight: Radius.circular(8),
+                              ),
+                              border: Border(
+                                left: BorderSide(
+                                  color: AppTheme.primary.withOpacity(0.5),
+                                  width: 3,
+                                ),
+                              ),
+                            ),
+                            blockquotePadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
                             ),
                           ),
-                        ),
-                        blockquotePadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
                         ),
                       ),
                     ),
