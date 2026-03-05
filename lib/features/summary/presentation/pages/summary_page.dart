@@ -9,7 +9,6 @@ import 'package:baishou/core/widgets/year_month_picker_sheet.dart';
 import 'package:baishou/core/widgets/year_picker_sheet.dart';
 import 'package:baishou/features/summary/presentation/widgets/summary_dashboard_view.dart';
 import 'package:baishou/features/summary/presentation/widgets/summary_list_view.dart';
-import 'package:baishou/features/summary/presentation/widgets/summary_raw_data_view.dart';
 import 'package:baishou/features/summary/presentation/providers/summary_filter_provider.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
@@ -32,7 +31,7 @@ class SummaryPage extends ConsumerWidget {
     } catch (e) {}
 
     return DefaultTabController(
-      length: 3,
+      length: 2,
       child: PopScope(
         canPop: false,
         onPopInvokedWithResult: (didPop, result) {
@@ -53,17 +52,12 @@ class SummaryPage extends ConsumerWidget {
               bottom: TabBar(
                 tabs: [
                   Tab(text: t.summary.collective_memories_title),
-                  Tab(text: t.summary.raw_data_tab),
                   Tab(text: t.summary.history_tab),
                 ],
               ),
             ),
             body: const TabBarView(
-              children: [
-                SummaryDashboardView(),
-                SummaryRawDataView(),
-                _SummaryArchiveView(),
-              ],
+              children: [SummaryDashboardView(), _SummaryArchiveView()],
             ),
           ),
         ),
