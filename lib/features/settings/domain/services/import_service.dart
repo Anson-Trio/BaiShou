@@ -19,6 +19,7 @@ import 'package:flutter/foundation.dart' hide Summary;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as path;
+import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:baishou/features/storage/domain/services/journal_file_service.dart';
@@ -262,14 +263,59 @@ class ImportService {
       );
     }
 
-    // 2. 写入物理文件（不写入数据库，由 fullScanVault 处理）
+    // 2. 按天分组并写入物理文件（不写入数据库，由 fullScanVault 处理）
     if (parsedDiaries.isNotEmpty) {
       debugPrint(
-        'Import: Writing ${parsedDiaries.length} diaries to physical files',
+        'Import: Grouping and merging ${parsedDiaries.length} diaries...',
       );
+
+      final Map<String, List<Diary>> groupedDiaries = {};
+      final DateFormat dayFormatter = DateFormat('yyyy-MM-dd');
+      final DateFormat timeFormatter = DateFormat('HH:mm:ss');
+
       for (final diary in parsedDiaries) {
-        await _journalFileService.writeJournal(diary);
+        final dayKey = dayFormatter.format(diary.date);
+        groupedDiaries.putIfAbsent(dayKey, () => []).add(diary);
       }
+
+      int mergedCount = 0;
+      for (final entry in groupedDiaries.entries) {
+        final list = entry.value;
+        if (list.length == 1) {
+          await _journalFileService.writeJournal(list.first);
+          mergedCount++;
+        } else {
+          // 同一天有多篇日记，按创建时间自下而上升序排列
+          list.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+          final buffer = StringBuffer();
+          final mergedTags = <String>{};
+          final mergedMediaPaths = <String>{};
+
+          for (int i = 0; i < list.length; i++) {
+            final d = list[i];
+            buffer.writeln('*(${timeFormatter.format(d.createdAt)})*\n');
+            buffer.writeln(d.content.trim());
+            if (i < list.length - 1) {
+              buffer.writeln('\n---\n');
+            }
+            mergedTags.addAll(d.tags);
+            mergedMediaPaths.addAll(d.mediaPaths);
+          }
+
+          // 以最新的一篇为母版，构建超级日记
+          final latestDiary = list.last;
+          final superDiary = latestDiary.copyWith(
+            content: buffer.toString(),
+            tags: mergedTags.toList(),
+            mediaPaths: mergedMediaPaths.toList(),
+          );
+
+          await _journalFileService.writeJournal(superDiary);
+          mergedCount++;
+        }
+      }
+      debugPrint('Import: Merged into $mergedCount physical daily files.');
     }
 
     return parsedDiaries.length;
