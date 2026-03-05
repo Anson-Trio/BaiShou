@@ -297,7 +297,9 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
                     return Row(
                       children: [
                         IconButton(
-                          tooltip: todayMeta != null ? '编辑今天' : '写今天',
+                          tooltip: todayMeta != null
+                              ? t.settings.edit_today_tooltip
+                              : t.settings.write_today_tooltip,
                           onPressed: () {
                             if (todayMeta != null) {
                               context.push(
@@ -320,7 +322,7 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
                             '/diary/edit?date=${DateTime.now().toIso8601String()}',
                           ),
                           icon: const Icon(Icons.add, size: 18),
-                          label: const Text('写日记'),
+                          label: Text(t.settings.write_diary_button),
                           style: FilledButton.styleFrom(
                             backgroundColor: AppTheme.primary,
                             shape: RoundedRectangleBorder(
@@ -460,7 +462,7 @@ class _DiaryListPageState extends ConsumerState<DiaryListPage> {
                   }
                 },
                 icon: const Icon(Icons.security_rounded),
-                label: const Text('检查存储权限'),
+                label: Text(t.settings.check_storage_permission),
               ),
             ],
           ],

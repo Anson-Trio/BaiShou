@@ -10,7 +10,6 @@ import 'package:baishou/core/models/ai_provider_model.dart';
 import 'package:baishou/features/diary/data/repositories/diary_repository_impl.dart';
 import 'package:baishou/features/diary/domain/entities/diary.dart';
 import 'package:baishou/features/diary/domain/repositories/diary_repository.dart';
-import 'package:baishou/features/settings/domain/services/export_service.dart';
 import 'package:baishou/features/settings/domain/services/data_sync_config_service.dart';
 import 'package:baishou/features/settings/domain/services/user_profile_service.dart';
 import 'package:baishou/features/summary/data/repositories/summary_repository_impl.dart';
@@ -19,12 +18,10 @@ import 'package:baishou/features/summary/domain/repositories/summary_repository.
 import 'package:flutter/foundation.dart' hide Summary;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:baishou/features/storage/domain/services/journal_file_service.dart';
-import 'package:baishou/features/index/data/shadow_index_sync_service.dart';
 
 /// 导入结果
 class ImportResult {
@@ -111,33 +108,27 @@ Future<ParsedImportData> parseZipData(String zipFilePath) async {
 class ImportService {
   final DiaryRepository _diaryRepository;
   final SummaryRepository _summaryRepository;
-  final ExportService _exportService;
   final UserProfileNotifier _profileNotifier;
   final ThemeNotifier _themeNotifier;
   final ApiConfigService _apiConfig;
   final DataSyncConfigService _dataSyncConfig;
   final JournalFileService _journalFileService;
-  final ShadowIndexSyncService _shadowIndexSyncService;
 
   ImportService({
     required DiaryRepository diaryRepository,
     required SummaryRepository summaryRepository,
-    required ExportService exportService,
     required UserProfileNotifier profileNotifier,
     required ThemeNotifier themeNotifier,
     required ApiConfigService apiConfig,
     required DataSyncConfigService dataSyncConfig,
     required JournalFileService journalFileService,
-    required ShadowIndexSyncService shadowIndexSyncService,
   }) : _diaryRepository = diaryRepository,
        _summaryRepository = summaryRepository,
-       _exportService = exportService,
        _profileNotifier = profileNotifier,
        _themeNotifier = themeNotifier,
        _apiConfig = apiConfig,
        _dataSyncConfig = dataSyncConfig,
-       _journalFileService = journalFileService,
-       _shadowIndexSyncService = shadowIndexSyncService;
+       _journalFileService = journalFileService;
 
   /// 从 ZIP 文件导入备份（覆盖模式：先自动创建快照，再清空数据，最后写入）
   Future<ImportResult> importFromZip(File zipFile) async {
@@ -176,36 +167,8 @@ class ImportService {
         );
       }
 
-      // 3. 创建导入前快照（用户可恢复到此节点）
+      // 3. (自动快照职责已上浮至 DataArchiveManager，此处跳过)
       String? snapshotPath;
-      try {
-        // 设置 3 分钟超时
-        final snapshotFile = await _exportService
-            .exportToZip(share: true)
-            .timeout(
-              const Duration(minutes: 3),
-              onTimeout: () {
-                throw TimeoutException(t.settings.snapshot_timeout);
-              },
-            );
-        if (snapshotFile != null) {
-          // 将快照移动到持久化目录
-          final appDir = await getApplicationDocumentsDirectory();
-          final snapshotDir = Directory(path.join(appDir.path, 'snapshots'));
-          if (!snapshotDir.existsSync()) {
-            await snapshotDir.create(recursive: true);
-          }
-          final now = DateTime.now();
-          final snapshotName =
-              'pre_import_${DateFormat('yyyyMMdd_HHmmss').format(now)}.zip';
-          final destFile = File(path.join(snapshotDir.path, snapshotName));
-          await snapshotFile.copy(destFile.path);
-          snapshotPath = destFile.path;
-          debugPrint('Import: Snapshot created at $snapshotPath');
-        }
-      } catch (e) {
-        debugPrint('Import: Failed to create snapshot, proceeding anyway: $e');
-      }
 
       // 4. 清空现有数据（覆盖模式）
       debugPrint('Import: Deleting existing diaries...');
@@ -250,14 +213,7 @@ class ImportService {
         error: t.settings.import_failed_with_error(error: e.toString()),
       );
     } finally {
-      // 8. 触发索引全量同步
-      try {
-        await _shadowIndexSyncService.fullScanVault();
-        debugPrint('Import: Shadow index sync triggered');
-      } catch (e) {
-        debugPrint('Import: Failed to trigger index sync: $e');
-      }
-
+      // 8. 触发索引全量同步 (已上浮至 DataArchiveManager 处理，此处跳过)
       // 9. 彻底清理临时文件逻辑
       if (tempZipFile.existsSync()) {
         try {
@@ -278,9 +234,14 @@ class ImportService {
     for (final item in diariesJson) {
       final map = item as Map<String, dynamic>;
       final date = DateTime.parse(map['date'] as String);
+      final rawId = map['id'];
+      final int parsedId = rawId is int
+          ? rawId
+          : (int.tryParse(rawId?.toString() ?? '') ?? 0);
+
       parsedDiaries.add(
         Diary(
-          id: 0,
+          id: parsedId,
           date: date,
           content: map['content'] as String? ?? '',
           tags: (map['tags'] as List<dynamic>?)?.cast<String>() ?? [],
@@ -326,10 +287,14 @@ class ImportService {
       );
       final startDate = DateTime.parse(map['start_date'] as String);
       final endDate = DateTime.parse(map['end_date'] as String);
+      final rawId = map['id'];
+      final int parsedId = rawId is int
+          ? rawId
+          : (int.tryParse(rawId?.toString() ?? '') ?? 0);
 
       parsedSummaries.add(
         Summary(
-          id: 0,
+          id: parsedId,
           type: type,
           startDate: startDate,
           endDate: endDate,
@@ -581,12 +546,10 @@ final importServiceProvider = Provider<ImportService>((ref) {
   return ImportService(
     diaryRepository: ref.watch(diaryRepositoryProvider),
     summaryRepository: ref.watch(summaryRepositoryProvider),
-    exportService: ref.watch(exportServiceProvider),
     profileNotifier: ref.watch(userProfileProvider.notifier),
     themeNotifier: ref.watch(themeProvider.notifier),
     apiConfig: ref.watch(apiConfigServiceProvider),
     dataSyncConfig: ref.watch(dataSyncConfigServiceProvider),
     journalFileService: ref.watch(journalFileServiceProvider.notifier),
-    shadowIndexSyncService: ref.watch(shadowIndexSyncServiceProvider.notifier),
   );
 });

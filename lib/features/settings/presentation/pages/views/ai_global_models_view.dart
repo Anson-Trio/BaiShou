@@ -224,14 +224,10 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
                 children: [
                   Row(
                     children: [
-                      Icon(
-                        Icons.menu_book_rounded,
-                        color: colorScheme.primary,
-                        size: 20,
-                      ),
+                      const Icon(Icons.source_outlined, size: 20),
                       const SizedBox(width: 8),
                       Text(
-                        '月度总结数据源',
+                        t.settings.monthly_summary_data_source,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -240,7 +236,7 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '选择 AI 在生成月报时读取的原始素材',
+                    t.settings.monthly_summary_data_source_desc,
                     style: TextStyle(
                       fontSize: 12,
                       color: colorScheme.onSurfaceVariant,
@@ -248,16 +244,19 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
                   ),
                   const SizedBox(height: 12),
                   SegmentedButton<String>(
-                    segments: const [
+                    segments: [
                       ButtonSegment(
                         value: 'weeklies',
-                        label: Text('仅读取周记'),
-                        icon: Icon(Icons.calendar_view_week_rounded, size: 16),
+                        label: Text(t.settings.read_only_weeklies),
+                        icon: const Icon(
+                          Icons.calendar_view_week_rounded,
+                          size: 16,
+                        ),
                       ),
                       ButtonSegment(
                         value: 'diaries',
-                        label: Text('读取全部日记'),
-                        icon: Icon(Icons.article_outlined, size: 16),
+                        label: Text(t.settings.read_all_diaries),
+                        icon: const Icon(Icons.article_outlined, size: 16),
                       ),
                     ],
                     selected: {_monthlySummarySource},

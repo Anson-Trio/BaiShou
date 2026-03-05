@@ -6,10 +6,7 @@ import 'package:baishou/features/settings/domain/services/user_profile_service.d
 import 'package:baishou/features/settings/presentation/pages/about_page.dart';
 import 'package:baishou/features/settings/presentation/pages/lan_transfer_page.dart'
     as baishou_lan;
-import 'package:baishou/features/settings/domain/services/export_service.dart'
-    as baishou_export;
-import 'package:baishou/features/settings/domain/services/import_service.dart'
-    as baishou_import;
+import 'package:baishou/core/storage/data_archive_manager.dart';
 import 'package:baishou/core/services/data_refresh_notifier.dart'
     as baishou_refresh;
 import 'package:baishou/core/storage/vault_service.dart';
@@ -548,8 +545,8 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
     );
 
     try {
-      final exportService = ref.read(baishou_export.exportServiceProvider);
-      final exportFile = await exportService.exportToZip(share: false);
+      final exportService = ref.read(dataArchiveManagerProvider.notifier);
+      final exportFile = await exportService.exportToUserDevice();
 
       if (mounted) {
         Navigator.pop(context); // 关掉 loading
@@ -631,19 +628,13 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
 
     try {
       final importResult = await ref
-          .read(baishou_import.importServiceProvider)
+          .read(dataArchiveManagerProvider.notifier)
           .importFromZip(file);
 
       if (!mounted) return;
       Navigator.pop(context); // 关掉 loading
 
       if (importResult.success) {
-        if (importResult.configData != null) {
-          await ref
-              .read(baishou_import.importServiceProvider)
-              .restoreConfig(importResult.configData!);
-        }
-
         if (!mounted) return;
         ref.read(baishou_refresh.dataRefreshProvider.notifier).refresh();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -795,18 +786,13 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
 
     try {
       final importResult = await ref
-          .read(baishou_import.importServiceProvider)
+          .read(dataArchiveManagerProvider.notifier)
           .importFromZip(selected);
 
       if (!mounted) return;
       Navigator.pop(context); // 关掉 loading
 
       if (importResult.success) {
-        if (importResult.configData != null) {
-          await ref
-              .read(baishou_import.importServiceProvider)
-              .restoreConfig(importResult.configData!);
-        }
         if (!mounted) return;
         ref.read(baishou_refresh.dataRefreshProvider.notifier).refresh();
         AppToast.showSuccess(

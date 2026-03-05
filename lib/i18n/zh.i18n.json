@@ -182,7 +182,8 @@
     "confirm_restore_desc": "恢复快照将覆盖当前所有数据。\n\n确认继续？",
     "restoring_data": "正在恢复数据...",
     "restore_success": "快照恢复成功：$diaries 条日记，$summaries 条总结",
-    "restore_failed_generic": "恢复失败",
+    "restore_failed_generic": "恢复失败，数据不完整",
+    "exit_app": "退出应用",
     "restore_failed": "恢复失败: $error",
     "restore_snapshot": "从快照恢复",
     "restore_desc": "从本地历史快照中选择一个进行恢复",
@@ -236,7 +237,15 @@
     "select_model_title": "请选择模型",
     "select_title": "选择$title",
     "status_on": "ON",
-    "status_off": "OFF"
+    "status_off": "OFF",
+    "edit_today_tooltip": "编辑今天",
+    "write_today_tooltip": "写今天",
+    "write_diary_button": "写日记",
+    "check_storage_permission": "检查存储权限",
+    "monthly_summary_data_source": "月度总结数据源",
+    "monthly_summary_data_source_desc": "选择 AI 在生成月报时读取的原始素材",
+    "read_only_weeklies": "仅读取周记",
+    "read_all_diaries": "读取全部日记"
   },
   "data_sync": {
     "title": "数据同步",

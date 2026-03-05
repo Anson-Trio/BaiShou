@@ -192,4 +192,22 @@ class JournalFileService extends _$JournalFileService {
       await file.delete();
     }
   }
+
+  /// 清空当前 Vault 下所有的物理日记文件
+  /// 仅在整库数据还原（Import）时使用，避免旧文件与新数据重叠混杂。
+  Future<void> clearAllJournals() async {
+    final baseDir = await _getSecureJournalsBaseDir();
+    if (baseDir.existsSync()) {
+      final entities = baseDir.listSync();
+      for (final entity in entities) {
+        try {
+          if (entity is Directory || entity is File) {
+            await entity.delete(recursive: true);
+          }
+        } catch (_) {
+          // 忽略个别因占用导致的删除失败
+        }
+      }
+    }
+  }
 }

@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:baishou/core/services/data_refresh_notifier.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
-import 'package:baishou/features/settings/domain/services/import_service.dart';
+import 'package:baishou/core/storage/data_archive_manager.dart';
 import 'package:baishou/features/settings/domain/services/lan_transfer_service.dart';
 import 'package:bonsoir/bonsoir.dart';
 import 'package:flutter/material.dart';
@@ -294,18 +294,14 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
 
     try {
       await ref.read(lanTransferServiceProvider.notifier).stopDualMode();
-      final importService = ref.read(importServiceProvider);
-      final result = await importService.importFromZip(file);
+      final result = await ref
+          .read(dataArchiveManagerProvider.notifier)
+          .importFromZip(file);
       closeDialog();
       if (result.success) {
         if (mounted) {
           ref.read(dataRefreshProvider.notifier).refresh();
           AppToast.showSuccess(context, t.common.success);
-        }
-        if (result.configData != null) {
-          Future.delayed(const Duration(milliseconds: 300), () {
-            importService.restoreConfig(result.configData!);
-          });
         }
       } else {
         if (mounted) {

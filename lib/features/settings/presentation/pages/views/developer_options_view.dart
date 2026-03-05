@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'package:path/path.dart' as p;
+import 'package:baishou/features/index/data/shadow_index_database.dart';
 import 'package:baishou/features/diary/data/initial_data.dart';
 import 'package:baishou/features/diary/data/repositories/diary_repository_impl.dart';
 import 'package:baishou/features/diary/domain/entities/diary.dart';
@@ -6,6 +8,7 @@ import 'package:baishou/core/database/app_database.dart' hide Diary;
 import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:baishou/core/storage/storage_path_provider.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -89,36 +92,59 @@ class _DeveloperOptionsViewState extends ConsumerState<DeveloperOptionsView> {
     if (confirmed != true || !mounted) return;
 
     setState(() => _isClearing = true);
-
     try {
-      // 1. 关闭数据库连接（释放 Windows 文件句柄，解决「另一个程序正在访问」）
+      // 1. 释放数据库句柄（Windows 需要释放文件锁）
       await ref.read(appDatabaseProvider).close();
+      await ref.read(shadowIndexDatabaseProvider.notifier).close();
 
-      // 2. 清除 SharedPreferences（配置、引导状态等）
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.clear();
-
-      // 3. 删除 SQLite 数据库文件及附属文件（WAL / SHM）
+      // 2. 获取当前活跃的存储服务及根目录
+      final storageService = ref.read(storagePathServiceProvider);
+      final rootDir = await storageService.getRootDirectory();
       final appDir = await getApplicationDocumentsDirectory();
-      final dbBasePath = '${appDir.path}/baishou.sqlite';
-      for (final suffix in ['', '-wal', '-shm']) {
-        final file = File('$dbBasePath$suffix');
-        if (file.existsSync()) {
-          file.deleteSync();
+
+      // 3. 执行精准物理清理（删除当前根目录下的 Personal 和 .baishou ）
+      final physicalTargets = ['Personal', '.baishou'];
+      for (final target in physicalTargets) {
+        final targetPath = p.join(rootDir.path, target);
+        final dir = Directory(targetPath);
+        if (dir.existsSync()) {
+          try {
+            dir.deleteSync(recursive: true);
+          } catch (e) {
+            debugPrint(
+              'ClearData: Failed to delete physical target $targetPath: $e',
+            );
+          }
         }
       }
 
-      // 4. 删除快照目录
-      final snapshotDir = Directory('${appDir.path}/snapshots');
-      if (snapshotDir.existsSync()) {
-        snapshotDir.deleteSync(recursive: true);
+      // 4. 清理 App 内部专属元数据（数据库、快照、缓存）
+      final internalTargets = [
+        'snapshots',
+        'avatars',
+        'images',
+        'baishou.sqlite',
+        'baishou.sqlite-wal',
+        'baishou.sqlite-shm',
+      ];
+      for (final targetName in internalTargets) {
+        final targetPath = p.join(appDir.path, targetName);
+        try {
+          if (FileSystemEntity.isDirectorySync(targetPath)) {
+            Directory(targetPath).deleteSync(recursive: true);
+          } else if (FileSystemEntity.isFileSync(targetPath)) {
+            File(targetPath).deleteSync();
+          }
+        } catch (e) {
+          debugPrint(
+            'ClearData: Failed to delete internal target $targetPath: $e',
+          );
+        }
       }
 
-      // 5. 删除图片目录
-      final imagesDir = Directory('${appDir.path}/images');
-      if (imagesDir.existsSync()) {
-        imagesDir.deleteSync(recursive: true);
-      }
+      // 5. 最后清空所有内存配置并退出
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
 
       if (mounted) {
         showDialog(
@@ -127,6 +153,14 @@ class _DeveloperOptionsViewState extends ConsumerState<DeveloperOptionsView> {
           builder: (ctx) => AlertDialog(
             title: Text(t.developer.clear_success_title),
             content: Text(t.developer.clear_success_content),
+            actions: [
+              FilledButton(
+                onPressed: () {
+                  exit(0);
+                },
+                child: Text(t.settings.exit_app),
+              ),
+            ],
           ),
         );
       }

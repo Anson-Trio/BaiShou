@@ -182,7 +182,8 @@
     "confirm_restore_desc": "Restoring a snapshot will overwrite all current data.\n\nConfirm to continue?",
     "restoring_data": "Restoring data...",
     "restore_success": "Snapshot restored successfully: $diaries diaries, $summaries summaries",
-    "restore_failed_generic": "Restore failed",
+    "restore_failed_generic": "Restore failed, incomplete data",
+    "exit_app": "Exit App",
     "restore_failed": "Restore failed: $error",
     "restore_snapshot": "Restore from snapshot",
     "restore_desc": "Select a local historical snapshot to restore",
@@ -236,7 +237,15 @@
     "select_model_title": "Select Model",
     "select_title": "Select $title",
     "status_on": "ON",
-    "status_off": "OFF"
+    "status_off": "OFF",
+    "edit_today_tooltip": "Edit Today",
+    "write_today_tooltip": "Write Today",
+    "write_diary_button": "Write Diary",
+    "check_storage_permission": "Check Storage Permission",
+    "monthly_summary_data_source": "Monthly Summary Data Source",
+    "monthly_summary_data_source_desc": "Select the source material AI reads when generating monthly reports",
+    "read_only_weeklies": "Read Only Weeklies",
+    "read_all_diaries": "Read All Diaries"
   },
   "data_sync": {
     "title": "Data Sync",

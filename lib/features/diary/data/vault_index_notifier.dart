@@ -8,7 +8,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'vault_index_notifier.g.dart';
 
-/// VaultIndex —— 全量日记元数据的内存单一数据源（仿 Obsidian Vault）
+/// VaultIndex —— 全量日记元数据的内存单一数据源
 ///
 /// 核心原则：
 /// 1. 所有 DiaryMeta 常驻内存（不分页），UI 直接绑定这个列表。
@@ -88,16 +88,23 @@ class VaultIndex extends _$VaultIndex {
 
         state.whenData((list) {
           final newList = List<DiaryMeta>.from(list);
-          final idx = newList.indexWhere((m) {
-            return m.date.toIso8601String().startsWith(dateStr);
-          });
+          // 关键修复：找出所有在该日期下的内存条目 ID
+          final idsToRemove = newList
+              .where((m) {
+                final entryDateStr =
+                    "${m.date.year}-${m.date.month.toString().padLeft(2, '0')}-${m.date.day.toString().padLeft(2, '0')}";
+                return entryDateStr == dateStr;
+              })
+              .map((m) => m.id)
+              .toSet();
 
-          if (idx != -1) {
-            final idToRemove = newList[idx].id;
+          if (idsToRemove.isNotEmpty) {
             state = AsyncValue.data(
-              newList.where((m) => m.id != idToRemove).toList(),
+              newList.where((m) => !idsToRemove.contains(m.id)).toList(),
             );
-            debugPrint('VaultIndex: Memory removed via event for $dateStr');
+            debugPrint(
+              'VaultIndex: Memory removed (${idsToRemove.length} entries) via event for $dateStr',
+            );
           }
         });
       }
@@ -148,4 +155,10 @@ class VaultIndex extends _$VaultIndex {
   Future<void> forceReload() => _loadFromDb().then((metas) {
     state = AsyncValue.data(metas);
   });
+
+  /// 清空内存中的所有日记元数据
+  void clear() {
+    state = const AsyncValue.data([]);
+    debugPrint('VaultIndex: Memory cleared');
+  }
 }

@@ -106,18 +106,26 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
 
     // 2. 如果文件不存在，检查数据库中是否还有索引（如果是，则说明是外部删除了）
     if (!file.existsSync()) {
+      // 关键修复：由于数据库中存储的可能是带时分秒的 ISO8061 字符串，
+      // 而 Watcher 只知道 yyyy-MM-dd。因此这里使用前缀匹配来准确定位。
+      final dayStr =
+          "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
       final existingRows = await db.query(
         'journals_index',
         columns: ['id'],
-        where: 'date = ?',
-        whereArgs: [dateStr],
+        where: 'date LIKE ?',
+        whereArgs: ['$dayStr%'],
       );
       if (existingRows.isNotEmpty) {
-        // 发现孤儿索引，执行物理清理
-        await dbService.deleteJournalIndex(existingRows.first['id'] as int);
-        debugPrint(
-          'ShadowIndexSyncService: Deleted index for missing file $dateStr',
-        );
+        // 发现孤儿索引，执行物理清理。
+        // 这里循环删除该日期下的所有索引（理论上按天切分只有一条，但为了鲁棒性全删）
+        for (final row in existingRows) {
+          final idToRemove = row['id'] as int;
+          await dbService.deleteJournalIndex(idToRemove);
+          debugPrint(
+            'ShadowIndexSyncService: Deleted index ID $idToRemove for missing file $dayStr',
+          );
+        }
         return JournalSyncResult(isChanged: true); // 标记变更（删除）
       }
       return JournalSyncResult(isChanged: false);
