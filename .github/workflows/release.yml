@@ -128,10 +128,8 @@ jobs:
       - name: Create Inno Setup script
         shell: pwsh
         run: |
-          # 判斷版本號來源：手動輸入優先，其次是 Tag 名稱
-          $rawVersion = "${{ github.event.inputs.version_name }}"
-          if (-not $rawVersion) { $rawVersion = "${{ github.ref_name }}" }
-          $version = $rawVersion.TrimStart('v')
+          $rawVersion = "${{ github.ref_name }}"
+          $version = "${{ github.ref_name }}".TrimStart('v')
           $iss = @"
           [Setup]
           AppName=白守
@@ -141,7 +139,7 @@ jobs:
           DefaultDirName={autopf}\BaiShou
           DefaultGroupName=白守
           OutputDir=installer
-          OutputBaseFilename=BaiShou-$rawVersion-Windows-Setup
+          OutputBaseFilename=BaiShou-${{ github.ref_name }}-Windows-Setup
           Compression=lzma
           SolidCompression=yes
           ArchitecturesInstallIn64BitMode=x64compatible

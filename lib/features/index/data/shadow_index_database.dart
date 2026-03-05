@@ -43,76 +43,109 @@ class ShadowIndexDatabase extends _$ShadowIndexDatabase {
     final sysDir = await pathProvider.getVaultSystemDirectory(vaultName);
     final dbPath = p.join(sysDir.path, 'shadow_index.db');
 
-    _db = await openDatabase(
-      dbPath,
-      version: 2,
-      onCreate: (db, version) async {
-        // 创建基础镜像表：记录物理文件的元数据和状态
-        await db.execute('''
-          CREATE TABLE journals_index (
-            id INTEGER PRIMARY KEY,
-            file_path TEXT UNIQUE NOT NULL,
-            date TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            content_hash TEXT NOT NULL,
-            weather TEXT,
-            mood TEXT,
-            location TEXT,
-            location_detail TEXT,
-            is_favorite INTEGER DEFAULT 0,
-            has_media INTEGER DEFAULT 0
-          )
-        ''');
+    try {
+      _db = await openDatabase(
+        dbPath,
+        version: 2,
+        onCreate: (db, version) async {
+          // 创建基础镜像表：记录物理文件的元数据和状态
+          await db.execute('''
+            CREATE TABLE journals_index (
+              id INTEGER PRIMARY KEY,
+              file_path TEXT UNIQUE NOT NULL,
+              date TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL,
+              content_hash TEXT NOT NULL,
+              weather TEXT,
+              mood TEXT,
+              location TEXT,
+              location_detail TEXT,
+              is_favorite INTEGER DEFAULT 0,
+              has_media INTEGER DEFAULT 0
+            )
+          ''');
 
-        // 创建全文检索虚拟表 (FTS5) - 存储内容与标签以加速搜索
-        try {
-          await db.execute('''
-            CREATE VIRTUAL TABLE journals_fts USING fts5(
-              content,
-              tags,
-              tokenize = 'unicode61'
-            )
-          ''');
-        } catch (e) {
-          // 兜底方案：如果系统 SQLite 不支持 FTS5 (常见于旧款 Android 或精简版系统)，则降级为普通表
-          debugPrint(
-            'ShadowIndexDatabase: FTS5 is not supported on this device, falling back to standard table: $e',
-          );
-          await db.execute('''
-            CREATE TABLE journals_fts (
-              rowid INTEGER PRIMARY KEY,
-              content TEXT,
-              tags TEXT
-            )
-          ''');
-        }
-      },
-      onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 2) {
-          await db.execute('DROP TABLE IF EXISTS journals_fts');
-          // 重新运行建表逻辑以应用新结构
+          // 创建全文检索虚拟表 (FTS5) - 存储内容与标签以加速搜索
           try {
             await db.execute('''
-              CREATE VIRTUAL TABLE journals_fts USING fts5(
+              CREATE VIRTUAL TABLE IF NOT EXISTS journals_fts USING fts5(
                 content,
                 tags,
                 tokenize = 'unicode61'
               )
             ''');
           } catch (e) {
-            debugPrint('ShadowIndexDatabase: FTS5 fallback during upgrade: $e');
+            // 兜底方案：如果系统 SQLite 不支持 FTS5 (常见于旧款 Android 或精简版系统)，则降级为普通表
+            debugPrint(
+              'ShadowIndexDatabase: FTS5 is not supported on this device, falling back to standard table: $e',
+            );
+            // 此时虚拟表并未创建成功，不要去 drop 防止触发 no such module
             await db.execute('''
-              CREATE TABLE journals_fts (
+              CREATE TABLE IF NOT EXISTS journals_fts (
                 rowid INTEGER PRIMARY KEY,
                 content TEXT,
                 tags TEXT
               )
             ''');
           }
-        }
-      },
-    );
+        },
+        onUpgrade: (db, oldVersion, newVersion) async {
+          if (oldVersion < 2) {
+            // 如果尝试删虚表报错，说明设备不支持 fts5 且从其他设备拷贝了带虚表的库
+            try {
+              await db.execute('DROP TABLE IF EXISTS journals_fts');
+            } catch (e) {
+              debugPrint(
+                'ShadowIndexDatabase: Failed to drop old FTS table, might be unsupported: $e',
+              );
+            }
+
+            // 重新运行建表逻辑以应用新结构
+            try {
+              await db.execute('''
+                CREATE VIRTUAL TABLE IF NOT EXISTS journals_fts USING fts5(
+                  content,
+                  tags,
+                  tokenize = 'unicode61'
+                )
+              ''');
+            } catch (e) {
+              debugPrint(
+                'ShadowIndexDatabase: FTS5 fallback during upgrade: $e',
+              );
+
+              try {
+                await db.execute('DROP TABLE IF EXISTS journals_fts');
+              } catch (_) {}
+
+              await db.execute('''
+                CREATE TABLE IF NOT EXISTS journals_fts (
+                  rowid INTEGER PRIMARY KEY,
+                  content TEXT,
+                  tags TEXT
+                )
+              ''');
+            }
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('ShadowIndexDatabase: Critical error opening database: $e');
+      // 当发生诸如 "no such module: fts5" 等异构设备转移导致的底层级别不可恢复异常
+      // 由于这是影子索引库，最安全的做法是直接物理粉碎并原地满血复活
+      final file = File(dbPath);
+      if (file.existsSync()) {
+        debugPrint(
+          'ShadowIndexDatabase: Destroying corrupted/incompatible database at $dbPath and retrying...',
+        );
+        file.deleteSync();
+        // 递归重新打开（此时已经是干净的文件流了）
+        await _initDatabase(vaultName);
+      } else {
+        rethrow;
+      }
+    }
   }
 
   /// 提供对外安全的 DB 访问句柄
