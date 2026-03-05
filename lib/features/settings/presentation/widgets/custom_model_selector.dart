@@ -61,19 +61,22 @@ class CustomModelSelector extends StatelessWidget {
           children: [
             Expanded(
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    displayTitle,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: selectedModelId != null
-                          ? FontWeight.w500
-                          : FontWeight.normal,
-                      color: selectedModelId != null
-                          ? colorScheme.onSurface
-                          : colorScheme.onSurfaceVariant,
+                  Flexible(
+                    child: Text(
+                      displayTitle,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: selectedModelId != null
+                            ? FontWeight.w500
+                            : FontWeight.normal,
+                        color: selectedModelId != null
+                            ? colorScheme.onSurface
+                            : colorScheme.onSurfaceVariant,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    overflow: TextOverflow.ellipsis,
                   ),
                   if (displaySubtitle.isNotEmpty) ...[
                     const SizedBox(width: 8),
@@ -93,6 +96,7 @@ class CustomModelSelector extends StatelessWidget {
                           color: colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.bold,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
