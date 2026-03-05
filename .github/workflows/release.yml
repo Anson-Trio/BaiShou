@@ -112,16 +112,26 @@ jobs:
       - name: Build Windows
         run: flutter build windows --release
 
-      - name: Download Inno Setup Chinese language pack
+      - name: Download Inno Setup Languages
         shell: pwsh
         run: |
-          $dest = "C:\Program Files (x86)\Inno Setup 6\Languages\ChineseSimplified.isl"
-          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/jrsoftware/issrc/main/Files/Languages/Unofficial/ChineseSimplified.isl" -OutFile $dest
+          $langDir = "C:\Program Files (x86)\Inno Setup 6\Languages"
+          $baseUrl = "https://raw.githubusercontent.com/jrsoftware/issrc/main/Files/Languages"
+
+          # 下載簡體中文
+          Invoke-WebRequest -Uri "$baseUrl/Unofficial/ChineseSimplified.isl" -OutFile "$langDir\ChineseSimplified.isl"
+          # 下載繁體中文
+          Invoke-WebRequest -Uri "$baseUrl/Unofficial/ChineseTraditional.isl" -OutFile "$langDir\ChineseTraditional.isl"
+          # 下載日文
+          Invoke-WebRequest -Uri "$baseUrl/Japanese.isl" -OutFile "$langDir\Japanese.isl"
 
       - name: Create Inno Setup script
         shell: pwsh
         run: |
-          $version = "${{ github.ref_name }}".TrimStart('v')
+          # 判斷版本號來源：手動輸入優先，其次是 Tag 名稱
+          $rawVersion = "${{ github.event.inputs.version_name }}"
+          if (-not $rawVersion) { $rawVersion = "${{ github.ref_name }}" }
+          $version = $rawVersion.TrimStart('v')
           $iss = @"
           [Setup]
           AppName=白守
@@ -131,28 +141,57 @@ jobs:
           DefaultDirName={autopf}\BaiShou
           DefaultGroupName=白守
           OutputDir=installer
-          OutputBaseFilename=BaiShou-${{ github.ref_name }}-Windows-Setup
+          OutputBaseFilename=BaiShou-$rawVersion-Windows-Setup
           Compression=lzma
           SolidCompression=yes
           ArchitecturesInstallIn64BitMode=x64compatible
           SetupIconFile=windows\runner\resources\app_icon.ico
 
           [Languages]
-          Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
+          Name: "en"; MessagesFile: "compiler:Default.isl"
+          Name: "zh_cn"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
+          Name: "zh_tw"; MessagesFile: "compiler:Languages\ChineseTraditional.isl"
+          Name: "ja"; MessagesFile: "compiler:Languages\Japanese.isl"
+
+          [CustomMessages]
+          en.AppName=BaiShou
+          zh_cn.AppName=白守
+          zh_tw.AppName=白守
+          ja.AppName=白守
+
+          en.CreateDesktopIcon=Create a &desktop shortcut
+          zh_cn.CreateDesktopIcon=创建桌面快捷方式
+          zh_tw.CreateDesktopIcon=建立桌面捷徑
+          ja.CreateDesktopIcon=デスクトップにショートカットを作成する
+
+          en.LaunchApp=Launch BaiShou
+          zh_cn.LaunchApp=启动白守
+          zh_tw.LaunchApp=啟動白守
+          ja.LaunchApp=白守を起動する
+
+          en.UninstallApp=Uninstall BaiShou
+          zh_cn.UninstallApp=卸载白守
+          zh_tw.UninstallApp=移除白守
+          ja.UninstallApp=白守をアンインストールする
+
+          en.AdditionalTasks=Additional tasks:
+          zh_cn.AdditionalTasks=附加任务:
+          zh_tw.AdditionalTasks=附加任務:
+          ja.AdditionalTasks=追加タスク:
 
           [Tasks]
-          Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "附加任务:"; Flags: unchecked
+          Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalTasks}:"; Flags: unchecked
 
           [Files]
           Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
           [Icons]
-          Name: "{group}\白守"; Filename: "{app}\baishou.exe"
-          Name: "{group}\卸载白守"; Filename: "{uninstallexe}"
-          Name: "{autodesktop}\白守"; Filename: "{app}\baishou.exe"; Tasks: desktopicon
+          Name: "{group}\{cm:AppName}"; Filename: "{app}\baishou.exe"
+          Name: "{group}\{cm:UninstallApp}"; Filename: "{uninstallexe}"
+          Name: "{autodesktop}\{cm:AppName}"; Filename: "{app}\baishou.exe"; Tasks: desktopicon
 
           [Run]
-          Filename: "{app}\baishou.exe"; Description: "启动白守"; Flags: nowait postinstall skipifsilent
+          Filename: "{app}\baishou.exe"; Description: "{cm:LaunchApp}"; Flags: nowait postinstall skipifsilent
           "@
           $iss | Out-File -FilePath setup.iss -Encoding UTF8
 
