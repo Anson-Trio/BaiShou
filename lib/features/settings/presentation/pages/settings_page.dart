@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:baishou/features/settings/presentation/pages/views/ai_global_models_view.dart';
 import 'package:baishou/features/settings/presentation/pages/views/ai_model_services_view.dart';
 import 'package:baishou/features/settings/presentation/pages/data_sync_page.dart';
+import 'package:baishou/features/settings/presentation/pages/lan_transfer_page.dart';
 import 'package:baishou/features/settings/presentation/pages/views/general_settings_view.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
@@ -76,6 +77,8 @@ class _SettingsPageState extends State<SettingsPage> {
         return const AiGlobalModelsView(key: ValueKey('tab_global'));
       case 3:
         return const DataSyncPage(key: ValueKey('tab_sync'));
+      case 4:
+        return const LanTransferPage(key: ValueKey('tab_lan'));
       default:
         return const SizedBox();
     }
@@ -113,6 +116,12 @@ class _SettingsPageState extends State<SettingsPage> {
             title: Text(t.data_sync.title),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/settings/data-sync'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.wifi_protected_setup_outlined),
+            title: Text(t.settings.lan_transfer),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/settings/lan-transfer'),
           ),
         ],
       ),
@@ -176,6 +185,11 @@ class _SettingsPageState extends State<SettingsPage> {
                   2,
                 ),
                 _buildSidebarTab(t.data_sync.title, Icons.sync_rounded, 3),
+                _buildSidebarTab(
+                  t.settings.lan_transfer,
+                  Icons.wifi_protected_setup_outlined,
+                  4,
+                ),
               ],
             ),
           ),

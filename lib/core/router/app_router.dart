@@ -8,6 +8,7 @@ import 'package:baishou/features/settings/presentation/pages/settings_page.dart'
 import 'package:baishou/features/settings/presentation/pages/views/ai_global_models_view.dart';
 import 'package:baishou/features/settings/presentation/pages/views/ai_model_services_view.dart';
 import 'package:baishou/features/settings/presentation/pages/views/general_settings_view.dart';
+import 'package:baishou/features/settings/presentation/pages/lan_transfer_page.dart';
 import 'package:baishou/features/summary/presentation/pages/summary_page.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
@@ -163,6 +164,11 @@ GoRouter goRouter(Ref ref) {
           appBar: AppBar(title: Text(t.data_sync.title)),
           body: const DataSyncPage(),
         ),
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: '/settings/lan-transfer',
+        builder: (context, state) => const LanTransferPage(),
       ),
       GoRoute(
         parentNavigatorKey: rootNavigatorKey,

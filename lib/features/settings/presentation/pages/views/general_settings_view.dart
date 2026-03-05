@@ -4,8 +4,6 @@ import 'package:baishou/core/storage/storage_path_provider.dart';
 import 'package:baishou/core/theme/theme_service.dart';
 import 'package:baishou/features/settings/domain/services/user_profile_service.dart';
 import 'package:baishou/features/settings/presentation/pages/about_page.dart';
-import 'package:baishou/features/settings/presentation/pages/lan_transfer_page.dart'
-    as baishou_lan;
 import 'package:baishou/core/storage/data_archive_manager.dart';
 import 'package:baishou/core/services/data_refresh_notifier.dart'
     as baishou_refresh;
@@ -506,21 +504,6 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
                 subtitle: Text(t.settings.restore_desc),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: _restoreFromSnapshot,
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.wifi_protected_setup_outlined),
-                title: Text(t.settings.lan_transfer),
-                subtitle: Text(t.settings.lan_transfer_desc),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const baishou_lan.LanTransferPage(),
-                    ),
-                  );
-                },
               ),
             ],
           ),
