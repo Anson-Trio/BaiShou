@@ -129,7 +129,7 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
     if (refreshVersion != _lastRefreshVersion) {
       _lastRefreshVersion = refreshVersion;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _loadContext();
+        if (mounted) _initRange();
       });
     }
 

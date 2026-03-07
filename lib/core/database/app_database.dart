@@ -1,7 +1,9 @@
 import 'package:baishou/core/database/tables/diaries.dart';
 import 'package:baishou/core/database/tables/summaries.dart';
+import 'package:baishou/core/storage/storage_path_provider.dart';
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
+import 'package:path/path.dart' as p;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'app_database.g.dart';
@@ -9,7 +11,7 @@ part 'app_database.g.dart';
 /// 数据库类
 @DriftDatabase(tables: [Diaries, Summaries])
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(_openConnection());
+  AppDatabase(super.executor);
 
   @override
   int get schemaVersion => 2;
@@ -32,10 +34,17 @@ class AppDatabase extends _$AppDatabase {
 
 /// 使用 drift_flutter 打开数据库连接
 /// 它会自动根据平台（Mobile/Desktop/Web）选择最佳的存储和运行时实现
-QueryExecutor _openConnection() {
+QueryExecutor _openConnection(StoragePathService pathService) {
   return driftDatabase(
     name: 'baishou',
-    // 如果需要自定义存储位置或进行更复杂的配置，可以在这里添加参数
+    native: DriftNativeOptions(
+      databasePath: () async {
+        // 核心：将主数据库也存入 BaiShou_Root/.baishou/ 目录下
+        final sysDir = await pathService.getGlobalRegistryDirectory();
+        return p.join(sysDir.path, 'baishou.sqlite');
+      },
+    ),
+    // 如果需要更复杂的配置，可以在这里添加参数
     // drift_flutter 会自动处理 Web 端的 WASM 加载
   );
 }
@@ -43,5 +52,6 @@ QueryExecutor _openConnection() {
 /// 提供数据库实例
 @Riverpod(keepAlive: true)
 AppDatabase appDatabase(Ref ref) {
-  return AppDatabase();
+  final pathService = ref.watch(storagePathServiceProvider);
+  return AppDatabase(_openConnection(pathService));
 }

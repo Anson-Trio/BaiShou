@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'package:baishou/core/services/data_refresh_notifier.dart';
 
 import 'package:baishou/features/diary/data/vault_index_notifier.dart';
 import 'package:baishou/features/index/data/shadow_index_sync_service.dart';
 import 'package:baishou/features/settings/domain/services/export_service.dart';
 import 'package:baishou/features/settings/domain/services/import_service.dart';
+import 'package:baishou/features/summary/domain/services/summary_sync_service.dart';
 import 'package:baishou/features/storage/domain/services/journal_file_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -59,6 +61,15 @@ class DataArchiveManager extends _$DataArchiveManager {
       // 1. 先清空 UI 内存，防止脏读并在视觉上快速切断
       vaultIndex.clear();
 
+      // 1.1 暂停总结和日记索引同步服务，防止导入期间大量文件变动触发并发扫描导致 DB 锁死
+      final summarySyncService = ref.read(summarySyncServiceProvider.notifier);
+      summarySyncService.setSyncEnabled(false);
+      shadowIndexSyncService.setSyncEnabled(false);
+
+      // 1.2 关键：等待可能由于刚启动或之前的事件正在进行的扫描任务完成，彻底规避 DB 锁冲突
+      await summarySyncService.waitForScan();
+      await shadowIndexSyncService.waitForScan();
+
       // 2. 清空物理文件
       await journalFileService.clearAllJournals();
 
@@ -70,8 +81,21 @@ class DataArchiveManager extends _$DataArchiveManager {
         if (result.configData != null) {
           await importService.restoreConfig(result.configData!);
         }
+
+        // 重新开启同步并执行全量扫描对齐数据
+        summarySyncService.setSyncEnabled(true);
+        shadowIndexSyncService.setSyncEnabled(true);
+
+        await summarySyncService.fullScanArchives();
         await shadowIndexSyncService.fullScanVault();
+
         await vaultIndex.forceReload();
+        // 触发全局刷新信号，确保回忆页等组件更新统计量
+        ref.read(dataRefreshProvider.notifier).refresh();
+      } else {
+        // 导入失败也要恢复同步状态
+        summarySyncService.setSyncEnabled(true);
+        shadowIndexSyncService.setSyncEnabled(true);
       }
 
       return ImportResult(

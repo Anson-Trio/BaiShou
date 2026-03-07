@@ -21,6 +21,26 @@ part 'summary_sync_service.g.dart';
 @Riverpod(keepAlive: true)
 class SummarySyncService extends _$SummarySyncService {
   bool _isMigrating = false;
+  bool _isScanning = false;
+  bool _isSyncDisabled = false;
+
+  /// 用于追踪当前正在进行的扫描任务，供外部等待
+  Completer<void>? _currentScanCompleter;
+
+  /// 等待当前正在进行的全量扫描完成
+  Future<void> waitForScan() async {
+    if (_currentScanCompleter != null && !_currentScanCompleter!.isCompleted) {
+      debugPrint('SummarySyncService: Waiting for ongoing scan to complete...');
+      await _currentScanCompleter!.future;
+      debugPrint('SummarySyncService: Ongoing scan completed.');
+    }
+  }
+
+  /// 外部手动开启或关闭自动同步功能 (例如导入期间暂停同步)
+  void setSyncEnabled(bool enabled) {
+    _isSyncDisabled = !enabled;
+    debugPrint('SummarySyncService: Sync enabled set to $enabled');
+  }
 
   @override
   FutureOr<void> build() async {
@@ -85,12 +105,22 @@ class SummarySyncService extends _$SummarySyncService {
     final prefs = ref.read(sharedPreferencesProvider);
     final isMigrated = prefs.getBool('is_legacy_sql_summary_migrated') == true;
 
-    if (_isMigrating || !isMigrated) {
+    if (_isMigrating || !isMigrated || _isSyncDisabled) {
       debugPrint(
-        'SummarySyncService: Skipped full scan because migration is in progress or not yet completed.',
+        'SummarySyncService: Skipped full scan because migration/scan is in progress, not yet migrated, or sync is disabled.',
       );
       return;
     }
+
+    if (_isScanning) {
+      debugPrint(
+        'SummarySyncService: Skipped full scan because another scan is already in progress.',
+      );
+      return;
+    }
+
+    _isScanning = true;
+    _currentScanCompleter = Completer<void>();
 
     try {
       final activeVault = await ref.read(vaultServiceProvider.future);
@@ -116,8 +146,8 @@ class SummarySyncService extends _$SummarySyncService {
         }
       }
 
-      // 2. 解析文件并准备数据
-      final List<Summary> summaries = [];
+      // 2. 解析文件并准备数据 (带去重逻辑，防止物理路径重复导致 DB 冲突)
+      final Map<String, Summary> deDuplicated = {};
       for (final file in files) {
         try {
           // 路径格式：Archives/{Type}/{yyyy-MM-dd}.md
@@ -133,12 +163,16 @@ class SummarySyncService extends _$SummarySyncService {
 
           final summary = await fileService.readSummary(type, startDate);
           if (summary != null) {
-            summaries.add(summary);
+            // 以 type + date 为联合 Key 唯一标识
+            final key = '${type.name}_$dateStr';
+            deDuplicated[key] = summary;
           }
         } catch (e) {
           debugPrint('SummarySyncService: Skip invalid file ${file.path}: $e');
         }
       }
+
+      final List<Summary> summaries = deDuplicated.values.toList();
 
       // 3. 覆盖数据库记录 (单向写入 DB，绝不反向写回文件)
       await appDb.delete(appDb.summaries).go();
@@ -166,6 +200,12 @@ class SummarySyncService extends _$SummarySyncService {
       );
     } catch (e) {
       debugPrint('SummarySyncService: File->DB sync failed: $e');
+    } finally {
+      _isScanning = false;
+      if (_currentScanCompleter != null &&
+          !_currentScanCompleter!.isCompleted) {
+        _currentScanCompleter!.complete();
+      }
     }
   }
 

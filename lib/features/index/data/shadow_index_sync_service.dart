@@ -39,6 +39,29 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
   StreamSubscription<String>? _schedulerSubscription;
   StreamSubscription<void>? _dirDeleteSubscription;
 
+  bool _isScanning = false;
+  bool _isSyncDisabled = false;
+
+  /// 用于追踪当前正在进行的扫描任务，供外部等待
+  Completer<void>? _currentScanCompleter;
+
+  /// 等待当前正在进行的全量扫描完成
+  Future<void> waitForScan() async {
+    if (_currentScanCompleter != null && !_currentScanCompleter!.isCompleted) {
+      debugPrint(
+        'ShadowIndexSyncService: Waiting for ongoing scan to complete...',
+      );
+      await _currentScanCompleter!.future;
+      debugPrint('ShadowIndexSyncService: Ongoing scan completed.');
+    }
+  }
+
+  /// 外部手动开启或关闭自动同步功能 (例如导入期间暂停同步)
+  void setSyncEnabled(bool enabled) {
+    _isSyncDisabled = !enabled;
+    debugPrint('ShadowIndexSyncService: Sync enabled set to $enabled');
+  }
+
   @override
   FutureOr<void> build() async {
     final scheduler = ref.read(fileStateSchedulerProvider.notifier);
@@ -106,6 +129,13 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
   /// 触发单条目标日记的强同步 (通常在 UI 执行 Save 操作后被调用)
   /// 返回同步结果，供增量更新内存索引使用
   Future<JournalSyncResult> syncJournal(DateTime date) async {
+    if (_isSyncDisabled) {
+      debugPrint(
+        'ShadowIndexSyncService: Skipped syncJournal because sync is disabled.',
+      );
+      return JournalSyncResult(isChanged: false);
+    }
+
     final journalService = ref.read(journalFileServiceProvider.notifier);
     final dbService = ref.read(shadowIndexDatabaseProvider.notifier);
 
@@ -213,64 +243,91 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
   /// 当用户更换设备拷入文件、或者数据库意外损坏时，
   /// 该方法会递归物理磁盘，将所有 Markdown 文件重新解析并强行对齐到 SQLite 中。
   Future<void> fullScanVault() async {
-    final activeVault = await ref.read(vaultServiceProvider.future);
-    if (activeVault == null) return;
+    if (_isSyncDisabled) {
+      debugPrint(
+        'ShadowIndexSyncService: Skipped fullScanVault because sync is disabled.',
+      );
+      return;
+    }
 
-    final journalsDir = Directory(p.join(activeVault.path, 'Journals'));
+    if (_isScanning) {
+      debugPrint(
+        'ShadowIndexSyncService: Skipped fullScanVault because another scan is already in progress.',
+      );
+      return;
+    }
 
-    // 1. 获取所有待同步的物理文件列表
-    // 匹配 yyyy-MM-dd.md 格式
-    final dateFileRegex = RegExp(r'^(\d{4}-\d{2}-\d{2})\.md$');
-    final List<File> targetFiles = [];
+    _isScanning = true;
+    _currentScanCompleter = Completer<void>();
 
-    // 关键修复：如果目录不存在，不直接 return，而是跳过遍历，让空列表进入后续清理逻辑
-    if (journalsDir.existsSync()) {
-      await for (final entity in journalsDir.list(
-        recursive: true,
-        followLinks: false,
-      )) {
-        if (entity is File) {
-          final fileName = p.basename(entity.path);
-          if (dateFileRegex.hasMatch(fileName)) {
-            targetFiles.add(entity);
+    try {
+      final activeVault = await ref.read(vaultServiceProvider.future);
+      if (activeVault == null) return;
+
+      final journalsDir = Directory(p.join(activeVault.path, 'Journals'));
+
+      // 1. 获取所有待同步的物理文件列表
+      // 匹配 yyyy-MM-dd.md 格式
+      final dateFileRegex = RegExp(r'^(\d{4}-\d{2}-\d{2})\.md$');
+      final List<File> targetFiles = [];
+
+      // 关键修复：如果目录不存在，不直接 return，而是跳过遍历，让空列表进入后续清理逻辑
+      if (journalsDir.existsSync()) {
+        await for (final entity in journalsDir.list(
+          recursive: true,
+          followLinks: false,
+        )) {
+          if (entity is File) {
+            final fileName = p.basename(entity.path);
+            if (dateFileRegex.hasMatch(fileName)) {
+              targetFiles.add(entity);
+            }
           }
         }
       }
-    }
 
-    // 2. 串行执行同步，并记录所有扫描到的日期
-    final Set<String> scannedDates = {};
+      // 2. 串行执行同步，并记录所有扫描到的日期
+      final Set<String> scannedDates = {};
 
-    for (final file in targetFiles) {
-      try {
-        final fileName = p.basename(file.path);
-        final dateStr = dateFileRegex.firstMatch(fileName)?.group(1);
-        if (dateStr != null) {
-          scannedDates.add(dateStr);
-          final date = DateTime.parse(dateStr);
-          await syncJournal(date);
+      for (final file in targetFiles) {
+        try {
+          final fileName = p.basename(file.path);
+          final dateStr = dateFileRegex.firstMatch(fileName)?.group(1);
+          if (dateStr != null) {
+            scannedDates.add(dateStr);
+            final date = DateTime.parse(dateStr);
+            await syncJournal(date);
+          }
+        } catch (e) {
+          continue;
         }
-      } catch (e) {
-        continue;
       }
-    }
 
-    // 3. 【核心修复】：清理孤立索引 (Orphaned Index)
-    // 找出那些数据库里有，但物理磁盘上已经消失的日期条目
-    final dbService = ref.read(shadowIndexDatabaseProvider.notifier);
-    final db = await dbService.database;
-    final rows = await db.query('journals_index', columns: ['id', 'date']);
+      // 3. 【核心修复】：清理孤立索引 (Orphaned Index)
+      // 找出那些数据库里有，但物理磁盘上已经消失的日期条目
+      final dbService = ref.read(shadowIndexDatabaseProvider.notifier);
+      final db = await dbService.database;
+      final rows = await db.query('journals_index', columns: ['id', 'date']);
 
-    for (final row in rows) {
-      final id = row['id'] as int;
-      final dateStr = (row['date'] as String).split('T').first; // 提取 yyyy-MM-dd
+      for (final row in rows) {
+        final id = row['id'] as int;
+        final dateStr = (row['date'] as String)
+            .split('T')
+            .first; // 提取 yyyy-MM-dd
 
-      if (!scannedDates.contains(dateStr)) {
-        // 物理文件已不存在，执行影子清理
-        await dbService.deleteJournalIndex(id);
-        debugPrint(
-          'ShadowIndexSyncService: Cleaned orphaned index for date $dateStr (ID: $id)',
-        );
+        if (!scannedDates.contains(dateStr)) {
+          // 物理文件已不存在，执行影子清理
+          await dbService.deleteJournalIndex(id);
+          debugPrint(
+            'ShadowIndexSyncService: Cleaned orphaned index for date $dateStr (ID: $id)',
+          );
+        }
+      }
+    } finally {
+      _isScanning = false;
+      if (_currentScanCompleter != null &&
+          !_currentScanCompleter!.isCompleted) {
+        _currentScanCompleter!.complete();
       }
     }
   }

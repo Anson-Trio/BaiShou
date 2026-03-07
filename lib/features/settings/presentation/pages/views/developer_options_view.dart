@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:baishou/core/services/data_refresh_notifier.dart';
 import 'package:path/path.dart' as p;
 import 'package:baishou/features/index/data/shadow_index_database.dart';
 import 'package:baishou/features/diary/data/initial_data.dart';
@@ -51,6 +52,9 @@ class _DeveloperOptionsViewState extends ConsumerState<DeveloperOptionsView> {
 
       await repo.batchSaveDiaries(demoEntries);
 
+      // 触发全局刷新信号，确保回忆页等组件更新统计量
+      ref.read(dataRefreshProvider.notifier).refresh();
+
       if (mounted) {
         AppToast.showSuccess(context, t.developer.load_demo_success);
       }
@@ -97,28 +101,34 @@ class _DeveloperOptionsViewState extends ConsumerState<DeveloperOptionsView> {
       await ref.read(appDatabaseProvider).close();
       await ref.read(shadowIndexDatabaseProvider.notifier).close();
 
+      // 给操作系统一点时间释放文件句柄，尤其是在 Windows 上
+      await Future.delayed(const Duration(milliseconds: 500));
+
       // 2. 获取当前活跃的存储服务及根目录
       final storageService = ref.read(storagePathServiceProvider);
       final rootDir = await storageService.getRootDirectory();
       final appDir = await getApplicationDocumentsDirectory();
 
-      // 3. 执行精准物理清理（删除当前根目录下的 Personal 和 .baishou ）
-      final physicalTargets = ['Personal', '.baishou'];
-      for (final target in physicalTargets) {
-        final targetPath = p.join(rootDir.path, target);
-        final dir = Directory(targetPath);
-        if (dir.existsSync()) {
+      // 3. 执行“地毯式”物理清理：遍历根目录下的所有子项并递归删除
+      // 这样可以确保所有 Vault (不论名称) 和 .baishou 文件夹都被彻底清除
+      if (rootDir.existsSync()) {
+        final entities = rootDir.listSync();
+        for (final entity in entities) {
           try {
-            dir.deleteSync(recursive: true);
+            if (entity is Directory) {
+              entity.deleteSync(recursive: true);
+              debugPrint('ClearData: Deleted directory ${entity.path}');
+            } else if (entity is File) {
+              entity.deleteSync();
+              debugPrint('ClearData: Deleted file ${entity.path}');
+            }
           } catch (e) {
-            debugPrint(
-              'ClearData: Failed to delete physical target $targetPath: $e',
-            );
+            debugPrint('ClearData: Failed to delete ${entity.path}: $e');
           }
         }
       }
 
-      // 4. 清理 App 内部专属元数据（数据库、快照、缓存）
+      // 4. 清理 App 内部专属元数据（快照、缓存、数据库残余）
       final internalTargets = [
         'snapshots',
         'avatars',
