@@ -432,6 +432,8 @@
     "toast_copied": "Collective memory copied to clipboard",
     "copy_prefix_label": "Copy Prefix",
     "copy_prefix_hint": "Automatically added to the front of copied content (e.g., Hi, these are my memories...)",
+    "cascade_folding_title": "Memory Folding Rules",
+    "cascade_folding_content": "To provide the AI with the most efficient memory context, BaiShou uses a 'Cascade Folding' algorithm:\n\n1. Overlap Mechanism: If a Monthly or Quarterly report has been generated for a period, the system assumes the AI already understands the macro-context of that time, so it folds (hides) original diary entries from that period in the shared memory.\n2. Progressive Detail: The system prioritizes keeping detailed diaries from the most recent weeks, while older memories are presented through higher-dimensional forms like Weekly, Monthly, or Quarterly reports.\n3. Distillation vs Redundancy: This ensures that within limited Token constraints, the AI can see both recent details and the big picture without getting bogged down in an overwhelming sea of raw diary entries.",
     "range_selector": "Statistic Range",
     "load_data": "Load Data",
     "loading": "Loading data...",

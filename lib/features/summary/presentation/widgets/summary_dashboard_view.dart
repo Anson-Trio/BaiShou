@@ -331,7 +331,22 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: theme.textTheme.titleMedium),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(title, style: theme.textTheme.titleMedium),
+                IconButton(
+                  onPressed: () => _showRulesDialog(context, theme),
+                  icon: Icon(
+                    Icons.help_outline,
+                    size: 20,
+                    color: theme.colorScheme.primary,
+                  ),
+                  tooltip: t.summary.cascade_folding_title,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
             const Divider(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -370,6 +385,38 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showRulesDialog(BuildContext context, ThemeData theme) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.auto_awesome, color: theme.colorScheme.primary),
+            const SizedBox(width: 12),
+            Text(t.summary.cascade_folding_title),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              t.summary.cascade_folding_content,
+              style: theme.textTheme.bodyMedium?.copyWith(height: 1.6),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(t.common.ok),
+          ),
+        ],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
     );
   }
