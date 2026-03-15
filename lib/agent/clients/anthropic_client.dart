@@ -139,7 +139,13 @@ class AnthropicClient implements AiClient {
     }
 
     if (tools != null && tools.isNotEmpty) {
-      body['tools'] = tools.map((t) => t.toAnthropicFormat()).toList();
+      body['tools'] = tools
+          .map((t) => {
+                'name': t.name,
+                'description': t.description,
+                'input_schema': t.parameterSchema,
+              })
+          .toList();
     }
     if (temperature != null) {
       body['temperature'] = temperature;

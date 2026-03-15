@@ -166,8 +166,13 @@ class GeminiClient implements AiClient {
     if (tools != null && tools.isNotEmpty) {
       body['tools'] = [
         {
-          'functionDeclarations':
-              tools.map((t) => t.toGeminiFormat()).toList(),
+          'functionDeclarations': tools
+              .map((t) => {
+                    'name': t.name,
+                    'description': t.description,
+                    'parameters': t.parameterSchema,
+                  })
+              .toList(),
         },
       ];
     }

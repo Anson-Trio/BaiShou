@@ -141,7 +141,16 @@ class OpenAiClient implements AiClient {
     };
 
     if (tools != null && tools.isNotEmpty) {
-      body['tools'] = tools.map((t) => t.toOpenAiFormat()).toList();
+      body['tools'] = tools
+          .map((t) => {
+                'type': 'function',
+                'function': {
+                  'name': t.name,
+                  'description': t.description,
+                  'parameters': t.parameterSchema,
+                },
+              })
+          .toList();
     }
     if (temperature != null) {
       body['temperature'] = temperature;
