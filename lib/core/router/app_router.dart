@@ -1,3 +1,4 @@
+import 'package:baishou/features/agent/presentation/pages/agent_chat_page.dart';
 import 'package:baishou/features/diary/presentation/pages/diary_editor_page.dart';
 import 'package:baishou/features/diary/presentation/pages/diary_list_page.dart';
 import 'package:baishou/features/home/presentation/pages/main_scaffold.dart';
@@ -192,6 +193,14 @@ GoRouter goRouter(Ref ref) {
             initialDate: date,
             appendOnLoad: shouldAppend,
           );
+        },
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: '/agent/chat',
+        builder: (context, state) {
+          final sessionId = state.uri.queryParameters['sessionId'];
+          return AgentChatPage(sessionId: sessionId);
         },
       ),
     ],
