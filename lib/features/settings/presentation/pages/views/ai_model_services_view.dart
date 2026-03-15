@@ -5,7 +5,7 @@ import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:baishou/features/settings/presentation/widgets/provider_config_form.dart';
 import 'package:baishou/features/settings/presentation/widgets/provider_list_panel.dart';
 import 'package:baishou/features/settings/presentation/widgets/provider_model_list.dart';
-import 'package:baishou/core/models/ai_provider_model.dart';
+import 'package:baishou/agent/models/ai_provider_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:baishou/i18n/strings.g.dart';

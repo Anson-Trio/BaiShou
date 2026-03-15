@@ -1,15 +1,27 @@
-import 'package:baishou/core/models/ai_provider_model.dart';
-import 'package:baishou/core/clients/openai_client.dart';
-import 'package:baishou/core/clients/gemini_client.dart';
-import 'package:baishou/core/clients/anthropic_client.dart';
+import 'package:baishou/agent/models/ai_provider_model.dart';
+import 'package:baishou/agent/clients/openai_client.dart';
+import 'package:baishou/agent/clients/gemini_client.dart';
+import 'package:baishou/agent/clients/anthropic_client.dart';
+import 'package:baishou/agent/models/chat_message.dart';
+import 'package:baishou/agent/models/stream_event.dart';
+import 'package:baishou/agent/models/tool_definition.dart';
 import 'package:baishou/i18n/strings.g.dart';
 
 /// AI 客户端的基础接口 (Strategy 模式)
+/// 统一管理总结生成（generateContent）和 Agent 对话（chatStream）
 abstract class AiClient {
-  /// 生成完整的对话或内容
+  /// 生成完整的对话或内容（总结生成用）
   Future<String> generateContent({
     required String prompt,
     required String modelId,
+  });
+
+  /// 流式多轮对话 + Tool Calling（Agent 用）
+  Stream<StreamEvent> chatStream({
+    required List<ChatMessage> messages,
+    required String modelId,
+    List<ToolDefinition>? tools,
+    double? temperature,
   });
 
   /// 获取此服务商当前可用的所有模型列表
@@ -26,9 +38,6 @@ class AiClientFactory {
     if (provider.apiKey.isEmpty) {
       throw Exception(t.ai.error_no_api_key);
     }
-
-    // 如果没有配置 baseUrl 且非特定支持空Url的供应商，可在此处做通用拦截
-    // Gemini 允许为空（因为自带官方默认路径）
 
     switch (provider.type) {
       case ProviderType.gemini:

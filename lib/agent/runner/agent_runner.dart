@@ -1,0 +1,163 @@
+/// Agent 运行循环 — 核心引擎
+/// 参考 opencode: packages/opencode/src/session/processor.ts
+
+import 'dart:async';
+import 'package:baishou/agent/clients/ai_client.dart';
+import 'package:baishou/agent/models/chat_message.dart';
+import 'package:baishou/agent/models/stream_event.dart';
+import 'package:baishou/agent/tools/agent_tool.dart';
+
+/// Agent 运行配置
+class AgentConfig {
+  final String modelId;
+  final String systemPrompt;
+  final int maxSteps;
+  final double? temperature;
+
+  const AgentConfig({
+    required this.modelId,
+    required this.systemPrompt,
+    this.maxSteps = 10,
+    this.temperature,
+  });
+}
+
+/// Agent 运行产出的事件
+sealed class AgentEvent {
+  const AgentEvent();
+}
+
+class AgentTextDelta extends AgentEvent {
+  final String text;
+  const AgentTextDelta(this.text);
+}
+
+class AgentToolStart extends AgentEvent {
+  final ToolCall toolCall;
+  const AgentToolStart(this.toolCall);
+}
+
+class AgentToolComplete extends AgentEvent {
+  final ToolCall toolCall;
+  final ToolResult result;
+  const AgentToolComplete(this.toolCall, this.result);
+}
+
+class AgentComplete extends AgentEvent {
+  final String text;
+  final List<ChatMessage> messages;
+  const AgentComplete(this.text, this.messages);
+}
+
+class AgentError extends AgentEvent {
+  final Object error;
+  const AgentError(this.error);
+}
+
+class AgentStepInfo extends AgentEvent {
+  final int currentStep;
+  final int maxSteps;
+  const AgentStepInfo(this.currentStep, this.maxSteps);
+}
+
+/// Agent Runner — 核心引擎
+class AgentRunner {
+  final AiClient client;
+  final ToolRegistry tools;
+  final AgentConfig config;
+
+  AgentRunner({
+    required this.client,
+    required this.tools,
+    required this.config,
+  });
+
+  /// 运行 Agent Loop
+  Stream<AgentEvent> run({
+    required List<ChatMessage> messages,
+    required String userMessage,
+    required ToolContext context,
+  }) async* {
+    final messageHistory = List<ChatMessage>.from(messages);
+    messageHistory.add(ChatMessage.user(userMessage));
+
+    int step = 0;
+
+    while (step < config.maxSteps) {
+      step++;
+      yield AgentStepInfo(step, config.maxSteps);
+
+      final allMessages = [
+        ChatMessage.system(config.systemPrompt),
+        ...messageHistory,
+      ];
+
+      String textBuffer = '';
+      final pendingToolCalls = <ToolCall>[];
+
+      await for (final event in client.chatStream(
+        messages: allMessages,
+        modelId: config.modelId,
+        tools: tools.toDefinitions(),
+        temperature: config.temperature,
+      )) {
+        switch (event) {
+          case TextDelta(:final text):
+            textBuffer += text;
+            yield AgentTextDelta(text);
+
+          case ToolCallComplete(:final toolCall):
+            pendingToolCalls.add(toolCall);
+
+          case StreamError(:final error):
+            yield AgentError(error);
+            return;
+
+          default:
+            break;
+        }
+      }
+
+      messageHistory.add(ChatMessage.assistant(
+        content: textBuffer.isNotEmpty ? textBuffer : null,
+        toolCalls: pendingToolCalls.isNotEmpty ? pendingToolCalls : null,
+      ));
+
+      if (pendingToolCalls.isEmpty) {
+        yield AgentComplete(textBuffer, messageHistory);
+        return;
+      }
+
+      for (final call in pendingToolCalls) {
+        yield AgentToolStart(call);
+
+        final tool = tools.get(call.name);
+        late final ToolResult result;
+
+        if (tool == null) {
+          result = ToolResult.error(
+            'Unknown tool "${call.name}". Available tools: ${tools.ids.join(", ")}',
+          );
+        } else {
+          try {
+            result = await tool.execute(call.arguments, context);
+          } catch (e) {
+            result = ToolResult.error('Tool execution failed: $e');
+          }
+        }
+
+        yield AgentToolComplete(call, result);
+
+        messageHistory.add(ChatMessage.tool(
+          callId: call.id,
+          content: result.output,
+        ));
+      }
+    }
+
+    yield AgentComplete(
+      '达到最大执行步数限制 (${config.maxSteps})，已中止。',
+      messageHistory,
+    );
+  }
+}

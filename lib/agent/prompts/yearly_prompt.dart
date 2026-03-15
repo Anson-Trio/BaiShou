@@ -1,6 +1,6 @@
 import 'package:baishou/features/summary/domain/services/missing_summary_detector.dart';
 import 'package:baishou/i18n/strings.g.dart';
-import 'package:baishou/source/prompts/prompt_templates.dart';
+import 'package:baishou/agent/prompts/prompt_templates.dart';
 
 String getYearlyPrompt(MissingSummary target, AppLocale locale) {
   return PromptTemplates.buildYearly(

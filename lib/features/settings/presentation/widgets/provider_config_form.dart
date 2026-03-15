@@ -1,4 +1,4 @@
-import 'package:baishou/core/models/ai_provider_model.dart';
+import 'package:baishou/agent/models/ai_provider_model.dart';
 import 'package:flutter/material.dart';
 import 'package:baishou/i18n/strings.g.dart';
 

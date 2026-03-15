@@ -6,7 +6,7 @@ import 'package:archive/archive_io.dart';
 import 'package:baishou/core/database/tables/summaries.dart';
 import 'package:baishou/core/services/api_config_service.dart';
 import 'package:baishou/core/theme/theme_service.dart';
-import 'package:baishou/core/models/ai_provider_model.dart';
+import 'package:baishou/agent/models/ai_provider_model.dart';
 import 'package:baishou/features/diary/data/repositories/diary_repository_impl.dart';
 import 'package:baishou/features/diary/domain/entities/diary.dart';
 import 'package:baishou/features/diary/domain/repositories/diary_repository.dart';

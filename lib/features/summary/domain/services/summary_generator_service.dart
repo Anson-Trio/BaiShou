@@ -4,17 +4,17 @@ import 'package:baishou/features/diary/domain/repositories/diary_repository.dart
 import 'package:baishou/features/summary/data/repositories/summary_repository_impl.dart';
 import 'package:baishou/features/summary/domain/repositories/summary_repository.dart';
 import 'package:baishou/features/summary/domain/services/missing_summary_detector.dart'; // 用于 MissingSummary
-import 'package:baishou/source/prompts/monthly_prompt.dart';
-import 'package:baishou/source/prompts/quarterly_prompt.dart';
-import 'package:baishou/source/prompts/weekly_prompt.dart';
-import 'package:baishou/source/prompts/yearly_prompt.dart';
+import 'package:baishou/agent/prompts/monthly_prompt.dart';
+import 'package:baishou/agent/prompts/quarterly_prompt.dart';
+import 'package:baishou/agent/prompts/weekly_prompt.dart';
+import 'package:baishou/agent/prompts/yearly_prompt.dart';
 import 'package:baishou/i18n/strings.g.dart';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'package:baishou/core/services/api_config_service.dart';
-import 'package:baishou/core/models/ai_provider_model.dart';
-import 'package:baishou/core/clients/ai_client.dart';
+import 'package:baishou/agent/models/ai_provider_model.dart';
+import 'package:baishou/agent/clients/ai_client.dart';
 
 part 'summary_generator_service.g.dart';
 

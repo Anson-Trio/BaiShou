@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:baishou/core/models/ai_provider_model.dart';
+import 'package:baishou/agent/models/ai_provider_model.dart';
 import 'package:baishou/core/providers/shared_preferences_provider.dart';
-import 'package:baishou/core/clients/ai_client.dart';
+import 'package:baishou/agent/clients/ai_client.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:baishou/i18n/strings.g.dart';
