@@ -24,33 +24,6 @@ final summaryNavKey = GlobalKey<NavigatorState>(debugLabel: 'summary');
 final syncNavKey = GlobalKey<NavigatorState>(debugLabel: 'sync');
 final settingsNavKey = GlobalKey<NavigatorState>(debugLabel: 'settings');
 
-// 临时的 Home Page，稍后会被 features/diary 里的页面替代
-class PlaceholderHomePage extends StatelessWidget {
-  const PlaceholderHomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(t.common.app_title)),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.favorite, size: 64, color: Colors.pinkAccent),
-            const SizedBox(height: 16),
-            Text(
-              t.settings.tagline_short,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 32),
-            const Text('Development in progress...'),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// 全局路由配置
 /// 使用 GoRouter 处理页面导航、重定向（如开启引导页）以及子路由嵌套。
 @riverpod
