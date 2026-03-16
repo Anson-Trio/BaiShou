@@ -1,10 +1,10 @@
 /// Agent 会话管理器
-/// 负责会话和消息的 CRUD 操作
+/// 负责会话、消息、Part 的 CRUD 操作（三表架构）
 
 import 'dart:convert';
 import 'package:baishou/agent/database/agent_database.dart';
-import 'package:baishou/agent/database/agent_tables.dart';
 import 'package:baishou/agent/models/chat_message.dart';
+import 'package:baishou/agent/models/message_part.dart';
 import 'package:drift/drift.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
@@ -70,8 +70,11 @@ class SessionManager {
     ));
   }
 
-  /// 删除会话（级联删除消息）
+  /// 删除会话（级联删除 Parts → Messages）
   Future<void> deleteSession(String id) async {
+    await (_db.delete(_db.agentParts)
+          ..where((t) => t.sessionId.equals(id)))
+        .go();
     await (_db.delete(_db.agentMessages)
           ..where((t) => t.sessionId.equals(id)))
         .go();
@@ -87,7 +90,6 @@ class SessionManager {
     required int outputTokens,
     required int costMicros,
   }) async {
-    // 先读当前值再写回（drift 不直接支持 SQL increment）
     final session = await getSession(sessionId);
     if (session == null) return;
 
@@ -104,67 +106,131 @@ class SessionManager {
     ));
   }
 
-  // ─── 消息 CRUD ──────────────────────────────────────────
+  // ─── 消息 + Part CRUD ─────────────────────────────────────
 
-  /// 添加消息到会话
-  Future<void> addMessage(String sessionId, ChatMessage msg) async {
-    // 获取当前最大 orderIndex
+  /// 添加消息及其 Parts（三表写入）
+  ///
+  /// [parts] 是消息的细粒度内容。如果为空，会根据 msg 自动创建 Parts。
+  Future<void> addMessage(
+    String sessionId,
+    ChatMessage msg, {
+    List<MessagePart>? parts,
+    String? providerId,
+    String? modelId,
+    bool isSummary = false,
+  }) async {
     final maxOrder = await _getMaxOrderIndex(sessionId);
 
-    await _db.into(_db.agentMessages).insert(AgentMessagesCompanion.insert(
-          id: msg.id,
-          sessionId: sessionId,
-          role: msg.role.name,
-          content: Value(msg.content),
-          toolCalls: Value(msg.toolCalls != null
-              ? jsonEncode(msg.toolCalls!.map((t) => t.toMap()).toList())
-              : null),
-          toolCallId: Value(msg.toolCallId),
-          orderIndex: maxOrder + 1,
-        ));
-
-    await touchSession(sessionId);
-  }
-
-  /// 批量添加消息
-  Future<void> addMessages(String sessionId, List<ChatMessage> msgs) async {
-    var order = await _getMaxOrderIndex(sessionId);
-
-    await _db.batch((batch) {
-      for (final msg in msgs) {
-        order++;
-        batch.insert(
-          _db.agentMessages,
+    // 1. 写 Message
+    await _db.into(_db.agentMessages).insert(
           AgentMessagesCompanion.insert(
             id: msg.id,
             sessionId: sessionId,
             role: msg.role.name,
-            content: Value(msg.content),
-            toolCalls: Value(msg.toolCalls != null
-                ? jsonEncode(msg.toolCalls!.map((t) => t.toMap()).toList())
-                : null),
-            toolCallId: Value(msg.toolCallId),
-            orderIndex: order,
+            isSummary: Value(isSummary),
+            providerId: Value(providerId),
+            modelId: Value(modelId),
+            orderIndex: maxOrder + 1,
           ),
         );
-      }
-    });
+
+    // 2. 写 Parts
+    if (parts != null && parts.isNotEmpty) {
+      await _writeParts(parts);
+    } else {
+      // 自动从 ChatMessage 推断 Parts
+      await _autoCreateParts(sessionId, msg);
+    }
 
     await touchSession(sessionId);
   }
 
-  /// 获取会话的所有消息（按顺序）
+  /// 批量添加消息（每条自动创建 Parts）
+  Future<void> addMessages(
+    String sessionId,
+    List<ChatMessage> msgs, {
+    String? providerId,
+    String? modelId,
+  }) async {
+    var order = await _getMaxOrderIndex(sessionId);
+
+    for (final msg in msgs) {
+      order++;
+
+      // 写 Message
+      await _db.into(_db.agentMessages).insert(
+            AgentMessagesCompanion.insert(
+              id: msg.id,
+              sessionId: sessionId,
+              role: msg.role.name,
+              providerId: Value(
+                msg.role == MessageRole.assistant ? providerId : null,
+              ),
+              modelId: Value(
+                msg.role == MessageRole.assistant ? modelId : null,
+              ),
+              orderIndex: order,
+            ),
+          );
+
+      // 自动创建 Parts
+      await _autoCreateParts(sessionId, msg);
+    }
+
+    await touchSession(sessionId);
+  }
+
+  /// 获取会话的所有消息 + Parts（重建为 ChatMessage）
   Future<List<ChatMessage>> getMessages(String sessionId) async {
-    final rows = await (_db.select(_db.agentMessages)
+    // 按顺序取消息
+    final msgRows = await (_db.select(_db.agentMessages)
           ..where((t) => t.sessionId.equals(sessionId))
           ..orderBy([(t) => OrderingTerm.asc(t.orderIndex)]))
         .get();
 
-    return rows.map(_rowToMessage).toList();
+    if (msgRows.isEmpty) return [];
+
+    // 一次性取所有 Parts
+    final partRows = await (_db.select(_db.agentParts)
+          ..where((t) => t.sessionId.equals(sessionId)))
+        .get();
+
+    // 按 messageId 分组
+    final partsByMsg = <String, List<AgentPart>>{};
+    for (final part in partRows) {
+      partsByMsg.putIfAbsent(part.messageId, () => []).add(part);
+    }
+
+    // 重建 ChatMessage
+    return msgRows.map((row) {
+      final parts = partsByMsg[row.id] ?? [];
+      return _rebuildMessage(row, parts);
+    }).toList();
   }
 
-  /// 清空会话消息
+  /// 获取消息的 Parts
+  Future<List<MessagePart>> getPartsForMessage(String messageId) async {
+    final rows = await (_db.select(_db.agentParts)
+          ..where((t) => t.messageId.equals(messageId)))
+        .get();
+
+    return rows.map(_rowToPart).toList();
+  }
+
+  /// 更新单个 Part（用于 prune/compaction）
+  Future<void> updatePart(MessagePart part) async {
+    await (_db.update(_db.agentParts)
+          ..where((t) => t.id.equals(part.id)))
+        .write(AgentPartsCompanion(
+      data: Value(jsonEncode(part.toDataMap())),
+    ));
+  }
+
+  /// 清空会话消息和 Parts
   Future<void> clearMessages(String sessionId) async {
+    await (_db.delete(_db.agentParts)
+          ..where((t) => t.sessionId.equals(sessionId)))
+        .go();
     await (_db.delete(_db.agentMessages)
           ..where((t) => t.sessionId.equals(sessionId)))
         .go();
@@ -181,21 +247,107 @@ class SessionManager {
     return result?.read(_db.agentMessages.orderIndex.max()) ?? 0;
   }
 
-  ChatMessage _rowToMessage(AgentMessage row) {
+  /// 从 ChatMessage 自动推断并创建 Parts
+  Future<void> _autoCreateParts(
+    String sessionId,
+    ChatMessage msg,
+  ) async {
+    final parts = <MessagePart>[];
+    int partIndex = 0;
+
+    // 文本内容 → TextPart
+    if (msg.content != null && msg.content!.isNotEmpty) {
+      parts.add(TextPart(
+        id: '${msg.id}_p${partIndex++}',
+        messageId: msg.id,
+        sessionId: sessionId,
+        text: msg.content!,
+      ));
+    }
+
+    // 工具调用 → ToolPart
+    if (msg.toolCalls != null) {
+      for (final tc in msg.toolCalls!) {
+        parts.add(ToolPart(
+          id: '${msg.id}_p${partIndex++}',
+          messageId: msg.id,
+          sessionId: sessionId,
+          callId: tc.id,
+          toolName: tc.name,
+          status: ToolPartStatus.completed,
+          input: tc.arguments,
+        ));
+      }
+    }
+
+    if (parts.isNotEmpty) {
+      await _writeParts(parts);
+    }
+  }
+
+  /// 批量写入 Parts
+  Future<void> _writeParts(List<MessagePart> parts) async {
+    await _db.batch((batch) {
+      for (final part in parts) {
+        batch.insert(
+          _db.agentParts,
+          AgentPartsCompanion.insert(
+            id: part.id,
+            messageId: part.messageId,
+            sessionId: part.sessionId,
+            type: part.type.name,
+            data: jsonEncode(part.toDataMap()),
+          ),
+        );
+      }
+    });
+  }
+
+  /// 从 DB 行反序列化 Part
+  MessagePart _rowToPart(AgentPart row) {
+    return MessagePart.fromRow(
+      id: row.id,
+      messageId: row.messageId,
+      sessionId: row.sessionId,
+      type: row.type,
+      dataJson: row.data,
+    );
+  }
+
+  /// 从 Message + Parts 重建 ChatMessage
+  ChatMessage _rebuildMessage(AgentMessage row, List<AgentPart> partRows) {
+    String? content;
     List<ToolCall>? toolCalls;
-    if (row.toolCalls != null) {
-      final list = jsonDecode(row.toolCalls!) as List;
-      toolCalls = list
-          .map((t) => ToolCall.fromMap(t as Map<String, dynamic>))
-          .toList();
+    String? toolCallId;
+
+    for (final partRow in partRows) {
+      final part = _rowToPart(partRow);
+      switch (part) {
+        case TextPart(:final text):
+          content = (content ?? '') + text;
+        case ToolPart(:final callId, :final toolName, :final input):
+          toolCalls ??= [];
+          toolCalls.add(ToolCall(
+            id: callId,
+            name: toolName,
+            arguments: input,
+          ));
+          // tool result 消息的 toolCallId 来自 ToolPart
+          if (row.role == 'tool') {
+            toolCallId = callId;
+          }
+        case StepFinishPart():
+        case CompactionPart():
+          break; // 元数据 Part 不影响 ChatMessage 重建
+      }
     }
 
     return ChatMessage(
       id: row.id,
       role: MessageRole.values.byName(row.role),
-      content: row.content,
+      content: content,
       toolCalls: toolCalls,
-      toolCallId: row.toolCallId,
+      toolCallId: toolCallId,
       timestamp: row.createdAt,
     );
   }

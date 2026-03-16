@@ -40,7 +40,8 @@ class AgentToolStart extends AgentEvent {
 class AgentToolComplete extends AgentEvent {
   final ToolCall toolCall;
   final ToolResult result;
-  const AgentToolComplete(this.toolCall, this.result);
+  final int durationMs;
+  const AgentToolComplete(this.toolCall, this.result, {this.durationMs = 0});
 }
 
 class AgentComplete extends AgentEvent {
@@ -159,6 +160,7 @@ class AgentRunner {
 
         final tool = tools.get(call.name);
         late final ToolResult result;
+        final stopwatch = Stopwatch()..start();
 
         if (tool == null) {
           result = ToolResult.error(
@@ -172,7 +174,12 @@ class AgentRunner {
           }
         }
 
-        yield AgentToolComplete(call, result);
+        stopwatch.stop();
+        yield AgentToolComplete(
+          call,
+          result,
+          durationMs: stopwatch.elapsedMilliseconds,
+        );
 
         messageHistory.add(ChatMessage.tool(
           callId: call.id,

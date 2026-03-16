@@ -195,7 +195,12 @@ class AgentChatNotifier extends _$AgentChatNotifier {
 
             // 持久化 assistant/tool 消息
             if (assistantMessages.isNotEmpty) {
-              await manager.addMessages(sessionId, assistantMessages);
+              await manager.addMessages(
+                sessionId,
+                assistantMessages,
+                providerId: providerId,
+                modelId: modelId,
+              );
             }
 
             // 更新 UI 状态

@@ -25,7 +25,7 @@ class AgentSessions extends Table {
   IntColumn get totalOutputTokens =>
       integer().withDefault(const Constant(0))();
 
-  /// 累计费用（美元，乘以 1000000 存为整数以避免浮点误差）
+  /// 累计费用（美元 × 1,000,000 存为整数）
   IntColumn get totalCostMicros =>
       integer().withDefault(const Constant(0))();
 
@@ -39,7 +39,8 @@ class AgentSessions extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-/// Agent 消息表
+/// Agent 消息表 — 存储消息元数据
+/// 每条 Message 的具体内容拆分到 AgentParts 表
 class AgentMessages extends Table {
   /// 消息 ID
   TextColumn get id => text()();
@@ -51,17 +52,44 @@ class AgentMessages extends Table {
   /// 消息角色 (system / user / assistant / tool)
   TextColumn get role => text()();
 
-  /// 消息文本内容
-  TextColumn get content => text().nullable()();
+  /// 是否是压缩摘要消息
+  BoolColumn get isSummary =>
+      boolean().withDefault(const Constant(false))();
 
-  /// 工具调用信息 (JSON 序列化的 List<ToolCall>)
-  TextColumn get toolCalls => text().nullable()();
+  /// 使用的供应商 ID（assistant 消息才有）
+  TextColumn get providerId => text().nullable()();
 
-  /// 工具结果对应的 call ID
-  TextColumn get toolCallId => text().nullable()();
+  /// 使用的模型 ID（assistant 消息才有）
+  TextColumn get modelId => text().nullable()();
 
   /// 消息顺序号（用于排序）
   IntColumn get orderIndex => integer()();
+
+  /// 创建时间
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Agent 消息 Part 表 — 存储消息的细粒度内容
+/// 一条 Message 包含多个 Part（文本段、工具调用、步骤统计等）
+class AgentParts extends Table {
+  /// Part ID
+  TextColumn get id => text()();
+
+  /// 所属消息 ID (外键)
+  TextColumn get messageId =>
+      text().references(AgentMessages, #id)();
+
+  /// 所属会话 ID（冗余索引，方便按会话查询）
+  TextColumn get sessionId => text()();
+
+  /// Part 类型 (text / tool / stepFinish / compaction)
+  TextColumn get type => text()();
+
+  /// Part 数据 (JSON blob，结构取决于 type)
+  TextColumn get data => text()();
 
   /// 创建时间
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
