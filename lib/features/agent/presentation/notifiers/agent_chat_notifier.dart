@@ -5,6 +5,7 @@
 import 'dart:async';
 import 'package:baishou/agent/clients/ai_client.dart';
 import 'package:baishou/agent/models/chat_message.dart';
+import 'package:baishou/agent/models/stream_event.dart';
 import 'package:baishou/agent/runner/agent_runner.dart';
 import 'package:baishou/agent/session/session_manager.dart';
 import 'package:baishou/agent/tools/agent_tool.dart';
@@ -111,7 +112,9 @@ class AgentChatNotifier extends _$AgentChatNotifier {
 
     // 创建或复用会话
     String sessionId = state.sessionId ?? '';
+    bool isNewSession = false;
     if (sessionId.isEmpty) {
+      isNewSession = true;
       sessionId = await manager.createSession(
         vaultName: vaultName,
         providerId: providerId,
@@ -201,6 +204,18 @@ class AgentChatNotifier extends _$AgentChatNotifier {
               isLoading: false,
               activeToolName: () => null,
             );
+
+            // 自动生成对话标题（仅新会话首次回复时触发，异步不阻塞）
+            if (isNewSession && text.isNotEmpty) {
+              _generateTitle(
+                client: client,
+                modelId: modelId,
+                userMessage: userMsg.content ?? '',
+                assistantReply: text,
+                sessionId: sessionId,
+                manager: manager,
+              );
+            }
             break;
 
           case AgentError(:final error):
@@ -240,6 +255,50 @@ class AgentChatNotifier extends _$AgentChatNotifier {
     ]);
 
     return registry;
+  }
+
+  /// 自动生成对话标题（异步，不阻塞 UI）
+  Future<void> _generateTitle({
+    required AiClient client,
+    required String modelId,
+    required String userMessage,
+    required String assistantReply,
+    required String sessionId,
+    required SessionManager manager,
+  }) async {
+    try {
+      // 截取前 200 字，避免 prompt 过长
+      final userPreview = userMessage.length > 200
+          ? userMessage.substring(0, 200)
+          : userMessage;
+      final replyPreview = assistantReply.length > 200
+          ? assistantReply.substring(0, 200)
+          : assistantReply;
+
+      String title = '';
+      await for (final event in client.chatStream(
+        messages: [
+          ChatMessage.system(
+            '根据以下对话生成一个简短的标题（10个字以内，不要标点符号，不要引号）。'
+            '只输出标题本身，不要任何解释。',
+          ),
+          ChatMessage.user('用户: $userPreview\n助手: $replyPreview'),
+        ],
+        modelId: modelId,
+      )) {
+        if (event is TextDelta) {
+          title += event.text;
+        }
+      }
+
+      title = title.trim();
+      if (title.isNotEmpty && title.length <= 30) {
+        await manager.updateSessionTitle(sessionId, title);
+      }
+    } catch (e) {
+      debugPrint('Auto-generate title failed: $e');
+      // 标题生成失败不影响主流程
+    }
   }
 
   /// 清空当前对话
