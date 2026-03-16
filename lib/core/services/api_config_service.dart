@@ -24,6 +24,7 @@ class ApiConfigService {
   static const String _keyMonthlySummarySource = 'monthly_summary_source';
   static const String _keyAgentContextWindowSize =
       'agent_context_window_size';
+  static const String _keyAgentCompanionMode = 'agent_companion_mode';
 
   final SharedPreferences _prefs;
 
@@ -215,10 +216,22 @@ class ApiConfigService {
     return _prefs.getInt(_keyAgentContextWindowSize) ?? 20;
   }
 
-  /// 设置 Agent 上下文窗口大小（限制 5~100）
+  /// 设置 Agent 上下文窗口大小（最小 5，无上限）
   Future<void> setAgentContextWindowSize(int size) async {
-    final clamped = size.clamp(5, 100);
+    final clamped = size < 5 ? 5 : size;
     await _prefs.setInt(_keyAgentContextWindowSize, clamped);
+  }
+
+  /// 是否启用伴侣模式
+  /// 伴侣模式：无会话概念，持续交互，自动管理上下文窗口
+  /// 会话模式（默认）：传统多会话，每个会话独立
+  bool get agentCompanionMode {
+    return _prefs.getBool(_keyAgentCompanionMode) ?? false;
+  }
+
+  /// 设置伴侣模式开关
+  Future<void> setAgentCompanionMode(bool enabled) async {
+    await _prefs.setBool(_keyAgentCompanionMode, enabled);
   }
 
   /// 获取所有可用的模型列表，返回一个 Map 列表，方便 UI 渲染下拉框

@@ -11,12 +11,10 @@ import 'package:baishou/agent/session/session_manager.dart';
 
 /// 上下文窗口配置
 class ContextWindowConfig {
-  /// 最近消息条数（用户可配，默认 20）
+  /// 最近消息条数（用户可配，默认 30）
   final int recentCount;
 
-  const ContextWindowConfig({
-    this.recentCount = 20,
-  });
+  const ContextWindowConfig({this.recentCount = 30});
 }
 
 /// 上下文窗口 — 构建发送给 LLM 的消息列表
@@ -44,8 +42,7 @@ class ContextWindow {
 
     // 往前修正：不要在 tool result 开头截断（保持 assistant+tool 的完整性）
     // 如果 startIndex 处的消息是 tool 类型，往前找到对应的 assistant 消息
-    while (startIndex > 0 &&
-        allMessages[startIndex].role == MessageRole.tool) {
+    while (startIndex > 0 && allMessages[startIndex].role == MessageRole.tool) {
       startIndex--;
     }
 
@@ -67,8 +64,7 @@ class ContextWindow {
     var startIndex = messages.length - config.recentCount;
 
     // 同上：不在 tool result 中间截断
-    while (startIndex > 0 &&
-        messages[startIndex].role == MessageRole.tool) {
+    while (startIndex > 0 && messages[startIndex].role == MessageRole.tool) {
       startIndex--;
     }
 

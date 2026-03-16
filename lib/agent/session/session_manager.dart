@@ -37,6 +37,24 @@ class SessionManager {
     return id;
   }
 
+  /// 伴侣模式专用 session ID
+  static const companionSessionId = '__companion__';
+
+  /// 创建伴侣模式专用会话（固定 ID，全局唯一）
+  Future<void> createCompanionSession({
+    required String vaultName,
+    required String providerId,
+    required String modelId,
+  }) async {
+    await _db.into(_db.agentSessions).insert(AgentSessionsCompanion.insert(
+          id: companionSessionId,
+          vaultName: vaultName,
+          providerId: providerId,
+          modelId: modelId,
+          title: const Value('伴侣模式'),
+        ));
+  }
+
   /// 获取所有会话（按最后活跃时间降序）
   Future<List<AgentSession>> getSessions() async {
     return (_db.select(_db.agentSessions)
