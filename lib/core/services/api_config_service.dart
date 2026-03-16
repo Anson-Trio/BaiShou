@@ -25,6 +25,8 @@ class ApiConfigService {
   static const String _keyAgentContextWindowSize =
       'agent_context_window_size';
   static const String _keyAgentCompanionMode = 'agent_companion_mode';
+  static const String _keyAgentPersona = 'agent_persona';
+  static const String _keyAgentGuidelines = 'agent_guidelines';
 
   final SharedPreferences _prefs;
 
@@ -232,6 +234,28 @@ class ApiConfigService {
   /// 设置伴侣模式开关
   Future<void> setAgentCompanionMode(bool enabled) async {
     await _prefs.setBool(_keyAgentCompanionMode, enabled);
+  }
+
+  /// Agent 角色人设描述
+  String get agentPersona {
+    return _prefs.getString(_keyAgentPersona) ??
+        '你是白守的 AI 助手，帮助用户回顾日记和生活记录。';
+  }
+
+  /// 设置 Agent 角色人设
+  Future<void> setAgentPersona(String persona) async {
+    await _prefs.setString(_keyAgentPersona, persona.trim());
+  }
+
+  /// Agent 行为准则
+  String get agentGuidelines {
+    return _prefs.getString(_keyAgentGuidelines) ??
+        '请使用工具查阅日记内容，不要编造。引用时注明日期。';
+  }
+
+  /// 设置 Agent 行为准则
+  Future<void> setAgentGuidelines(String guidelines) async {
+    await _prefs.setString(_keyAgentGuidelines, guidelines.trim());
   }
 
   /// 获取所有可用的模型列表，返回一个 Map 列表，方便 UI 渲染下拉框

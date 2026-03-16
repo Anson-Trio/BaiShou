@@ -180,10 +180,10 @@ class AgentChatNotifier extends _$AgentChatNotifier {
     // 构建工具注册表
     final tools = _buildToolRegistry();
 
-    // 构建 System Prompt
+    // 构建 System Prompt（优先用参数传入，否则从设置读取）
     final systemPrompt = SystemPromptBuilder.build(
-      persona: persona ?? '你是白守的 AI 助手，帮助用户回顾日记和生活记录。',
-      guidelines: guidelines ?? '请使用工具查阅日记内容，不要编造。引用时注明日期。',
+      persona: persona ?? apiConfig.agentPersona,
+      guidelines: guidelines ?? apiConfig.agentGuidelines,
       vaultName: vaultName,
       tools: tools,
     );

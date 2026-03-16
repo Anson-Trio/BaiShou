@@ -236,85 +236,220 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
             final companionMode = apiConfig.agentCompanionMode;
             final windowSize = apiConfig.agentContextWindowSize;
+            final persona = apiConfig.agentPersona;
+            final guidelines = apiConfig.agentGuidelines;
 
-            return Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Agent 设置',
-                    style: theme.textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 20),
-
-                  // 伴侣模式开关
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('伴侣模式'),
-                    subtitle: Text(
-                      companionMode
-                          ? '已开启 — 单一持续对话，无会话概念'
-                          : '已关闭 — 多会话模式',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.outline,
-                      ),
-                    ),
-                    value: companionMode,
-                    onChanged: (v) async {
-                      await apiConfig.setAgentCompanionMode(v);
-                      setSheetState(() {});
-                    },
-                  ),
-
-                  const Divider(),
-
-                  // 上下文窗口大小
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('上下文轮数'),
-                    subtitle: Text(
-                      '发送最近 $windowSize 条消息给模型',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.outline,
-                      ),
-                    ),
-                    trailing: SizedBox(
-                      width: 80,
-                      child: TextFormField(
-                        initialValue: windowSize.toString(),
-                        keyboardType: TextInputType.number,
-                        textAlign: TextAlign.center,
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 8,
+            return DraggableScrollableSheet(
+              initialChildSize: 0.6,
+              minChildSize: 0.3,
+              maxChildSize: 0.85,
+              expand: false,
+              builder: (ctx, scrollController) {
+                return SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 拖拽手柄
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.outline
+                                .withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(2),
                           ),
-                          border: OutlineInputBorder(),
                         ),
-                        onFieldSubmitted: (v) async {
-                          final size = int.tryParse(v);
-                          if (size != null) {
-                            await apiConfig.setAgentContextWindowSize(size);
+                      ),
+
+                      Text(
+                        'Agent 设置',
+                        style: theme.textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 20),
+
+                      // 伴侣模式开关
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('伴侣模式'),
+                        subtitle: Text(
+                          companionMode
+                              ? '已开启 — 单一持续对话，无会话概念'
+                              : '已关闭 — 多会话模式',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.outline,
+                          ),
+                        ),
+                        value: companionMode,
+                        onChanged: (v) async {
+                          await apiConfig.setAgentCompanionMode(v);
+                          setSheetState(() {});
+                        },
+                      ),
+
+                      const Divider(),
+
+                      // 上下文窗口大小
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('上下文轮数'),
+                        subtitle: Text(
+                          '发送最近 $windowSize 条消息给模型',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.outline,
+                          ),
+                        ),
+                        trailing: SizedBox(
+                          width: 80,
+                          child: TextFormField(
+                            initialValue: windowSize.toString(),
+                            keyboardType: TextInputType.number,
+                            textAlign: TextAlign.center,
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 8,
+                              ),
+                              border: OutlineInputBorder(),
+                            ),
+                            onFieldSubmitted: (v) async {
+                              final size = int.tryParse(v);
+                              if (size != null) {
+                                await apiConfig
+                                    .setAgentContextWindowSize(size);
+                                setSheetState(() {});
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+
+                      const Divider(),
+
+                      // 角色人设
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('角色人设'),
+                        subtitle: Text(
+                          persona.length > 50
+                              ? '${persona.substring(0, 50)}...'
+                              : persona,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.outline,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: const Icon(Icons.edit_outlined, size: 20),
+                        onTap: () async {
+                          final result = await _showTextEditDialog(
+                            context: context,
+                            title: '角色人设',
+                            hint: '描述 Agent 的身份和风格',
+                            initialValue: persona,
+                          );
+                          if (result != null) {
+                            await apiConfig.setAgentPersona(result);
                             setSheetState(() {});
                           }
                         },
                       ),
-                    ),
-                  ),
 
-                  const SizedBox(height: 16),
-                ],
-              ),
+                      // 行为准则
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('行为准则'),
+                        subtitle: Text(
+                          guidelines.length > 50
+                              ? '${guidelines.substring(0, 50)}...'
+                              : guidelines,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.outline,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: const Icon(Icons.edit_outlined, size: 20),
+                        onTap: () async {
+                          final result = await _showTextEditDialog(
+                            context: context,
+                            title: '行为准则',
+                            hint: '描述 Agent 需要遵守的规则',
+                            initialValue: guidelines,
+                          );
+                          if (result != null) {
+                            await apiConfig.setAgentGuidelines(result);
+                            setSheetState(() {});
+                          }
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                );
+              },
             );
           },
+        );
+      },
+    );
+  }
+
+  /// 文本编辑对话框（全屏，用于输入角色人设 / 行为准则）
+  Future<String?> _showTextEditDialog({
+    required BuildContext context,
+    required String title,
+    required String hint,
+    required String initialValue,
+  }) async {
+    final controller = TextEditingController(text: initialValue);
+    final theme = Theme.of(context);
+
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text(title),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: TextField(
+              controller: controller,
+              maxLines: 8,
+              decoration: InputDecoration(
+                hintText: hint,
+                hintStyle: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.outline.withValues(alpha: 0.5),
+                ),
+                border: const OutlineInputBorder(),
+                contentPadding: const EdgeInsets.all(12),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final text = controller.text.trim();
+                Navigator.pop(ctx, text.isEmpty ? null : text);
+              },
+              child: const Text('保存'),
+            ),
+          ],
         );
       },
     );
