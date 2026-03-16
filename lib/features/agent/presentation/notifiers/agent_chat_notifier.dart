@@ -7,6 +7,7 @@ import 'package:baishou/agent/clients/ai_client.dart';
 import 'package:baishou/agent/models/chat_message.dart';
 import 'package:baishou/agent/models/stream_event.dart';
 import 'package:baishou/agent/runner/agent_runner.dart';
+import 'package:baishou/agent/session/context_window.dart';
 import 'package:baishou/agent/session/session_manager.dart';
 import 'package:baishou/agent/tools/agent_tool.dart';
 import 'package:baishou/agent/tools/diary/diary_list_tool.dart';
@@ -155,11 +156,20 @@ class AgentChatNotifier extends _$AgentChatNotifier {
     );
 
     // 运行 Agent Loop
+    //  → 滑动窗口：只取最近 N 条消息作为上下文
+    final windowSize = apiConfig.agentContextWindowSize;
+    final contextMessages = ContextWindow.fromMemory(
+      messages: state.messages
+          .where((m) => m.role != MessageRole.system)
+          .toList(),
+      config: ContextWindowConfig(recentCount: windowSize),
+    );
+
     try {
       final assistantMessages = <ChatMessage>[];
 
       await for (final event in runner.run(
-        messages: state.messages.where((m) => m.role != MessageRole.system).toList(),
+        messages: contextMessages,
         userMessage: text,
         context: ToolContext(sessionId: sessionId, vaultPath: vaultPath),
       )) {

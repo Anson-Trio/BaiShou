@@ -22,6 +22,8 @@ class ApiConfigService {
       'global_summary_provider_id';
   static const String _keyGlobalSummaryModelId = 'global_summary_model_id';
   static const String _keyMonthlySummarySource = 'monthly_summary_source';
+  static const String _keyAgentContextWindowSize =
+      'agent_context_window_size';
 
   final SharedPreferences _prefs;
 
@@ -206,6 +208,17 @@ class ApiConfigService {
   /// 设置月度总结的数据源
   Future<void> setMonthlySummarySource(String source) async {
     await _prefs.setString(_keyMonthlySummarySource, source);
+  }
+
+  /// Agent 上下文窗口大小（最近 N 条消息，默认 20）
+  int get agentContextWindowSize {
+    return _prefs.getInt(_keyAgentContextWindowSize) ?? 20;
+  }
+
+  /// 设置 Agent 上下文窗口大小（限制 5~100）
+  Future<void> setAgentContextWindowSize(int size) async {
+    final clamped = size.clamp(5, 100);
+    await _prefs.setInt(_keyAgentContextWindowSize, clamped);
   }
 
   /// 获取所有可用的模型列表，返回一个 Map 列表，方便 UI 渲染下拉框
