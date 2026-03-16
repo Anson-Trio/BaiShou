@@ -16,19 +16,34 @@ class ModelPrice {
   final double cacheRead;
   final double cacheWrite;
 
+  /// 200K+ 上下文的阶梯价格（可选）
+  /// 当 input_tokens + cached_tokens > 200K 时使用此价格
+  final ModelPrice? over200K;
+
   const ModelPrice({
     required this.input,
     required this.output,
     this.cacheRead = 0,
     this.cacheWrite = 0,
+    this.over200K,
   });
 
   /// 根据 token 用量计算费用（美元）
+  /// 自动判断是否使用 200K+ 阶梯价
   double calculateCost(TokenUsage usage) {
-    final inputCost = usage.inputTokens * input / 1000000;
-    final outputCost = usage.outputTokens * output / 1000000;
+    final totalInput =
+        usage.inputTokens + (usage.cachedInputTokens ?? 0);
+
+    // 如果有 200K+ 阶梯价且总输入超过 200K，使用阶梯价
+    final effectivePrice =
+        (over200K != null && totalInput > 200000) ? over200K! : this;
+
+    final inputCost =
+        usage.inputTokens * effectivePrice.input / 1000000;
+    final outputCost =
+        usage.outputTokens * effectivePrice.output / 1000000;
     final cacheCost =
-        (usage.cachedInputTokens ?? 0) * cacheRead / 1000000;
+        (usage.cachedInputTokens ?? 0) * effectivePrice.cacheRead / 1000000;
     return inputCost + outputCost + cacheCost;
   }
 }
@@ -114,11 +129,28 @@ class ModelPricingService {
           final inputPrice = (cost['input'] as num?)?.toDouble() ?? 0;
           if (inputPrice == 0) continue; // 跳过免费/未知模型
 
+          // 解析 200K+ 阶梯价
+          final over200KData =
+              cost['context_over_200k'] as Map<String, dynamic>?;
+          ModelPrice? over200K;
+          if (over200KData != null) {
+            over200K = ModelPrice(
+              input: (over200KData['input'] as num?)?.toDouble() ?? inputPrice,
+              output: (over200KData['output'] as num?)?.toDouble() ??
+                  (cost['output'] as num?)?.toDouble() ?? 0,
+              cacheRead:
+                  (over200KData['cache_read'] as num?)?.toDouble() ?? 0,
+              cacheWrite:
+                  (over200KData['cache_write'] as num?)?.toDouble() ?? 0,
+            );
+          }
+
           _prices['$providerId/$modelId'] = ModelPrice(
             input: inputPrice,
             output: (cost['output'] as num?)?.toDouble() ?? 0,
             cacheRead: (cost['cache_read'] as num?)?.toDouble() ?? 0,
             cacheWrite: (cost['cache_write'] as num?)?.toDouble() ?? 0,
+            over200K: over200K,
           );
         }
       }
