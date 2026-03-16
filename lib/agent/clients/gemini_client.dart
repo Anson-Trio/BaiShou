@@ -202,6 +202,8 @@ class GeminiClient implements AiClient {
       return;
     }
 
+    TokenUsage? lastUsage;
+
     yield* response.stream
         .transform(utf8.decoder)
         .transform(const LineSplitter())
@@ -211,13 +213,24 @@ class GeminiClient implements AiClient {
         .expand<StreamEvent>((data) {
       try {
         final json = jsonDecode(data) as Map<String, dynamic>;
+
+        // 解析 usageMetadata（Gemini 在每个 chunk 都可能返回）
+        final usage = json['usageMetadata'] as Map<String, dynamic>?;
+        if (usage != null) {
+          lastUsage = TokenUsage(
+            inputTokens: usage['promptTokenCount'] as int? ?? 0,
+            outputTokens: usage['candidatesTokenCount'] as int? ?? 0,
+            cachedInputTokens: usage['cachedContentTokenCount'] as int?,
+          );
+        }
+
         return _parseGeminiChunk(json);
       } catch (e, st) {
         return [StreamError(e, st)];
       }
     });
 
-    yield const StreamDone();
+    yield StreamDone(usage: lastUsage);
   }
 
   /// 解析 Gemini SSE chunk

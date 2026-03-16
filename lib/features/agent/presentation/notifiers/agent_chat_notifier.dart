@@ -13,6 +13,7 @@ import 'package:baishou/agent/tools/diary/diary_list_tool.dart';
 import 'package:baishou/agent/tools/diary/diary_read_tool.dart';
 import 'package:baishou/agent/tools/diary/diary_search_tool.dart';
 import 'package:baishou/agent/tools/summary/summary_read_tool.dart';
+import 'package:baishou/agent/pricing/model_pricing_service.dart';
 import 'package:baishou/agent/prompts/system_prompt_builder.dart';
 import 'package:baishou/core/database/app_database.dart';
 import 'package:baishou/core/services/api_config_service.dart';
@@ -181,7 +182,7 @@ class AgentChatNotifier extends _$AgentChatNotifier {
             );
             break;
 
-          case AgentComplete(:final text, :final messages):
+          case AgentComplete(:final text, :final messages, :final usage):
             // 提取出新增的消息（跳过我们已有的 user message）
             // messages 包含了整个历史（含 runner 内添加的 user msg）
             // 我们只需要 assistant 和 tool 类型的新消息
@@ -212,6 +213,17 @@ class AgentChatNotifier extends _$AgentChatNotifier {
                 modelId: modelId,
                 userMessage: userMsg.content ?? '',
                 assistantReply: text,
+                sessionId: sessionId,
+                manager: manager,
+              );
+            }
+
+            // 异步保存 token 用量和费用（不阻塞 UI）
+            if (usage != null) {
+              _saveUsage(
+                providerId: providerId,
+                modelId: modelId,
+                usage: usage,
                 sessionId: sessionId,
                 manager: manager,
               );
@@ -298,6 +310,39 @@ class AgentChatNotifier extends _$AgentChatNotifier {
     } catch (e) {
       debugPrint('Auto-generate title failed: $e');
       // 标题生成失败不影响主流程
+    }
+  }
+
+  /// 异步保存 token 用量和费用
+  Future<void> _saveUsage({
+    required String providerId,
+    required String modelId,
+    required TokenUsage usage,
+    required String sessionId,
+    required SessionManager manager,
+  }) async {
+    try {
+      // 查询模型价格并计算费用
+      final costUsd = await ModelPricingService.instance
+          .calculateCost(providerId, modelId, usage);
+
+      // 将美元转换为 micros（× 1,000,000）
+      final costMicros =
+          costUsd != null ? (costUsd * 1000000).round() : 0;
+
+      await manager.addUsage(
+        sessionId: sessionId,
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        costMicros: costMicros,
+      );
+
+      debugPrint(
+        'Usage saved: ${usage.inputTokens} in / ${usage.outputTokens} out'
+        ' = \$${costUsd?.toStringAsFixed(6) ?? "unknown"}',
+      );
+    } catch (e) {
+      debugPrint('Save usage failed: $e');
     }
   }
 

@@ -46,7 +46,8 @@ class AgentToolComplete extends AgentEvent {
 class AgentComplete extends AgentEvent {
   final String text;
   final List<ChatMessage> messages;
-  const AgentComplete(this.text, this.messages);
+  final TokenUsage? usage;
+  const AgentComplete(this.text, this.messages, {this.usage});
 }
 
 class AgentError extends AgentEvent {
@@ -82,6 +83,9 @@ class AgentRunner {
     messageHistory.add(ChatMessage.user(userMessage));
 
     int step = 0;
+    int totalInputTokens = 0;
+    int totalOutputTokens = 0;
+    int totalCachedTokens = 0;
 
     while (step < config.maxSteps) {
       step++;
@@ -94,6 +98,7 @@ class AgentRunner {
 
       String textBuffer = '';
       final pendingToolCalls = <ToolCall>[];
+      TokenUsage? stepUsage;
 
       await for (final event in client.chatStream(
         messages: allMessages,
@@ -109,6 +114,9 @@ class AgentRunner {
           case ToolCallComplete(:final toolCall):
             pendingToolCalls.add(toolCall);
 
+          case StreamDone(:final usage):
+            stepUsage = usage;
+
           case StreamError(:final error):
             yield AgentError(error);
             return;
@@ -118,13 +126,31 @@ class AgentRunner {
         }
       }
 
+      // 累加多步的 token 用量
+      if (stepUsage != null) {
+        final su = stepUsage;
+        totalInputTokens += su.inputTokens;
+        totalOutputTokens += su.outputTokens;
+        if (su.cachedInputTokens != null) {
+          totalCachedTokens += su.cachedInputTokens!;
+        }
+      }
+
       messageHistory.add(ChatMessage.assistant(
         content: textBuffer.isNotEmpty ? textBuffer : null,
         toolCalls: pendingToolCalls.isNotEmpty ? pendingToolCalls : null,
       ));
 
       if (pendingToolCalls.isEmpty) {
-        yield AgentComplete(textBuffer, messageHistory);
+        yield AgentComplete(
+          textBuffer,
+          messageHistory,
+          usage: TokenUsage(
+            inputTokens: totalInputTokens,
+            outputTokens: totalOutputTokens,
+            cachedInputTokens: totalCachedTokens > 0 ? totalCachedTokens : null,
+          ),
+        );
         return;
       }
 
@@ -158,6 +184,11 @@ class AgentRunner {
     yield AgentComplete(
       '达到最大执行步数限制 (${config.maxSteps})，已中止。',
       messageHistory,
+      usage: TokenUsage(
+        inputTokens: totalInputTokens,
+        outputTokens: totalOutputTokens,
+        cachedInputTokens: totalCachedTokens > 0 ? totalCachedTokens : null,
+      ),
     );
   }
 }

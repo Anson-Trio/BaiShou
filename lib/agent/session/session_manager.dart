@@ -80,6 +80,30 @@ class SessionManager {
         .go();
   }
 
+  /// 累加会话的 token 用量和费用
+  Future<void> addUsage({
+    required String sessionId,
+    required int inputTokens,
+    required int outputTokens,
+    required int costMicros,
+  }) async {
+    // 先读当前值再写回（drift 不直接支持 SQL increment）
+    final session = await getSession(sessionId);
+    if (session == null) return;
+
+    await (_db.update(_db.agentSessions)
+          ..where((t) => t.id.equals(sessionId)))
+        .write(AgentSessionsCompanion(
+      totalInputTokens:
+          Value(session.totalInputTokens + inputTokens),
+      totalOutputTokens:
+          Value(session.totalOutputTokens + outputTokens),
+      totalCostMicros:
+          Value(session.totalCostMicros + costMicros),
+      updatedAt: Value(DateTime.now()),
+    ));
+  }
+
   // ─── 消息 CRUD ──────────────────────────────────────────
 
   /// 添加消息到会话

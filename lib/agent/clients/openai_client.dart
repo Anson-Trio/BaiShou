@@ -138,6 +138,7 @@ class OpenAiClient implements AiClient {
       'model': modelId,
       'messages': messages.map(_messageToOpenAi).toList(),
       'stream': true,
+      'stream_options': {'include_usage': true},
     };
 
     if (tools != null && tools.isNotEmpty) {
@@ -179,6 +180,7 @@ class OpenAiClient implements AiClient {
 
     // SSE 流解析
     final toolCallBuffers = <int, _ToolCallBuffer>{};
+    TokenUsage? lastUsage;
 
     yield* response.stream
         .transform(utf8.decoder)
@@ -189,13 +191,25 @@ class OpenAiClient implements AiClient {
         .expand<StreamEvent>((data) {
       try {
         final json = jsonDecode(data) as Map<String, dynamic>;
+
+        // 解析 usage（OpenAI 在最后一个 chunk 中返回）
+        final usage = json['usage'] as Map<String, dynamic>?;
+        if (usage != null) {
+          lastUsage = TokenUsage(
+            inputTokens: usage['prompt_tokens'] as int? ?? 0,
+            outputTokens: usage['completion_tokens'] as int? ?? 0,
+            cachedInputTokens: usage['prompt_tokens_details']?['cached_tokens'] as int?,
+            reasoningTokens: usage['completion_tokens_details']?['reasoning_tokens'] as int?,
+          );
+        }
+
         return _parseChunk(json, toolCallBuffers);
       } catch (e, st) {
         return [StreamError(e, st)];
       }
     });
 
-    yield const StreamDone();
+    yield StreamDone(usage: lastUsage);
   }
 
   /// 解析单个 SSE chunk

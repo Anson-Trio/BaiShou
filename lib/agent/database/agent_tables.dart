@@ -17,6 +17,18 @@ class AgentSessions extends Table {
   /// 使用的模型 ID
   TextColumn get modelId => text()();
 
+  /// 累计输入 token 数
+  IntColumn get totalInputTokens =>
+      integer().withDefault(const Constant(0))();
+
+  /// 累计输出 token 数
+  IntColumn get totalOutputTokens =>
+      integer().withDefault(const Constant(0))();
+
+  /// 累计费用（美元，乘以 1000000 存为整数以避免浮点误差）
+  IntColumn get totalCostMicros =>
+      integer().withDefault(const Constant(0))();
+
   /// 创建时间
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 

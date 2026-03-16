@@ -176,6 +176,9 @@ class AnthropicClient implements AiClient {
     String? currentToolId;
     String? currentToolName;
     final argumentsBuffer = StringBuffer();
+    int inputTokens = 0;
+    int outputTokens = 0;
+    int? cacheReadTokens;
 
     yield* response.stream
         .transform(utf8.decoder)
@@ -190,6 +193,16 @@ class AnthropicClient implements AiClient {
         final events = <StreamEvent>[];
 
         switch (type) {
+          case 'message_start':
+            // Anthropic 在 message_start 中返回 input tokens
+            final msg = json['message'] as Map<String, dynamic>?;
+            final usage = msg?['usage'] as Map<String, dynamic>?;
+            if (usage != null) {
+              inputTokens = usage['input_tokens'] as int? ?? 0;
+              cacheReadTokens = usage['cache_read_input_tokens'] as int?;
+            }
+            break;
+
           case 'content_block_start':
             final block = json['content_block'] as Map<String, dynamic>?;
             if (block != null && block['type'] == 'tool_use') {
@@ -237,6 +250,14 @@ class AnthropicClient implements AiClient {
             }
             break;
 
+          case 'message_delta':
+            // Anthropic 在 message_delta 中返回 output tokens
+            final usage = json['usage'] as Map<String, dynamic>?;
+            if (usage != null) {
+              outputTokens = usage['output_tokens'] as int? ?? 0;
+            }
+            break;
+
           case 'message_stop':
             break;
         }
@@ -247,7 +268,13 @@ class AnthropicClient implements AiClient {
       }
     });
 
-    yield const StreamDone();
+    yield StreamDone(
+      usage: TokenUsage(
+        inputTokens: inputTokens,
+        outputTokens: outputTokens,
+        cachedInputTokens: cacheReadTokens,
+      ),
+    );
   }
 
   /// 将 ChatMessage 列表转换为 Anthropic messages 格式
