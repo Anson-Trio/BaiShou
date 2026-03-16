@@ -100,6 +100,7 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
                         return StreamingBubble(
                           text: chatState.streamingText,
                           activeToolName: chatState.activeToolName,
+                          completedTools: chatState.completedTools,
                         );
                       }
 

@@ -24,6 +24,13 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'agent_chat_notifier.g.dart';
 
+/// 工具执行记录
+class ToolExecution {
+  final String name;
+  final int durationMs;
+  const ToolExecution({required this.name, required this.durationMs});
+}
+
 /// 聊天页面 UI 状态
 class AgentChatState {
   final String? sessionId;
@@ -32,6 +39,8 @@ class AgentChatState {
   final bool isLoading;
   final String? activeToolName;
   final String? error;
+  /// 当前轮已完成的工具执行记录（含耗时）
+  final List<ToolExecution> completedTools;
 
   const AgentChatState({
     this.sessionId,
@@ -40,6 +49,7 @@ class AgentChatState {
     this.isLoading = false,
     this.activeToolName,
     this.error,
+    this.completedTools = const [],
   });
 
   AgentChatState copyWith({
@@ -49,6 +59,7 @@ class AgentChatState {
     bool? isLoading,
     String? Function()? activeToolName,
     String? Function()? error,
+    List<ToolExecution>? completedTools,
   }) {
     return AgentChatState(
       sessionId: sessionId ?? this.sessionId,
@@ -58,6 +69,7 @@ class AgentChatState {
       activeToolName:
           activeToolName != null ? activeToolName() : this.activeToolName,
       error: error != null ? error() : this.error,
+      completedTools: completedTools ?? this.completedTools,
     );
   }
 }
@@ -218,9 +230,16 @@ class AgentChatNotifier extends _$AgentChatNotifier {
             );
             break;
 
-          case AgentToolComplete(toolCall: _, result: _):
+          case AgentToolComplete(:final toolCall, :final durationMs):
             state = state.copyWith(
               activeToolName: () => null,
+              completedTools: [
+                ...state.completedTools,
+                ToolExecution(
+                  name: toolCall.name,
+                  durationMs: durationMs,
+                ),
+              ],
             );
             break;
 
@@ -251,6 +270,7 @@ class AgentChatNotifier extends _$AgentChatNotifier {
               streamingText: '',
               isLoading: false,
               activeToolName: () => null,
+              completedTools: const [],
             );
 
             // 自动生成对话标题（仅新会话首次回复时触发，异步不阻塞）

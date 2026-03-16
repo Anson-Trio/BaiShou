@@ -1,6 +1,7 @@
 /// 聊天消息气泡组件
 
 import 'package:baishou/agent/models/chat_message.dart';
+import 'package:baishou/features/agent/presentation/notifiers/agent_chat_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
@@ -89,7 +90,7 @@ class ChatMessageBubble extends StatelessWidget {
           color: theme.colorScheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
           ),
         ),
         child: Row(
@@ -122,15 +123,17 @@ class ChatMessageBubble extends StatelessWidget {
   }
 }
 
-/// 流式文本气泡（打字机效果）
+/// 流式文本气泡（打字机效果 + 工具执行耗时显示）
 class StreamingBubble extends StatelessWidget {
   final String text;
   final String? activeToolName;
+  final List<ToolExecution> completedTools;
 
   const StreamingBubble({
     super.key,
     required this.text,
     this.activeToolName,
+    this.completedTools = const [],
   });
 
   @override
@@ -156,8 +159,15 @@ class StreamingBubble extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 已完成的工具 — 显示 ✓ 和耗时
+                for (final tool in completedTools)
+                  _buildCompletedToolChip(theme, tool),
+
+                // 正在执行的工具
                 if (activeToolName != null)
                   _buildToolCallIndicator(context, theme),
+
+                // 流式文本
                 if (text.isNotEmpty)
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -179,7 +189,11 @@ class StreamingBubble extends StatelessWidget {
                       ),
                     ),
                   ),
-                if (text.isEmpty && activeToolName == null)
+
+                // 等待中
+                if (text.isEmpty &&
+                    activeToolName == null &&
+                    completedTools.isEmpty)
                   Container(
                     padding: const EdgeInsets.all(12),
                     child: SizedBox(
@@ -199,13 +213,56 @@ class StreamingBubble extends StatelessWidget {
     );
   }
 
+  /// 已完成的工具执行标记（✓ tool_name 320ms）
+  Widget _buildCompletedToolChip(ThemeData theme, ToolExecution tool) {
+    final durationText = tool.durationMs < 1000
+        ? '${tool.durationMs}ms'
+        : '${(tool.durationMs / 1000).toStringAsFixed(1)}s';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.check_circle_outline,
+              size: 13,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              tool.name,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onPrimaryContainer,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              durationText,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.outline,
+                fontSize: 10,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildToolCallIndicator(BuildContext context, ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: theme.colorScheme.tertiaryContainer.withOpacity(0.5),
+          color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
