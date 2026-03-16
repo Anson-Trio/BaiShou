@@ -28,6 +28,17 @@ class DiarySearchTool extends AgentTool {
             'description':
                 'The search keyword or phrase to find in diary entries.',
           },
+          'start_date': {
+            'type': 'string',
+            'description':
+                'Optional. Only search diary entries on or after this date (YYYY-MM-DD). '
+                    'Use this to narrow results to a specific time period.',
+          },
+          'end_date': {
+            'type': 'string',
+            'description':
+                'Optional. Only search diary entries on or before this date (YYYY-MM-DD).',
+          },
           'limit': {
             'type': 'integer',
             'description':
@@ -43,6 +54,8 @@ class DiarySearchTool extends AgentTool {
     ToolContext context,
   ) async {
     final query = arguments['query'] as String?;
+    final startDate = arguments['start_date'] as String?;
+    final endDate = arguments['end_date'] as String?;
     final limit = (arguments['limit'] as num?)?.toInt() ?? 10;
 
     if (query == null || query.trim().isEmpty) {
@@ -51,6 +64,20 @@ class DiarySearchTool extends AgentTool {
 
     try {
       final db = await _indexDb.database;
+
+      // 构建日期过滤条件
+      String dateFilter = '';
+      final params = <Object>[query.trim()];
+
+      if (startDate != null) {
+        dateFilter += ' AND ji.date >= ?';
+        params.add(startDate);
+      }
+      if (endDate != null) {
+        dateFilter += ' AND ji.date <= ?';
+        params.add(endDate);
+      }
+      params.add(limit);
 
       // 使用 FTS5 MATCH 语法搜索
       // snippet() 函数返回匹配上下文，方便 Agent 理解内容
@@ -61,14 +88,14 @@ class DiarySearchTool extends AgentTool {
           ji.mood,
           ji.weather,
           ji.location,
-          snippet(journals_fts, 0, '**', '**', '...', 40) AS snippet
+          snippet(journals_fts, 0, '**', '**', '...', 64) AS snippet
         FROM journals_fts 
         JOIN journals_index ji ON journals_fts.rowid = ji.id
-        WHERE journals_fts MATCH ?
+        WHERE journals_fts MATCH ?$dateFilter
         ORDER BY ji.date DESC
         LIMIT ?
         ''',
-        [query.trim(), limit],
+        params,
       );
 
       if (results.isEmpty) {
