@@ -20,7 +20,7 @@ class AgentDatabase extends _$AgentDatabase {
   AgentDatabase(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 1;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -28,20 +28,6 @@ class AgentDatabase extends _$AgentDatabase {
           await m.createAll();
           await _createFts5Table();
           await _createEmbeddingTable();
-        },
-        onUpgrade: (m, from, to) async {
-          if (from < 2) {
-            await m.createTable(agentParts);
-            await m.addColumn(agentMessages, agentMessages.isSummary);
-            await m.addColumn(agentMessages, agentMessages.providerId);
-            await m.addColumn(agentMessages, agentMessages.modelId);
-          }
-          if (from < 3) {
-            await _createFts5Table();
-          }
-          if (from < 4) {
-            await _createEmbeddingTable();
-          }
         },
       );
 
@@ -121,6 +107,7 @@ class AgentDatabase extends _$AgentDatabase {
         chunk_text TEXT NOT NULL,
         embedding BLOB NOT NULL,
         dimension INTEGER NOT NULL,
+        model_id TEXT NOT NULL DEFAULT '',
         created_at INTEGER NOT NULL
       )
     ''');
@@ -156,6 +143,7 @@ class AgentDatabase extends _$AgentDatabase {
     required int chunkIndex,
     required String chunkText,
     required List<double> embedding,
+    required String modelId,
   }) async {
     // 将 List<double> 转为 JSON 数组字符串，供 vector_as_f32() 解析
     final vectorJson = '[${embedding.join(',')}]';
@@ -163,8 +151,8 @@ class AgentDatabase extends _$AgentDatabase {
     await customStatement(
       '''INSERT OR REPLACE INTO message_embeddings
          (embedding_id, message_id, session_id, chunk_index, chunk_text,
-          embedding, dimension, created_at)
-         VALUES (?, ?, ?, ?, ?, vector_as_f32(?), ?, ?)''',
+          embedding, dimension, model_id, created_at)
+         VALUES (?, ?, ?, ?, ?, vector_as_f32(?), ?, ?, ?)''',
       [
         id,
         messageId,
@@ -173,6 +161,7 @@ class AgentDatabase extends _$AgentDatabase {
         chunkText,
         vectorJson,
         embedding.length,
+        modelId,
         DateTime.now().millisecondsSinceEpoch,
       ],
     );
@@ -181,11 +170,14 @@ class AgentDatabase extends _$AgentDatabase {
   /// 原生 KNN 向量搜索 — 使用 sqlite-vec 的 vector_full_scan
   ///
   /// 在 SQL 层直接用 SIMD 加速计算最近邻，比 Dart 侧全量扫描快数量级。
+  /// [dimension] 用于过滤维度不匹配的向量，防止跨模型搜索出错。
   Future<List<Map<String, dynamic>>> searchSimilar({
     required List<double> queryEmbedding,
     int topK = 20,
+    int? dimension,
   }) async {
     final vectorJson = '[${queryEmbedding.join(',')}]';
+    final effectiveDimension = dimension ?? queryEmbedding.length;
 
     final results = await customSelect(
       '''
@@ -196,6 +188,7 @@ class AgentDatabase extends _$AgentDatabase {
         e.chunk_index,
         e.chunk_text,
         e.dimension,
+        e.model_id,
         v.distance,
         s.title AS session_title
       FROM message_embeddings AS e
@@ -204,8 +197,13 @@ class AgentDatabase extends _$AgentDatabase {
         vector_as_f32(?), ?
       ) AS v ON e.id = v.rowid
       LEFT JOIN agent_sessions AS s ON e.session_id = s.id
+      WHERE e.dimension = ?
       ''',
-      variables: [Variable.withString(vectorJson), Variable.withInt(topK)],
+      variables: [
+        Variable.withString(vectorJson),
+        Variable.withInt(topK),
+        Variable.withInt(effectiveDimension),
+      ],
     ).get();
 
     return results.map((row) {
@@ -215,6 +213,8 @@ class AgentDatabase extends _$AgentDatabase {
         'session_id': row.read<String>('session_id'),
         'chunk_index': row.read<int>('chunk_index'),
         'chunk_text': row.read<String>('chunk_text'),
+        'dimension': row.read<int>('dimension'),
+        'model_id': row.read<String>('model_id'),
         'distance': row.read<double>('distance'),
         'session_title':
             row.readNullable<String>('session_title') ?? '未命名会话',
@@ -236,6 +236,40 @@ class AgentDatabase extends _$AgentDatabase {
       'SELECT COUNT(*) AS cnt FROM message_embeddings',
     ).getSingle();
     return result.read<int>('cnt');
+  }
+
+  /// 清空全部向量嵌入
+  Future<void> clearEmbeddings() async {
+    await customStatement('DELETE FROM message_embeddings');
+  }
+
+  /// 获取嵌入统计信息
+  Future<Map<String, dynamic>> getEmbeddingStats() async {
+    final result = await customSelect('''
+      SELECT
+        COUNT(*) AS total_count,
+        COUNT(DISTINCT model_id) AS model_count,
+        COUNT(DISTINCT dimension) AS dimension_count
+      FROM message_embeddings
+    ''').getSingle();
+
+    // 获取当前使用的模型详情
+    final models = await customSelect('''
+      SELECT model_id, dimension, COUNT(*) AS count
+      FROM message_embeddings
+      GROUP BY model_id, dimension
+    ''').get();
+
+    return {
+      'total_count': result.read<int>('total_count'),
+      'model_count': result.read<int>('model_count'),
+      'dimension_count': result.read<int>('dimension_count'),
+      'models': models.map((row) => {
+        'model_id': row.read<String>('model_id'),
+        'dimension': row.read<int>('dimension'),
+        'count': row.read<int>('count'),
+      }).toList(),
+    };
   }
 }
 

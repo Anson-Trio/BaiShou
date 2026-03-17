@@ -78,6 +78,7 @@ class EmbeddingService {
             chunkIndex: chunk.index,
             chunkText: chunk.text,
             embedding: embedding,
+            modelId: embeddingModelId,
           );
         } catch (e) {
           debugPrint('Failed to embed chunk ${chunk.index}: $e');
