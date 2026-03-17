@@ -34,8 +34,9 @@ class VectorSearchTool extends AgentTool {
 
   @override
   String get description =>
-      '通过语义相似度搜索历史对话，理解用户意图而非精确关键词匹配。'
-      '使用 sqlite-vec 原生 SIMD 加速向量搜索引擎。';
+      '语义搜索历史对话和记忆。'
+      '当用户提问涉及历史内容、之前的决定、个人偏好、或任何之前讨论过的事情时，'
+      '必须先调用此工具进行检索。返回语义最相关的对话片段和评分。';
 
   @override
   Map<String, dynamic> get parameterSchema => {
@@ -51,6 +52,10 @@ class VectorSearchTool extends AgentTool {
             'description':
                 '搜索模式: vector=纯语义搜索, hybrid=语义+关键词混合搜索（推荐）',
           },
+          'min_score': {
+            'type': 'number',
+            'description': '最低相似度阈值(0-1)，低于此分数的结果将被过滤。默认0.3',
+          },
         },
         'required': ['query'],
       };
@@ -62,6 +67,7 @@ class VectorSearchTool extends AgentTool {
   ) async {
     final query = arguments['query'] as String? ?? '';
     final mode = arguments['mode'] as String? ?? 'hybrid';
+    final minScore = (arguments['min_score'] as num?)?.toDouble() ?? 0.3;
 
     if (query.isEmpty) {
       return ToolResult(output: '请提供搜索查询内容。');
@@ -133,8 +139,11 @@ class VectorSearchTool extends AgentTool {
             .toList();
       }
 
+      // 按 min_score 过滤
+      results = results.where((r) => r.score >= minScore).toList();
+
       if (results.isEmpty) {
-        return ToolResult(output: '没有找到语义相关的历史消息。');
+        return ToolResult(output: '没有找到语义相关的历史消息（min_score=$minScore）。');
       }
 
       // 格式化输出

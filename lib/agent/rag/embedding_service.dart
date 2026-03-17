@@ -167,6 +167,76 @@ class EmbeddingService {
     }
   }
 
+  // ── Phase 3: 单条记忆管理 ─────────────────────────────────
+
+  /// 嵌入一段独立文本并存入数据库
+  ///
+  /// 用于 Agent 主动存储记忆（memory_store_tool），
+  /// 不依赖消息上下文。
+  Future<void> embedText({
+    required String text,
+    required String sessionId,
+    String? customId,
+  }) async {
+    if (!isConfigured || text.trim().isEmpty) return;
+
+    final service = _ref.read(apiConfigServiceProvider);
+    final embeddingModelId = service.globalEmbeddingModelId;
+    final embeddingProviderId = service.globalEmbeddingProviderId;
+    final provider = service.getProvider(embeddingProviderId);
+    if (provider == null) return;
+
+    final client = AiClientFactory.createClient(provider);
+    final db = _ref.read(agentDatabaseProvider);
+    final uuid = const Uuid();
+    final messageId = customId ?? 'mem_${uuid.v4()}';
+    final chunks = _splitIntoChunks(text);
+
+    for (final chunk in chunks) {
+      try {
+        final embedding = await client.generateEmbedding(
+          input: chunk.text,
+          modelId: embeddingModelId,
+        );
+        await db.insertEmbedding(
+          id: uuid.v4(),
+          messageId: messageId,
+          sessionId: sessionId,
+          chunkIndex: chunk.index,
+          chunkText: chunk.text,
+          embedding: embedding,
+          modelId: embeddingModelId,
+        );
+      } catch (e) {
+        debugPrint('embedText chunk ${chunk.index} failed: $e');
+      }
+    }
+  }
+
+  /// 重新嵌入某条消息（删旧 + 重新生成）
+  Future<void> reEmbedMessage({
+    required String messageId,
+    required String sessionId,
+    required String content,
+  }) async {
+    final db = _ref.read(agentDatabaseProvider);
+    await db.deleteEmbeddingsByMessage(messageId);
+    await embedMessage(
+      messageId: messageId,
+      sessionId: sessionId,
+      content: content,
+    );
+  }
+
+  /// 清空全部嵌入数据
+  Future<void> clearAllEmbeddings() async {
+    final db = _ref.read(agentDatabaseProvider);
+    await db.clearEmbeddings();
+    // 同时清除维度缓存
+    final service = _ref.read(apiConfigServiceProvider);
+    await service.setGlobalEmbeddingDimension(0);
+  }
+
   /// 文本分块：按字符长度滑窗切分
   List<ChunkResult> _splitIntoChunks(String text) {
     if (text.length <= _maxChunkLength) {
