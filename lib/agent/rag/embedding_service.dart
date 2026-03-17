@@ -39,6 +39,38 @@ class EmbeddingService {
     return embeddingModelId.isNotEmpty && embeddingProviderId.isNotEmpty;
   }
 
+  /// 自动检测嵌入模型的向量维度
+  ///
+  /// 参考 Cherry Studio: 发一个 test text，读返回向量的长度。
+  /// 检测结果缓存到 SharedPreferences，避免重复调用。
+  Future<int> detectDimension() async {
+    if (!isConfigured) return 0;
+
+    final service = _ref.read(apiConfigServiceProvider);
+    final cachedDimension = service.globalEmbeddingDimension;
+    if (cachedDimension > 0) return cachedDimension;
+
+    try {
+      final embeddingModelId = service.globalEmbeddingModelId;
+      final embeddingProviderId = service.globalEmbeddingProviderId;
+      final provider = service.getProvider(embeddingProviderId);
+      if (provider == null) return 0;
+
+      final client = AiClientFactory.createClient(provider);
+      final testEmbedding = await client.generateEmbedding(
+        input: 'hi',
+        modelId: embeddingModelId,
+      );
+      final dimension = testEmbedding.length;
+      await service.setGlobalEmbeddingDimension(dimension);
+      debugPrint('EmbeddingService: 检测到维度 $dimension ($embeddingModelId)');
+      return dimension;
+    } catch (e) {
+      debugPrint('EmbeddingService: 维度检测失败: $e');
+      return 0;
+    }
+  }
+
   /// 嵌入一条消息并存入数据库
   Future<void> embedMessage({
     required String messageId,
@@ -59,6 +91,29 @@ class EmbeddingService {
       final client = AiClientFactory.createClient(provider);
       final db = _ref.read(agentDatabaseProvider);
       final uuid = const Uuid();
+
+      // 首次嵌入前自动检测维度
+      final currentDimension = await detectDimension();
+
+      // 检查已有数据的维度一致性
+      if (currentDimension > 0) {
+        final stats = await db.getEmbeddingStats();
+        final totalCount = stats['total_count'] as int;
+        if (totalCount > 0) {
+          final dimensionCount = stats['dimension_count'] as int;
+          if (dimensionCount > 0) {
+            // 检查是否有不同维度的旧数据
+            final models = stats['models'] as List;
+            final hasMismatch = models.any(
+              (m) => (m as Map)['dimension'] != currentDimension,
+            );
+            if (hasMismatch) {
+              debugPrint('EmbeddingService: 维度不一致，清空旧数据并重建');
+              await db.clearEmbeddings();
+            }
+          }
+        }
+      }
 
       // 文本分块
       final chunks = _splitIntoChunks(content);

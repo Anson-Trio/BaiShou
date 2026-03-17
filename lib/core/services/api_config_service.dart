@@ -282,14 +282,29 @@ class ApiConfigService {
     String providerId,
     String modelId,
   ) async {
+    // 换模型时清除维度缓存，让下次嵌入时重新检测
+    final oldModelId = globalEmbeddingModelId;
     await _prefs.setString(_keyGlobalEmbeddingProviderId, providerId);
     await _prefs.setString(_keyGlobalEmbeddingModelId, modelId);
+    if (oldModelId != modelId) {
+      await _prefs.remove('global_embedding_dimension');
+    }
   }
 
   /// 当前是否已配置 Embedding 模型
   bool get hasEmbeddingModel {
     return globalEmbeddingProviderId.isNotEmpty &&
         globalEmbeddingModelId.isNotEmpty;
+  }
+
+  /// 获取缓存的嵌入维度（0 表示未检测）
+  int get globalEmbeddingDimension {
+    return _prefs.getInt('global_embedding_dimension') ?? 0;
+  }
+
+  /// 缓存嵌入维度
+  Future<void> setGlobalEmbeddingDimension(int dimension) async {
+    await _prefs.setInt('global_embedding_dimension', dimension);
   }
 
   // --- 工具配置管理 ---
