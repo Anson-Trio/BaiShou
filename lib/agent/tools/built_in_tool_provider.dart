@@ -1,13 +1,11 @@
-// 内置工具提供者 — 构建白守自带的所有 Agent 工具
-//
-// 所有具体工具类的 import 和实例化都在这一层完成。
-// ToolRepository 通过调用此 provider 获取内置工具列表，无需知道具体类。
-
+import 'package:baishou/agent/database/agent_database.dart';
+import 'package:baishou/agent/rag/embedding_service.dart';
 import 'package:baishou/agent/session/session_manager.dart';
 import 'package:baishou/agent/tools/agent_tool.dart';
 import 'package:baishou/agent/tools/diary/diary_list_tool.dart';
 import 'package:baishou/agent/tools/diary/diary_read_tool.dart';
 import 'package:baishou/agent/tools/diary/diary_search_tool.dart';
+import 'package:baishou/agent/tools/memory/vector_search_tool.dart';
 import 'package:baishou/agent/tools/message/message_search_tool.dart';
 import 'package:baishou/agent/tools/summary/summary_read_tool.dart';
 import 'package:baishou/core/database/app_database.dart';
@@ -33,5 +31,11 @@ List<AgentTool> builtInTools(Ref ref) {
 
     // ── 记忆工具 ──
     MessageSearchTool(ref.read(sessionManagerProvider)),
+
+    // ── 语义搜索工具 ──
+    VectorSearchTool(
+      ref.read(agentDatabaseProvider),
+      ref.read(embeddingServiceProvider),
+    ),
   ];
 }
