@@ -237,6 +237,88 @@ class EmbeddingService {
     await service.setGlobalEmbeddingDimension(0);
   }
 
+  // ── Phase 7: 异步迁移 ──────────────────────────────────────
+
+  /// 后台逐 chunk 重新嵌入，返回进度 Stream
+  ///
+  /// 用于切换嵌入模型后无感迁移旧数据。
+  /// 流程：读取已有 chunks → 逐个用新模型重嵌入 → 覆盖写入。
+  Stream<MigrationProgress> migrateEmbeddings() async* {
+    if (!isConfigured) {
+      yield MigrationProgress(total: 0, completed: 0, status: '嵌入模型未配置');
+      return;
+    }
+
+    final service = _ref.read(apiConfigServiceProvider);
+    final embeddingModelId = service.globalEmbeddingModelId;
+    final embeddingProviderId = service.globalEmbeddingProviderId;
+    final provider = service.getProvider(embeddingProviderId);
+    if (provider == null) {
+      yield MigrationProgress(total: 0, completed: 0, status: '供应商未找到');
+      return;
+    }
+
+    final client = AiClientFactory.createClient(provider);
+    final db = _ref.read(agentDatabaseProvider);
+
+    // 读取所有已嵌入的 chunks
+    final chunks = await db.getAllEmbeddingChunks();
+    final total = chunks.length;
+
+    if (total == 0) {
+      yield MigrationProgress(total: 0, completed: 0, status: '没有需要迁移的数据');
+      return;
+    }
+
+    yield MigrationProgress(total: total, completed: 0, status: '开始迁移...');
+
+    int completed = 0;
+    int failed = 0;
+
+    for (final chunk in chunks) {
+      try {
+        final embedding = await client.generateEmbedding(
+          input: chunk['chunk_text'] as String,
+          modelId: embeddingModelId,
+        );
+
+        // 用新的嵌入覆盖旧的（INSERT OR REPLACE）
+        await db.insertEmbedding(
+          id: chunk['embedding_id'] as String,
+          messageId: chunk['message_id'] as String,
+          sessionId: chunk['session_id'] as String,
+          chunkIndex: chunk['chunk_index'] as int,
+          chunkText: chunk['chunk_text'] as String,
+          embedding: embedding,
+          modelId: embeddingModelId,
+        );
+
+        completed++;
+      } catch (e) {
+        failed++;
+        debugPrint('Migration failed for chunk ${chunk['embedding_id']}: $e');
+      }
+
+      // 每处理一条就发送进度
+      yield MigrationProgress(
+        total: total,
+        completed: completed,
+        failed: failed,
+        status: '迁移中 $completed/$total${failed > 0 ? ' (失败 $failed)' : ''}',
+      );
+    }
+
+    // 更新维度缓存
+    await detectDimension();
+
+    yield MigrationProgress(
+      total: total,
+      completed: completed,
+      failed: failed,
+      status: '迁移完成 $completed/$total${failed > 0 ? ' (失败 $failed)' : ''}',
+    );
+  }
+
   /// 文本分块：按字符长度滑窗切分
   List<ChunkResult> _splitIntoChunks(String text) {
     if (text.length <= _maxChunkLength) {
@@ -265,4 +347,22 @@ class EmbeddingService {
 @riverpod
 EmbeddingService embeddingService(Ref ref) {
   return EmbeddingService(ref);
+}
+
+/// 嵌入迁移进度
+class MigrationProgress {
+  final int total;
+  final int completed;
+  final int failed;
+  final String status;
+
+  MigrationProgress({
+    required this.total,
+    required this.completed,
+    this.failed = 0,
+    this.status = '',
+  });
+
+  double get progress => total > 0 ? completed / total : 0;
+  bool get isDone => completed + failed >= total && total > 0;
 }

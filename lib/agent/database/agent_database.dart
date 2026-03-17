@@ -271,6 +271,25 @@ class AgentDatabase extends _$AgentDatabase {
       }).toList(),
     };
   }
+
+  /// 获取所有已嵌入的 chunk（用于迁移重嵌入）
+  ///
+  /// 返回每条 chunk 的 id、message_id、session_id、chunk_index、chunk_text。
+  Future<List<Map<String, dynamic>>> getAllEmbeddingChunks() async {
+    final results = await customSelect('''
+      SELECT embedding_id, message_id, session_id, chunk_index, chunk_text
+      FROM message_embeddings
+      ORDER BY message_id, chunk_index
+    ''').get();
+
+    return results.map((row) => {
+      'embedding_id': row.read<String>('embedding_id'),
+      'message_id': row.read<String>('message_id'),
+      'session_id': row.read<String>('session_id'),
+      'chunk_index': row.read<int>('chunk_index'),
+      'chunk_text': row.read<String>('chunk_text'),
+    }).toList();
+  }
 }
 
 /// 加载 sqlite-vec 扩展并返回 sqlite3 实例
