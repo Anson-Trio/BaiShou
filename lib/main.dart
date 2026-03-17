@@ -8,17 +8,11 @@ import 'package:window_manager/window_manager.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:baishou/i18n/strings.g.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await initializeDateFormatting();
-
-  if (!kIsWeb) {
-    sqfliteFfiInit();
-    databaseFactory = databaseFactoryFfi;
-  }
 
   final prefs = await SharedPreferences.getInstance();
 

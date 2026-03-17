@@ -5,29 +5,28 @@ import 'package:baishou/core/storage/storage_path_provider.dart';
 import 'package:baishou/core/storage/vault_service.dart';
 import 'package:path/path.dart' as p;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:sqlite3/sqlite3.dart' as sql;
 
 part 'shadow_index_database.g.dart';
 
 /// 影子索引库服务 (Shadow Index Database)
 /// 负责操作当前活跃 Vault 专属的 `.baishou/shadow_index.db`
+///
+/// 使用 sqlite3 包直接操作，统一白守 SQLite 技术栈。
 @Riverpod(keepAlive: true)
 class ShadowIndexDatabase extends _$ShadowIndexDatabase {
-  Database? _db;
+  sql.Database? _db;
 
   @override
   FutureOr<void> build() async {
-    // 监听活跃 Vault 的变化，一旦切换立刻执行重载逻辑
     final vaultState = ref.watch(vaultServiceProvider);
 
-    // 如果是第一次加载或名字变了，执行初始化
     if (vaultState.value != null) {
-      // 这里的逻辑会随着 provider 的重新构建而执行
       await _initDatabase(vaultState.value!.name);
     }
 
     ref.onDispose(() async {
-      await close();
+      close();
     });
   }
 
@@ -37,103 +36,31 @@ class ShadowIndexDatabase extends _$ShadowIndexDatabase {
     final dbPath = p.join(sysDir.path, 'shadow_index.db');
 
     try {
-      _db = await openDatabase(
-        dbPath,
-        version: 2,
-        onCreate: (db, version) async {
-          // 创建基础镜像表：记录物理文件的元数据和状态
-          await db.execute('''
-            CREATE TABLE journals_index (
-              id INTEGER PRIMARY KEY,
-              file_path TEXT UNIQUE NOT NULL,
-              date TEXT NOT NULL,
-              created_at TEXT NOT NULL,
-              updated_at TEXT NOT NULL,
-              content_hash TEXT NOT NULL,
-              weather TEXT,
-              mood TEXT,
-              location TEXT,
-              location_detail TEXT,
-              is_favorite INTEGER DEFAULT 0,
-              has_media INTEGER DEFAULT 0
-            )
-          ''');
+      _db = sql.sqlite3.open(dbPath);
+      _db!.execute('PRAGMA journal_mode=WAL');
 
-          // 创建全文检索虚拟表 (FTS5) - 存储内容与标签以加速搜索
-          try {
-            await db.execute('''
-              CREATE VIRTUAL TABLE IF NOT EXISTS journals_fts USING fts5(
-                content,
-                tags,
-                tokenize = 'unicode61'
-              )
-            ''');
-          } catch (e) {
-            // 兜底方案：如果系统 SQLite 不支持 FTS5 (常见于旧款 Android 或精简版系统)，则降级为普通表
-            debugPrint(
-              'ShadowIndexDatabase: FTS5 is not supported on this device, falling back to standard table: $e',
-            );
-            // 此时虚拟表并未创建成功，不要去 drop 防止触发 no such module
-            await db.execute('''
-              CREATE TABLE IF NOT EXISTS journals_fts (
-                rowid INTEGER PRIMARY KEY,
-                content TEXT,
-                tags TEXT
-              )
-            ''');
-          }
-        },
-        onUpgrade: (db, oldVersion, newVersion) async {
-          if (oldVersion < 2) {
-            // 如果尝试删虚表报错，说明设备不支持 fts5 且从其他设备拷贝了带虚表的库
-            try {
-              await db.execute('DROP TABLE IF EXISTS journals_fts');
-            } catch (e) {
-              debugPrint(
-                'ShadowIndexDatabase: Failed to drop old FTS table, might be unsupported: $e',
-              );
-            }
+      // 获取当前版本
+      final versionResult = _db!.select('PRAGMA user_version');
+      final currentVersion =
+          versionResult.isNotEmpty ? versionResult.first['user_version'] as int : 0;
 
-            // 重新运行建表逻辑以应用新结构
-            try {
-              await db.execute('''
-                CREATE VIRTUAL TABLE IF NOT EXISTS journals_fts USING fts5(
-                  content,
-                  tags,
-                  tokenize = 'unicode61'
-                )
-              ''');
-            } catch (e) {
-              debugPrint(
-                'ShadowIndexDatabase: FTS5 fallback during upgrade: $e',
-              );
-
-              try {
-                await db.execute('DROP TABLE IF EXISTS journals_fts');
-              } catch (_) {}
-
-              await db.execute('''
-                CREATE TABLE IF NOT EXISTS journals_fts (
-                  rowid INTEGER PRIMARY KEY,
-                  content TEXT,
-                  tags TEXT
-                )
-              ''');
-            }
-          }
-        },
-      );
+      if (currentVersion < 1) {
+        _onCreate();
+        _db!.execute('PRAGMA user_version = 2');
+      } else if (currentVersion < 2) {
+        _onUpgrade();
+        _db!.execute('PRAGMA user_version = 2');
+      }
     } catch (e) {
       debugPrint('ShadowIndexDatabase: Critical error opening database: $e');
-      // 当发生诸如 "no such module: fts5" 等异构设备转移导致的底层级别不可恢复异常
-      // 由于这是影子索引库，最安全的做法是直接物理粉碎并原地满血复活
+      // 影子索引库可以安全地重建
       final file = File(dbPath);
       if (file.existsSync()) {
         debugPrint(
-          'ShadowIndexDatabase: Destroying corrupted/incompatible database at $dbPath and retrying...',
+          'ShadowIndexDatabase: Destroying corrupted database at $dbPath and retrying...',
         );
+        close();
         file.deleteSync();
-        // 递归重新打开（此时已经是干净的文件流了）
         await _initDatabase(vaultName);
       } else {
         rethrow;
@@ -141,14 +68,83 @@ class ShadowIndexDatabase extends _$ShadowIndexDatabase {
     }
   }
 
+  void _onCreate() {
+    _db!.execute('''
+      CREATE TABLE journals_index (
+        id INTEGER PRIMARY KEY,
+        file_path TEXT UNIQUE NOT NULL,
+        date TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        content_hash TEXT NOT NULL,
+        weather TEXT,
+        mood TEXT,
+        location TEXT,
+        location_detail TEXT,
+        is_favorite INTEGER DEFAULT 0,
+        has_media INTEGER DEFAULT 0
+      )
+    ''');
+
+    try {
+      _db!.execute('''
+        CREATE VIRTUAL TABLE IF NOT EXISTS journals_fts USING fts5(
+          content,
+          tags,
+          tokenize = 'unicode61'
+        )
+      ''');
+    } catch (e) {
+      debugPrint(
+        'ShadowIndexDatabase: FTS5 not supported, falling back to standard table: $e',
+      );
+      _db!.execute('''
+        CREATE TABLE IF NOT EXISTS journals_fts (
+          rowid INTEGER PRIMARY KEY,
+          content TEXT,
+          tags TEXT
+        )
+      ''');
+    }
+  }
+
+  void _onUpgrade() {
+    try {
+      _db!.execute('DROP TABLE IF EXISTS journals_fts');
+    } catch (e) {
+      debugPrint(
+        'ShadowIndexDatabase: Failed to drop old FTS table: $e',
+      );
+    }
+
+    try {
+      _db!.execute('''
+        CREATE VIRTUAL TABLE IF NOT EXISTS journals_fts USING fts5(
+          content,
+          tags,
+          tokenize = 'unicode61'
+        )
+      ''');
+    } catch (e) {
+      debugPrint('ShadowIndexDatabase: FTS5 fallback during upgrade: $e');
+      try {
+        _db!.execute('DROP TABLE IF EXISTS journals_fts');
+      } catch (_) {}
+
+      _db!.execute('''
+        CREATE TABLE IF NOT EXISTS journals_fts (
+          rowid INTEGER PRIMARY KEY,
+          content TEXT,
+          tags TEXT
+        )
+      ''');
+    }
+  }
+
   /// 提供对外安全的 DB 访问句柄
-  Future<Database> get database async {
-    if (_db == null || !_db!.isOpen) {
-      final activeVault = await ref.read(vaultServiceProvider.future);
-      if (activeVault == null) {
-        throw Exception('数据库未挂载，没有检测到可用的 Vault。');
-      }
-      await _initDatabase(activeVault.name);
+  sql.Database get database {
+    if (_db == null) {
+      throw Exception('数据库未挂载，没有检测到可用的 Vault。');
     }
     return _db!;
   }
@@ -167,48 +163,44 @@ class ShadowIndexDatabase extends _$ShadowIndexDatabase {
     String? locationDetail,
     required bool isFavorite,
     required bool hasMedia,
-    required String rawContent, // 用于 FTS
-    required String tags, // 用于 FTS
+    required String rawContent,
+    required String tags,
   }) async {
-    final db = await database;
-    await db.transaction((txn) async {
-      await txn.insert('journals_index', {
-        'id': id,
-        'file_path': filePath,
-        'date': date,
-        'created_at': createdAt,
-        'updated_at': updatedAt,
-        'content_hash': contentHash,
-        'weather': weather,
-        'mood': mood,
-        'location': location,
-        'location_detail': locationDetail,
-        'is_favorite': isFavorite ? 1 : 0,
-        'has_media': hasMedia ? 1 : 0,
-      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    final db = database;
 
-      // FTS 相关表的同步 (先清洗旧记录，再拉取新记录)
-      await txn.rawDelete('DELETE FROM journals_fts WHERE rowid = ?', [id]);
-      await txn.rawInsert(
-        'INSERT INTO journals_fts(rowid, content, tags) VALUES(?, ?, ?)',
-        [id, rawContent, tags],
-      );
-    });
+    final stmt = db.prepare('''
+      INSERT OR REPLACE INTO journals_index
+        (id, file_path, date, created_at, updated_at, content_hash,
+         weather, mood, location, location_detail, is_favorite, has_media)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''');
+    stmt.execute([
+      id, filePath, date, createdAt, updatedAt, contentHash,
+      weather, mood, location, locationDetail,
+      isFavorite ? 1 : 0, hasMedia ? 1 : 0,
+    ]);
+    stmt.dispose();
+
+    // FTS 同步
+    db.execute('DELETE FROM journals_fts WHERE rowid = ?', [id]);
+    final ftsStmt = db.prepare(
+      'INSERT INTO journals_fts(rowid, content, tags) VALUES(?, ?, ?)',
+    );
+    ftsStmt.execute([id, rawContent, tags]);
+    ftsStmt.dispose();
   }
 
   /// 从索引层删除一条记录
   Future<void> deleteJournalIndex(int id) async {
-    final db = await database;
-    await db.transaction((txn) async {
-      await txn.delete('journals_index', where: 'id = ?', whereArgs: [id]);
-      await txn.rawDelete('DELETE FROM journals_fts WHERE rowid = ?', [id]);
-    });
+    final db = database;
+    db.execute('DELETE FROM journals_index WHERE id = ?', [id]);
+    db.execute('DELETE FROM journals_fts WHERE rowid = ?', [id]);
   }
 
-  /// [DEBUG/DEV] 强制关停释放资源
-  Future<void> close() async {
-    if (_db != null && _db!.isOpen) {
-      await _db!.close();
+  /// 关闭数据库
+  void close() {
+    if (_db != null) {
+      _db!.dispose();
       _db = null;
     }
   }

@@ -44,7 +44,7 @@ class DiaryRepositoryImpl implements DiaryRepository {
     int? limit,
     int? offset,
   }) async {
-    final db = await _dbService.database;
+    final db = _dbService.database;
     // 联合查询 FTS 获取文本与标签
     String sql =
         '''
@@ -62,7 +62,7 @@ class DiaryRepositoryImpl implements DiaryRepository {
       }
     }
 
-    final rows = await db.rawQuery(sql, whereArgs);
+    final rows = db.select(sql, whereArgs ?? []);
 
     return rows.map((row) {
       final tagStr = row['tags'] as String?;
@@ -93,11 +93,10 @@ class DiaryRepositoryImpl implements DiaryRepository {
   @override
   Future<Diary?> getDiaryById(int id) async {
     // 先查数据库获取这个文件的基本元数据
-    final db = await _dbService.database;
-    final rows = await db.query(
-      'journals_index',
-      where: 'id = ?',
-      whereArgs: [id],
+    final db = _dbService.database;
+    final rows = db.select(
+      'SELECT * FROM journals_index WHERE id = ?',
+      [id],
     );
     if (rows.isEmpty) return null;
 
@@ -130,12 +129,10 @@ class DiaryRepositoryImpl implements DiaryRepository {
     DateTime? oldFileDate;
     DateTime? existingCreatedAt;
     if (id != null) {
-      final db = await _dbService.database;
-      final rows = await db.query(
-        'journals_index',
-        columns: ['created_at', 'date'],
-        where: 'id = ?',
-        whereArgs: [id],
+      final db = _dbService.database;
+      final rows = db.select(
+        'SELECT created_at, date FROM journals_index WHERE id = ?',
+        [id],
       );
       if (rows.isNotEmpty) {
         final oldDateStr = rows.first['date'] as String;
@@ -217,13 +214,11 @@ class DiaryRepositoryImpl implements DiaryRepository {
 
   @override
   Future<void> deleteDiary(int id) async {
-    final db = await _dbService.database;
+    final db = _dbService.database;
     // 1. 首先查询数据库，获取该日记的创建时间，以便定位物理文件
-    final rows = await db.query(
-      'journals_index',
-      columns: ['date'],
-      where: 'id = ?',
-      whereArgs: [id],
+    final rows = db.select(
+      'SELECT date FROM journals_index WHERE id = ?',
+      [id],
     );
 
     if (rows.isNotEmpty) {
@@ -250,9 +245,9 @@ class DiaryRepositoryImpl implements DiaryRepository {
 
   @override
   Future<void> deleteAllDiaries() async {
-    final db = await _dbService.database;
-    await db.delete('journals_index');
-    await db.rawDelete('DELETE FROM journals_fts');
+    final db = _dbService.database;
+    db.execute('DELETE FROM journals_index');
+    db.execute('DELETE FROM journals_fts');
     _vaultIndex.clear();
   }
 
@@ -274,8 +269,8 @@ class DiaryRepositoryImpl implements DiaryRepository {
 
   @override
   Future<DateTime?> getOldestDiaryDate() async {
-    final db = await _dbService.database;
-    final result = await db.rawQuery(
+    final db = _dbService.database;
+    final result = db.select(
       'SELECT MIN(date) as min_date FROM journals_index',
     );
     if (result.isNotEmpty && result.first['min_date'] != null) {

@@ -99,7 +99,7 @@ class _DeveloperOptionsViewState extends ConsumerState<DeveloperOptionsView> {
     try {
       // 1. 释放数据库句柄（Windows 需要释放文件锁）
       await ref.read(appDatabaseProvider).close();
-      await ref.read(shadowIndexDatabaseProvider.notifier).close();
+      ref.read(shadowIndexDatabaseProvider.notifier).close();
 
       // 给操作系统一点时间释放文件句柄，尤其是在 Windows 上
       await Future.delayed(const Duration(milliseconds: 500));

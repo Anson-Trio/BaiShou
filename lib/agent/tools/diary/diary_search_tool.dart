@@ -88,7 +88,7 @@ class DiarySearchTool extends AgentTool {
     }
 
     try {
-      final db = await _indexDb.database;
+      final db = _indexDb.database;
 
       // 构建日期过滤条件
       String dateFilter = '';
@@ -106,7 +106,7 @@ class DiarySearchTool extends AgentTool {
 
       // 使用 FTS5 MATCH 语法搜索
       // snippet() 函数返回匹配上下文，方便 Agent 理解内容
-      final results = await db.rawQuery(
+      final results = db.select(
         '''
         SELECT 
           ji.date,
@@ -177,9 +177,9 @@ class DiarySearchTool extends AgentTool {
     ToolContext context,
   ) async {
     try {
-      final db = await _indexDb.database;
+      final db = _indexDb.database;
 
-      final results = await db.rawQuery(
+      final results = db.select(
         '''
         SELECT 
           ji.date,

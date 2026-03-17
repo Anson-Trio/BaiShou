@@ -147,20 +147,16 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
         .getExactFilePath(date)
         .then((p) => File(p));
 
-    final db = await dbService.database;
+    final db = dbService.database;
     final dateStr = date.toIso8601String();
 
     // 2. 如果文件不存在，检查数据库中是否还有索引（如果是，则说明是外部删除了）
     if (!file.existsSync()) {
-      // 关键修复：由于数据库中存储的可能是带时分秒的 ISO8061 字符串，
-      // 而 Watcher 只知道 yyyy-MM-dd。因此这里使用前缀匹配来准确定位。
       final dayStr =
           "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-      final existingRows = await db.query(
-        'journals_index',
-        columns: ['id'],
-        where: 'date LIKE ?',
-        whereArgs: ['$dayStr%'],
+      final existingRows = db.select(
+        'SELECT id FROM journals_index WHERE date LIKE ?',
+        ['$dayStr%'],
       );
       if (existingRows.isNotEmpty) {
         // 发现孤儿索引，执行物理清理。
@@ -178,11 +174,9 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
     }
 
     // 3. 检查数据库中已有的 Hash，避免无意义的解析和 UI 重绘
-    final existingRows = await db.query(
-      'journals_index',
-      columns: ['content_hash'],
-      where: 'date = ?',
-      whereArgs: [dateStr],
+    final existingRows = db.select(
+      'SELECT content_hash FROM journals_index WHERE date = ?',
+      [dateStr],
     );
 
     final currentHash = await _computeFileHash(file);
@@ -322,8 +316,8 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
       //    修复方案：在清理前实时检查物理文件是否存在。
       final dbService = ref.read(shadowIndexDatabaseProvider.notifier);
       final journalService = ref.read(journalFileServiceProvider.notifier);
-      final db = await dbService.database;
-      final rows = await db.query('journals_index', columns: ['id', 'date']);
+      final db = dbService.database;
+      final rows = db.select('SELECT id, date FROM journals_index');
 
       for (final row in rows) {
         final id = row['id'] as int;

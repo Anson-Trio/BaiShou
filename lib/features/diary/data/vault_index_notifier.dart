@@ -46,8 +46,8 @@ class VaultIndex extends _$VaultIndex {
   Future<List<DiaryMeta>> _loadFromDb() async {
     try {
       final dbService = ref.read(shadowIndexDatabaseProvider.notifier);
-      final db = await dbService.database;
-      final rows = await db.rawQuery('''
+      final db = dbService.database;
+      final rows = db.select('''
         SELECT i.id, i.date, i.updated_at, f.content, f.tags
         FROM journals_index i
         LEFT JOIN journals_fts f ON i.id = f.rowid
