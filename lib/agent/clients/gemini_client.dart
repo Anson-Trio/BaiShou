@@ -26,6 +26,51 @@ class GeminiClient implements AiClient {
 
   // ─── 原有能力：总结生成 ────────────────────────────────────
 
+  // ─── 嵌入能力 ────────────────────────────────────────────
+
+  @override
+  Future<List<double>> generateEmbedding({
+    required String input,
+    required String modelId,
+  }) async {
+    final uri = Uri.parse(
+      '$_baseUrl/models/$modelId:embedContent?key=${provider.apiKey}',
+    );
+
+    try {
+      final response = await http
+          .post(
+            uri,
+            headers: _headers,
+            body: jsonEncode({
+              'content': {
+                'parts': [
+                  {'text': input},
+                ],
+              },
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final decodedBody = utf8.decode(response.bodyBytes);
+        final data = jsonDecode(decodedBody) as Map<String, dynamic>;
+        final embedding = data['embedding'] as Map<String, dynamic>?;
+        if (embedding != null) {
+          final values = embedding['values'] as List;
+          return values.cast<num>().map((e) => e.toDouble()).toList();
+        }
+        throw Exception('Gemini embedding response missing values');
+      } else {
+        throw Exception(
+          'Gemini Embedding API Error ${response.statusCode}\n${response.body}',
+        );
+      }
+    } catch (e) {
+      throw Exception('Failed to generate embedding: $e');
+    }
+  }
+
   @override
   Future<List<String>> fetchAvailableModels() async {
     final List<String> result = [];

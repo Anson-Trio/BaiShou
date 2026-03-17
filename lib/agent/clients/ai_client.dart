@@ -24,6 +24,15 @@ abstract class AiClient {
     double? temperature,
   });
 
+  /// 生成文本向量嵌入
+  ///
+  /// 调用嵌入模型将 [input] 文本转换为浮点向量。
+  /// 不支持嵌入的供应商应抛出 UnsupportedError。
+  Future<List<double>> generateEmbedding({
+    required String input,
+    required String modelId,
+  });
+
   /// 获取此服务商当前可用的所有模型列表
   Future<List<String>> fetchAvailableModels();
 

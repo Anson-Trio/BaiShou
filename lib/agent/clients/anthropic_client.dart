@@ -30,6 +30,19 @@ class AnthropicClient implements AiClient {
 
   // ─── 原有能力：总结生成 ────────────────────────────────────
 
+  // ─── 嵌入能力（Anthropic 不支持）─────────────────────────
+
+  @override
+  Future<List<double>> generateEmbedding({
+    required String input,
+    required String modelId,
+  }) async {
+    throw UnsupportedError(
+      'Anthropic does not provide an embedding API. '
+      'Please configure an OpenAI-compatible or Gemini provider for embeddings.',
+    );
+  }
+
   @override
   Future<List<String>> fetchAvailableModels() async {
     final uri = Uri.parse('$_baseUrl/models');

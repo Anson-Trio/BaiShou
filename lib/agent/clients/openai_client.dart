@@ -28,6 +28,46 @@ class OpenAiClient implements AiClient {
 
   // ─── 原有能力：总结生成 ────────────────────────────────────
 
+  // ─── 嵌入能力 ────────────────────────────────────────────
+
+  @override
+  Future<List<double>> generateEmbedding({
+    required String input,
+    required String modelId,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/embeddings');
+
+    try {
+      final response = await http
+          .post(
+            uri,
+            headers: _headers,
+            body: jsonEncode({
+              'model': modelId,
+              'input': input,
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final decodedBody = utf8.decode(response.bodyBytes);
+        final data = jsonDecode(decodedBody) as Map<String, dynamic>;
+        final dataList = data['data'] as List?;
+        if (dataList != null && dataList.isNotEmpty) {
+          final embedding = dataList[0]['embedding'] as List;
+          return embedding.cast<num>().map((e) => e.toDouble()).toList();
+        }
+        throw Exception('Embedding response missing data field');
+      } else {
+        throw Exception(
+          'Embedding API Error ${response.statusCode}\n${response.body}',
+        );
+      }
+    } catch (e) {
+      throw Exception('Failed to generate embedding: $e');
+    }
+  }
+
   @override
   Future<List<String>> fetchAvailableModels() async {
     if (provider.baseUrl.isEmpty) {
