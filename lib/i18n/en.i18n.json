@@ -246,7 +246,13 @@
     "monthly_summary_data_source": "Monthly Summary Data Source",
     "monthly_summary_data_source_desc": "Select the source material AI reads when generating monthly reports",
     "read_only_weeklies": "Read Only Weeklies",
-    "read_all_diaries": "Read All Diaries"
+    "read_all_diaries": "Read All Diaries",
+    "agent_tools_title": "Tool Management",
+    "agent_tools_desc": "Manage Agent tools, toggle or configure tool parameters",
+    "agent_tools_category_diary": "Diary Tools",
+    "agent_tools_category_summary": "Summary Tools",
+    "agent_tools_category_memory": "Memory Tools",
+    "agent_tools_category_general": "General Tools"
   },
   "data_sync": {
     "title": "Data Sync",
@@ -534,7 +540,9 @@
     "dialogue_model_title": "Default Dialogue Model",
     "dialogue_model_desc": "Main model for intelligent analysis and interaction.",
     "naming_model_title": "Default Naming Model",
-    "naming_model_desc": "Model for simple tasks like title naming and short extraction."
+    "naming_model_desc": "Model for simple tasks like title naming and short extraction.",
+    "embedding_model_title": "Embedding Model",
+    "embedding_model_desc": "Model for text vectorization, powering RAG semantic search. e.g. text-embedding-3-small. If the list is empty, please fetch and enable embedding models from your provider first."
   },
   "about": {
     "title": "About BaiShou",

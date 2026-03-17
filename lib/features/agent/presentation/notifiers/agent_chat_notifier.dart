@@ -10,15 +10,10 @@ import 'package:baishou/agent/runner/agent_runner.dart';
 import 'package:baishou/agent/session/context_window.dart';
 import 'package:baishou/agent/session/session_manager.dart';
 import 'package:baishou/agent/tools/agent_tool.dart';
-import 'package:baishou/agent/tools/diary/diary_list_tool.dart';
-import 'package:baishou/agent/tools/diary/diary_read_tool.dart';
-import 'package:baishou/agent/tools/diary/diary_search_tool.dart';
-import 'package:baishou/agent/tools/summary/summary_read_tool.dart';
+import 'package:baishou/agent/tools/tool_repository.dart';
 import 'package:baishou/agent/pricing/model_pricing_service.dart';
 import 'package:baishou/agent/prompts/system_prompt_builder.dart';
-import 'package:baishou/core/database/app_database.dart';
 import 'package:baishou/core/services/api_config_service.dart';
-import 'package:baishou/features/index/data/shadow_index_database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -321,19 +316,9 @@ class AgentChatNotifier extends _$AgentChatNotifier {
     }
   }
 
-  /// 构建工具注册表
+  /// 构建工具注册表（委托给 ToolRepository）
   ToolRegistry _buildToolRegistry() {
-    final registry = ToolRegistry();
-
-    // Phase 1: 日记相关只读工具
-    registry.registerAll([
-      DiaryReadTool(),
-      DiaryListTool(),
-      DiarySearchTool(ref.read(shadowIndexDatabaseProvider.notifier)),
-      SummaryReadTool(ref.read(appDatabaseProvider)),
-    ]);
-
-    return registry;
+    return ref.read(toolRepositoryProvider.notifier).buildRegistry();
   }
 
   /// 自动生成对话标题（异步，不阻塞 UI）

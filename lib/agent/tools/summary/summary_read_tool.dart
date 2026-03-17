@@ -5,6 +5,7 @@
 import 'package:baishou/agent/tools/agent_tool.dart';
 import 'package:baishou/core/database/app_database.dart';
 import 'package:drift/drift.dart';
+import 'package:flutter/material.dart';
 
 class SummaryReadTool extends AgentTool {
   final AppDatabase _db;
@@ -13,6 +14,18 @@ class SummaryReadTool extends AgentTool {
 
   @override
   String get id => 'summary_read';
+
+  @override
+  String get displayName => '总结读取';
+
+  @override
+  String get category => 'summary';
+
+  @override
+  IconData get icon => Icons.compress_rounded;
+
+  @override
+  bool get canBeDisabled => false;
 
   @override
   String get description =>

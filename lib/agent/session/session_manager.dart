@@ -161,6 +161,9 @@ class SessionManager {
     }
 
     await touchSession(sessionId);
+
+    // 同步到 FTS5 索引
+    await _syncToFts(sessionId, msg);
   }
 
   /// 批量添加消息（每条自动创建 Parts）
@@ -196,6 +199,11 @@ class SessionManager {
     }
 
     await touchSession(sessionId);
+
+    // 批量同步到 FTS5 索引
+    for (final msg in msgs) {
+      await _syncToFts(sessionId, msg);
+    }
   }
 
   /// 获取会话的所有消息 + Parts（重建为 ChatMessage）
@@ -246,12 +254,54 @@ class SessionManager {
 
   /// 清空会话消息和 Parts
   Future<void> clearMessages(String sessionId) async {
+    // 同时清理 FTS 索引中该会话的记录
+    await _db.customStatement(
+      'DELETE FROM agent_messages_fts WHERE session_id = ?',
+      [sessionId],
+    );
     await (_db.delete(_db.agentParts)
           ..where((t) => t.sessionId.equals(sessionId)))
         .go();
     await (_db.delete(_db.agentMessages)
           ..where((t) => t.sessionId.equals(sessionId)))
         .go();
+  }
+
+  // ─── FTS5 全文搜索 ──────────────────────────────────────────
+
+  /// 同步消息文本到 FTS5 索引
+  Future<void> _syncToFts(String sessionId, ChatMessage msg) async {
+    // 仅索引 user 和 assistant 的文本消息
+    if (msg.role != MessageRole.user && msg.role != MessageRole.assistant) {
+      return;
+    }
+    final text = msg.content;
+    if (text == null || text.trim().isEmpty) return;
+
+    try {
+      await _db.insertFtsRecord(
+        messageId: msg.id,
+        sessionId: sessionId,
+        role: msg.role.name,
+        content: text,
+      );
+    } catch (e) {
+      // FTS5 可能不可用（例如某些平台不支持），静默失败
+    }
+  }
+
+  /// 跨会话全文搜索消息
+  Future<List<Map<String, dynamic>>> searchMessages(
+    String query, {
+    int limit = 20,
+  }) async {
+    if (query.trim().isEmpty) return [];
+    try {
+      return await _db.searchFts(query, limit: limit);
+    } catch (e) {
+      // FTS5 不可用时返回空
+      return [];
+    }
   }
 
   // ─── 内部工具方法 ─────────────────────────────────────────

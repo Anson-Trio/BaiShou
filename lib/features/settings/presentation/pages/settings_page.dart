@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:baishou/features/settings/presentation/pages/views/ai_global_models_view.dart';
 import 'package:baishou/features/settings/presentation/pages/views/ai_model_services_view.dart';
+import 'package:baishou/features/settings/presentation/pages/views/agent_tools_view.dart';
 import 'package:baishou/features/settings/presentation/pages/data_sync_page.dart';
 import 'package:baishou/features/settings/presentation/pages/lan_transfer_page.dart';
 import 'package:baishou/features/settings/presentation/pages/views/general_settings_view.dart';
@@ -76,8 +77,10 @@ class _SettingsPageState extends State<SettingsPage> {
       case 2:
         return const AiGlobalModelsView(key: ValueKey('tab_global'));
       case 3:
-        return const DataSyncPage(key: ValueKey('tab_sync'));
+        return const AgentToolsView(key: ValueKey('tab_tools'));
       case 4:
+        return const DataSyncPage(key: ValueKey('tab_sync'));
+      case 5:
         return const LanTransferPage(key: ValueKey('tab_lan'));
       default:
         return const SizedBox();
@@ -110,6 +113,12 @@ class _SettingsPageState extends State<SettingsPage> {
             title: Text(t.settings.ai_global_models),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/settings/ai-models'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.extension_outlined),
+            title: Text(t.settings.agent_tools_title),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/settings/agent-tools'),
           ),
           ListTile(
             leading: const Icon(Icons.sync_rounded),
@@ -184,11 +193,16 @@ class _SettingsPageState extends State<SettingsPage> {
                   Icons.star_border_rounded,
                   2,
                 ),
-                _buildSidebarTab(t.data_sync.title, Icons.sync_rounded, 3),
+                _buildSidebarTab(
+                  t.settings.agent_tools_title,
+                  Icons.extension_outlined,
+                  3,
+                ),
+                _buildSidebarTab(t.data_sync.title, Icons.sync_rounded, 4),
                 _buildSidebarTab(
                   t.settings.lan_transfer,
                   Icons.wifi_protected_setup_outlined,
-                  4,
+                  5,
                 ),
               ],
             ),

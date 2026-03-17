@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:baishou/agent/models/ai_provider_model.dart';
+import 'package:baishou/agent/rag/embedding_model_utils.dart';
 import 'package:baishou/core/providers/shared_preferences_provider.dart';
 import 'package:baishou/agent/clients/ai_client.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,6 +28,12 @@ class ApiConfigService {
   static const String _keyAgentCompanionMode = 'agent_companion_mode';
   static const String _keyAgentPersona = 'agent_persona';
   static const String _keyAgentGuidelines = 'agent_guidelines';
+  static const String _keyGlobalEmbeddingProviderId =
+      'global_embedding_provider_id';
+  static const String _keyGlobalEmbeddingModelId =
+      'global_embedding_model_id';
+  static const String _keyDisabledToolIds = 'disabled_tool_ids';
+  static const String _keyToolConfigPrefix = 'tool_config_';
 
   final SharedPreferences _prefs;
 
@@ -258,6 +265,91 @@ class ApiConfigService {
     await _prefs.setString(_keyAgentGuidelines, guidelines.trim());
   }
 
+  // --- 全局 Embedding 模型设置 ---
+
+  /// 获取全局 Embedding 模型的供应商 ID
+  String get globalEmbeddingProviderId {
+    return _prefs.getString(_keyGlobalEmbeddingProviderId) ?? '';
+  }
+
+  /// 获取全局 Embedding 模型的 ID
+  String get globalEmbeddingModelId {
+    return _prefs.getString(_keyGlobalEmbeddingModelId) ?? '';
+  }
+
+  /// 设置全局 Embedding 模型
+  Future<void> setGlobalEmbeddingModel(
+    String providerId,
+    String modelId,
+  ) async {
+    await _prefs.setString(_keyGlobalEmbeddingProviderId, providerId);
+    await _prefs.setString(_keyGlobalEmbeddingModelId, modelId);
+  }
+
+  /// 当前是否已配置 Embedding 模型
+  bool get hasEmbeddingModel {
+    return globalEmbeddingProviderId.isNotEmpty &&
+        globalEmbeddingModelId.isNotEmpty;
+  }
+
+  // --- 工具配置管理 ---
+
+  /// 获取被禁用的工具 ID 列表
+  List<String> get disabledToolIds {
+    return _prefs.getStringList(_keyDisabledToolIds) ?? [];
+  }
+
+  /// 设置被禁用的工具 ID 列表
+  Future<void> setDisabledToolIds(List<String> ids) async {
+    await _prefs.setStringList(_keyDisabledToolIds, ids);
+  }
+
+  /// 切换工具启用/禁用状态
+  Future<void> toggleToolEnabled(String toolId, bool enabled) async {
+    final ids = List<String>.from(disabledToolIds);
+    if (enabled) {
+      ids.remove(toolId);
+    } else {
+      if (!ids.contains(toolId)) ids.add(toolId);
+    }
+    await setDisabledToolIds(ids);
+  }
+
+  /// 工具是否启用
+  bool isToolEnabled(String toolId) {
+    return !disabledToolIds.contains(toolId);
+  }
+
+  /// 获取某工具的用户自定义配置（key-value Map）
+  Map<String, dynamic> getToolConfig(String toolId) {
+    final raw = _prefs.getString('$_keyToolConfigPrefix$toolId');
+    if (raw == null) return {};
+    try {
+      return Map<String, dynamic>.from(json.decode(raw));
+    } catch (_) {
+      return {};
+    }
+  }
+
+  /// 设置某工具的单个配置项
+  Future<void> setToolConfigValue(
+    String toolId,
+    String key,
+    dynamic value,
+  ) async {
+    final config = getToolConfig(toolId);
+    config[key] = value;
+    await _prefs.setString(
+      '$_keyToolConfigPrefix$toolId',
+      json.encode(config),
+    );
+  }
+
+  /// 获取某工具某配置项的当前值（无则返回 null）
+  dynamic getToolConfigValue(String toolId, String key) {
+    return getToolConfig(toolId)[key];
+  }
+
   /// 获取所有可用的模型列表，返回一个 Map 列表，方便 UI 渲染下拉框
   /// 每个 Map 包含 provider_id, provider_name, model_id
   List<Map<String, String>> getAllAvailableModels() {
@@ -275,6 +367,20 @@ class ApiConfigService {
       }
     }
     return result;
+  }
+
+  /// 获取所有非 Embedding 模型（用于对话/总结/命名选择器）
+  List<Map<String, String>> getAllNonEmbeddingModels() {
+    return getAllAvailableModels()
+        .where((m) => !isEmbeddingModel(m['model_id'] ?? ''))
+        .toList();
+  }
+
+  /// 获取所有 Embedding 模型（用于 Embedding 选择器）
+  List<Map<String, String>> getAllEmbeddingModels() {
+    return getAllAvailableModels()
+        .where((m) => isEmbeddingModel(m['model_id'] ?? ''))
+        .toList();
   }
 
   /// 从远程 API 自动获取供应商支持的模型列表 (类似于 Cherry Studio)

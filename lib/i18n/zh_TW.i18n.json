@@ -256,7 +256,12 @@
     "monthly_summary_data_source_desc": "選擇 AI 在生成月報時讀取的原始素材",
     "read_only_weeklies": "僅讀取週記",
     "read_all_diaries": "讀取全部日記",
-    "import_data_desc": "選擇本機 ZIP 檔案以還原資料"
+    "agent_tools_title": "工具管理",
+    "agent_tools_desc": "管理 Agent 可使用的工具，開關或配置工具參數",
+    "agent_tools_category_diary": "日記工具",
+    "agent_tools_category_summary": "總結工具",
+    "agent_tools_category_memory": "記憶工具",
+    "agent_tools_category_general": "通用工具"
   },
   "data_sync": {
     "title": "資料同步",
@@ -544,7 +549,9 @@
     "dialogue_model_title": "預設對話模型",
     "dialogue_model_desc": "這是主要的智慧分析和系統互動模型。當沒有專門指定模型時，系統將預設使用它。",
     "naming_model_title": "預設命名模型",
-    "naming_model_desc": "執行標題命名、短句提取等簡單任務時使用的模型。建議使用響應快、成本低的輕量級模型。"
+    "naming_model_desc": "執行標題命名、短句提取等簡單任務時使用的模型。建議使用響應快、成本低的輕量級模型。",
+    "embedding_model_title": "嵌入模型 (Embedding)",
+    "embedding_model_desc": "用於文本向量化的模型，支撐 RAG 語意搜索功能。如 text-embedding-3-small。如果列表為空，請先在供應商處取得並啟用 Embedding 類型的模型。"
   },
   "about": {
     "title": "關於白守",

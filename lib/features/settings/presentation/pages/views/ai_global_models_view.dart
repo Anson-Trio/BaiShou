@@ -19,6 +19,7 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
   String? _globalDialogueModel;
   String? _globalNamingModel;
   String? _globalSummaryModel;
+  String? _globalEmbeddingModel;
   String _monthlySummarySource = 'weeklies'; // 月度总结数据源
 
   @override
@@ -47,6 +48,10 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
       _globalSummaryModel = _buildGlobalIdentifier(
         service.globalSummaryProviderId,
         service.globalSummaryModelId,
+      );
+      _globalEmbeddingModel = _buildGlobalIdentifier(
+        service.globalEmbeddingProviderId,
+        service.globalEmbeddingModelId,
       );
       _monthlySummarySource = service.monthlySummarySource;
     });
@@ -89,6 +94,17 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
       final parts = _globalSummaryModel!.split(':');
       if (parts.length >= 2) {
         await service.setGlobalSummaryModel(
+          parts[0],
+          parts.sublist(1).join(':'),
+        );
+      }
+    }
+
+    // 解析并保存 Embedding 模型
+    if (_globalEmbeddingModel != null && _globalEmbeddingModel!.isNotEmpty) {
+      final parts = _globalEmbeddingModel!.split(':');
+      if (parts.length >= 2) {
+        await service.setGlobalEmbeddingModel(
           parts[0],
           parts.sublist(1).join(':'),
         );
@@ -165,7 +181,8 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
   @override
   Widget build(BuildContext context) {
     final service = ref.watch(apiConfigServiceProvider);
-    final allModels = service.getAllAvailableModels();
+    final nonEmbeddingModels = service.getAllNonEmbeddingModels();
+    final embeddingModels = service.getAllEmbeddingModels();
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
@@ -201,7 +218,7 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
               icon: Icons.compress_rounded,
               description: t.ai_config.summary_model_desc,
               value: _globalSummaryModel,
-              items: allModels,
+              items: nonEmbeddingModels,
               onChanged: (val) {
                 setState(() => _globalSummaryModel = val);
               },
@@ -280,7 +297,7 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
               icon: Icons.chat_bubble_outline,
               description: t.ai_config.dialogue_model_desc,
               value: _globalDialogueModel,
-              items: allModels,
+              items: nonEmbeddingModels,
               onChanged: (val) {
                 setState(() => _globalDialogueModel = val);
               },
@@ -293,9 +310,22 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
               icon: Icons.edit_outlined,
               description: t.ai_config.naming_model_desc,
               value: _globalNamingModel,
-              items: allModels,
+              items: nonEmbeddingModels,
               onChanged: (val) {
                 setState(() => _globalNamingModel = val);
+              },
+            ),
+
+            const SizedBox(height: 32),
+
+            _buildDefaultModelSection(
+              title: t.ai_config.embedding_model_title,
+              icon: Icons.hub_outlined,
+              description: t.ai_config.embedding_model_desc,
+              value: _globalEmbeddingModel,
+              items: embeddingModels,
+              onChanged: (val) {
+                setState(() => _globalEmbeddingModel = val);
               },
             ),
           ],

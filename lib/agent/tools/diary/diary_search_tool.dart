@@ -4,7 +4,9 @@
 /// Agent 通过此工具按关键词查找日记，无需知道具体日期
 
 import 'package:baishou/agent/tools/agent_tool.dart';
+import 'package:baishou/agent/tools/tool_config_param.dart';
 import 'package:baishou/features/index/data/shadow_index_database.dart';
+import 'package:flutter/material.dart';
 
 class DiarySearchTool extends AgentTool {
   final ShadowIndexDatabase _indexDb;
@@ -13,6 +15,29 @@ class DiarySearchTool extends AgentTool {
 
   @override
   String get id => 'diary_search';
+
+  @override
+  String get displayName => '日记搜索';
+
+  @override
+  String get category => 'diary';
+
+  @override
+  IconData get icon => Icons.search_rounded;
+
+  @override
+  List<ToolConfigParam> get configurableParams => [
+        const ToolConfigParam(
+          key: 'max_results',
+          label: '搜索结果上限',
+          description: 'AI 每次搜索日记时返回的最大结果数量',
+          type: ParamType.integer,
+          defaultValue: 10,
+          min: 1,
+          max: 50,
+          icon: Icons.format_list_numbered,
+        ),
+      ];
 
   @override
   String get description =>

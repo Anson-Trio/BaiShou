@@ -4,10 +4,23 @@
 
 import 'dart:io';
 import 'package:baishou/agent/tools/agent_tool.dart';
+import 'package:flutter/material.dart';
 
 class DiaryReadTool extends AgentTool {
   @override
   String get id => 'diary_read';
+
+  @override
+  String get displayName => '日记读取';
+
+  @override
+  String get category => 'diary';
+
+  @override
+  IconData get icon => Icons.auto_stories_outlined;
+
+  @override
+  bool get canBeDisabled => false;
 
   @override
   String get description =>

@@ -246,7 +246,13 @@
     "monthly_summary_data_source": "月次レポートのデータソース",
     "monthly_summary_data_source_desc": "月次レポート生成時に AI が読み込む素材を選択します",
     "read_only_weeklies": "週報のみを読み込む",
-    "read_all_diaries": "すべての日記を読み込む"
+    "read_all_diaries": "すべての日記を読み込む",
+    "agent_tools_title": "ツール管理",
+    "agent_tools_desc": "Agentが使用できるツールの管理、オン・オフ、パラメータ設定",
+    "agent_tools_category_diary": "日記ツール",
+    "agent_tools_category_summary": "要約ツール",
+    "agent_tools_category_memory": "記憶ツール",
+    "agent_tools_category_general": "汎用ツール"
   },
   "data_sync": {
     "title": "データ同期",
@@ -534,7 +540,9 @@
     "dialogue_model_title": "デフォルト対話モデル",
     "dialogue_model_desc": "インテリジェントな分析と対話のための主要モデル。",
     "naming_model_title": "デフォルト命名モデル",
-    "naming_model_desc": "タイトル命名などの単純なタスクに使用する軽量モデル。"
+    "naming_model_desc": "タイトル命名などの単純なタスクに使用する軽量モデル。",
+    "embedding_model_title": "埋め込みモデル (Embedding)",
+    "embedding_model_desc": "テキストベクトル化に使用するモデル。RAGセマンティック検索を支えます。例: text-embedding-3-small。リストが空の場合は、プロバイダーからEmbeddingモデルを取得して有効にしてください。"
   },
   "about": {
     "title": "白守について",

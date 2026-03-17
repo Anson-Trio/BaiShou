@@ -2,15 +2,21 @@
 /// 参考 opencode: packages/opencode/src/tool/tool.ts + registry.ts
 
 import 'package:baishou/agent/models/tool_definition.dart';
+import 'package:baishou/agent/tools/tool_config_param.dart';
+import 'package:flutter/material.dart';
 
 /// 工具执行上下文
 class ToolContext {
   final String sessionId;
   final String vaultPath;
 
+  /// 用户自定义的工具参数（从持久化配置中加载）
+  final Map<String, dynamic> userConfig;
+
   const ToolContext({
     required this.sessionId,
     required this.vaultPath,
+    this.userConfig = const {},
   });
 }
 
@@ -43,6 +49,25 @@ abstract class AgentTool {
 
   /// JSON Schema 格式的参数定义
   Map<String, dynamic> get parameterSchema;
+
+  // ─── 工具管理 UI 元数据 ──────────────────────────────────
+
+  /// 显示名称（给用户看）
+  String get displayName => id;
+
+  /// 分类标签（用于 UI 分组）
+  String get category => 'general';
+
+  /// 工具图标
+  IconData get icon => Icons.build_outlined;
+
+  /// 是否允许用户禁用此工具（核心工具不允许）
+  bool get canBeDisabled => true;
+
+  /// 可配置参数列表（空 = 无可配参数）
+  List<ToolConfigParam> get configurableParams => [];
+
+  // ─── 执行 ──────────────────────────────────────────────
 
   /// 执行工具
   Future<ToolResult> execute(
