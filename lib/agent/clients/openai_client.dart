@@ -1,8 +1,8 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:baishou/agent/models/ai_provider_model.dart';
-import 'package:baishou/agent/clients/ai_client.dart';
+import 'package:baishou/agent/clients/base_ai_client.dart';
 import 'package:baishou/agent/models/chat_message.dart';
 import 'package:baishou/agent/models/stream_event.dart';
 import 'package:baishou/agent/models/tool_definition.dart';
@@ -10,18 +10,11 @@ import 'package:baishou/i18n/strings.g.dart';
 
 /// OpenAI 兼容协议的 AI 客户端
 /// 覆盖 OpenAI / DeepSeek / Kimi / GLM / Ollama 等所有兼容供应商
-class OpenAiClient implements AiClient {
-  final AiProviderModel provider;
+class OpenAiClient extends BaseAiClient {
+  OpenAiClient({required super.provider});
 
-  OpenAiClient({required this.provider});
-
-  String get _baseUrl {
-    var url = provider.baseUrl;
-    if (url.endsWith('/')) url = url.substring(0, url.length - 1);
-    return url;
-  }
-
-  Map<String, String> get _headers => {
+  @override
+  Map<String, String> get headers => {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ${provider.apiKey}',
       };
@@ -35,13 +28,13 @@ class OpenAiClient implements AiClient {
     required String input,
     required String modelId,
   }) async {
-    final uri = Uri.parse('$_baseUrl/embeddings');
+    final uri = Uri.parse('_baseUrl/embeddings');
 
     try {
       final response = await http
           .post(
             uri,
-            headers: _headers,
+            headers: headers,
             body: jsonEncode({
               'model': modelId,
               'input': input,
@@ -74,11 +67,11 @@ class OpenAiClient implements AiClient {
       throw Exception(t.ai.error_openai_base_url);
     }
 
-    final uri = Uri.parse('$_baseUrl/models');
+    final uri = Uri.parse('_baseUrl/models');
 
     try {
       final response = await http
-          .get(uri, headers: _headers)
+          .get(uri, headers: headers)
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
@@ -121,13 +114,13 @@ class OpenAiClient implements AiClient {
     required String prompt,
     required String modelId,
   }) async {
-    final uri = Uri.parse('$_baseUrl/chat/completions');
+    final uri = Uri.parse('_baseUrl/chat/completions');
 
     try {
       final response = await http
           .post(
             uri,
-            headers: _headers,
+            headers: headers,
             body: jsonEncode({
               'model': modelId,
               'messages': [
@@ -158,10 +151,6 @@ class OpenAiClient implements AiClient {
     }
   }
 
-  @override
-  Future<void> testConnection() async {
-    await fetchAvailableModels();
-  }
 
   // ─── 新增能力：Agent 流式对话 + Tool Calling ─────────────────
 
@@ -172,7 +161,7 @@ class OpenAiClient implements AiClient {
     List<ToolDefinition>? tools,
     double? temperature,
   }) async* {
-    final uri = Uri.parse('$_baseUrl/chat/completions');
+    final uri = Uri.parse('_baseUrl/chat/completions');
 
     final body = <String, dynamic>{
       'model': modelId,
@@ -198,7 +187,7 @@ class OpenAiClient implements AiClient {
     }
 
     final request = http.Request('POST', uri)
-      ..headers.addAll({..._headers, 'Accept': 'text/event-stream'})
+      ..headers.addAll({...headers, 'Accept': 'text/event-stream'})
       ..body = jsonEncode(body);
 
     http.StreamedResponse response;

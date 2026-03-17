@@ -1,20 +1,19 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:baishou/agent/models/ai_provider_model.dart';
-import 'package:baishou/agent/clients/ai_client.dart';
+import 'package:baishou/agent/clients/base_ai_client.dart';
 import 'package:baishou/agent/models/chat_message.dart';
 import 'package:baishou/agent/models/stream_event.dart';
 import 'package:baishou/agent/models/tool_definition.dart';
 import 'package:baishou/i18n/strings.g.dart';
 
 /// Anthropic Claude 专属 AI 客户端
-class AnthropicClient implements AiClient {
-  final AiProviderModel provider;
+class AnthropicClient extends BaseAiClient {
+  AnthropicClient({required super.provider});
 
-  AnthropicClient({required this.provider});
-
-  String get _baseUrl {
+  @override
+  String get baseUrl {
     var url = provider.baseUrl.isNotEmpty
         ? provider.baseUrl
         : 'https://api.anthropic.com/v1';
@@ -22,7 +21,8 @@ class AnthropicClient implements AiClient {
     return url;
   }
 
-  Map<String, String> get _headers => {
+  @override
+  Map<String, String> get headers => {
         'Content-Type': 'application/json',
         'x-api-key': provider.apiKey,
         'anthropic-version': '2023-06-01',
@@ -45,10 +45,10 @@ class AnthropicClient implements AiClient {
 
   @override
   Future<List<String>> fetchAvailableModels() async {
-    final uri = Uri.parse('$_baseUrl/models');
+    final uri = Uri.parse('$baseUrl/models');
     try {
       final response = await http
-          .get(uri, headers: _headers)
+          .get(uri, headers: headers)
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
@@ -84,12 +84,12 @@ class AnthropicClient implements AiClient {
     required String prompt,
     required String modelId,
   }) async {
-    final uri = Uri.parse('$_baseUrl/messages');
+    final uri = Uri.parse('$baseUrl/messages');
     try {
       final response = await http
           .post(
             uri,
-            headers: _headers,
+            headers: headers,
             body: jsonEncode({
               'model': modelId,
               'messages': [
@@ -122,10 +122,6 @@ class AnthropicClient implements AiClient {
     }
   }
 
-  @override
-  Future<void> testConnection() async {
-    await fetchAvailableModels();
-  }
 
   // ─── 新增能力：Agent 流式对话 + Tool Calling ─────────────────
 
@@ -136,7 +132,7 @@ class AnthropicClient implements AiClient {
     List<ToolDefinition>? tools,
     double? temperature,
   }) async* {
-    final uri = Uri.parse('$_baseUrl/messages');
+    final uri = Uri.parse('$baseUrl/messages');
 
     final body = <String, dynamic>{
       'model': modelId,
@@ -165,7 +161,7 @@ class AnthropicClient implements AiClient {
     }
 
     final request = http.Request('POST', uri)
-      ..headers.addAll({..._headers, 'Accept': 'text/event-stream'})
+      ..headers.addAll({...headers, 'Accept': 'text/event-stream'})
       ..body = jsonEncode(body);
 
     http.StreamedResponse response;

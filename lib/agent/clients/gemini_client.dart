@@ -1,28 +1,25 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:baishou/agent/models/ai_provider_model.dart';
-import 'package:baishou/agent/clients/ai_client.dart';
+import 'package:baishou/agent/clients/base_ai_client.dart';
 import 'package:baishou/agent/models/chat_message.dart';
 import 'package:baishou/agent/models/stream_event.dart';
 import 'package:baishou/agent/models/tool_definition.dart';
 import 'package:baishou/i18n/strings.g.dart';
 
 /// Gemini 专属 AI 客户端
-class GeminiClient implements AiClient {
-  final AiProviderModel provider;
+class GeminiClient extends BaseAiClient {
+  GeminiClient({required super.provider});
 
-  GeminiClient({required this.provider});
-
-  String get _baseUrl {
+  @override
+  String get baseUrl {
     var url = provider.baseUrl.isNotEmpty
         ? provider.baseUrl
         : 'https://generativelanguage.googleapis.com/v1beta';
     if (url.endsWith('/')) url = url.substring(0, url.length - 1);
     return url;
   }
-
-  Map<String, String> get _headers => {'Content-Type': 'application/json'};
 
   // ─── 原有能力：总结生成 ────────────────────────────────────
 
@@ -34,14 +31,14 @@ class GeminiClient implements AiClient {
     required String modelId,
   }) async {
     final uri = Uri.parse(
-      '$_baseUrl/models/$modelId:embedContent?key=${provider.apiKey}',
+      '$baseUrl/models/$modelId:embedContent?key=${provider.apiKey}',
     );
 
     try {
       final response = await http
           .post(
             uri,
-            headers: _headers,
+            headers: headers,
             body: jsonEncode({
               'content': {
                 'parts': [
@@ -78,14 +75,14 @@ class GeminiClient implements AiClient {
 
     try {
       do {
-        var urlStr = '$_baseUrl/models?key=${provider.apiKey}&pageSize=1000';
+        var urlStr = '$baseUrl/models?key=${provider.apiKey}&pageSize=1000';
         if (pageToken != null && pageToken.isNotEmpty) {
           urlStr += '&pageToken=$pageToken';
         }
         final uri = Uri.parse(urlStr);
 
         final response = await http
-            .get(uri, headers: _headers)
+            .get(uri, headers: headers)
             .timeout(const Duration(seconds: 10));
 
         if (response.statusCode == 200) {
@@ -126,14 +123,14 @@ class GeminiClient implements AiClient {
     required String modelId,
   }) async {
     final uri = Uri.parse(
-      '$_baseUrl/models/$modelId:generateContent?key=${provider.apiKey}',
+      '$baseUrl/models/$modelId:generateContent?key=${provider.apiKey}',
     );
 
     try {
       final response = await http
           .post(
             uri,
-            headers: _headers,
+            headers: headers,
             body: jsonEncode({
               'contents': [
                 {
@@ -176,10 +173,6 @@ class GeminiClient implements AiClient {
     }
   }
 
-  @override
-  Future<void> testConnection() async {
-    await fetchAvailableModels();
-  }
 
   // ─── 新增能力：Agent 流式对话 + Tool Calling ─────────────────
 
@@ -191,7 +184,7 @@ class GeminiClient implements AiClient {
     double? temperature,
   }) async* {
     final uri = Uri.parse(
-      '$_baseUrl/models/$modelId:streamGenerateContent?alt=sse&key=${provider.apiKey}',
+      '$baseUrl/models/$modelId:streamGenerateContent?alt=sse&key=${provider.apiKey}',
     );
 
     final body = <String, dynamic>{
@@ -227,7 +220,7 @@ class GeminiClient implements AiClient {
     body['generationConfig'] = config;
 
     final request = http.Request('POST', uri)
-      ..headers.addAll({..._headers, 'Accept': 'text/event-stream'})
+      ..headers.addAll({...headers, 'Accept': 'text/event-stream'})
       ..body = jsonEncode(body);
 
     http.StreamedResponse response;
