@@ -3,21 +3,24 @@
 // 包含：用户消息、AI 回复（Markdown）、工具结果（可折叠卡片）、
 //       流式输出气泡（打字机效果 + 工具执行状态）
 
+import 'dart:io';
 import 'package:baishou/agent/models/chat_message.dart';
 import 'package:baishou/features/agent/presentation/notifiers/agent_chat_notifier.dart';
+import 'package:baishou/features/settings/domain/services/user_profile_service.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // ─── 消息气泡 ─────────────────────────────────────────────────
 
-class ChatMessageBubble extends StatelessWidget {
+class ChatMessageBubble extends ConsumerWidget {
   final ChatMessage message;
 
   const ChatMessageBubble({super.key, required this.message});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isUser = message.role == MessageRole.user;
 
@@ -26,14 +29,22 @@ class ChatMessageBubble extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
+    if (isUser) {
+      final userProfile = ref.watch(userProfileProvider);
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        child: _buildUserBubble(theme, userProfile),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: isUser ? _buildUserBubble(theme) : _buildAiBubble(theme),
+      child: _buildAiBubble(theme),
     );
   }
 
-  /// 用户消息 — 右对齐，primary 底色，右上角方角
-  Widget _buildUserBubble(ThemeData theme) {
+  /// 用户消息 — 右对齐，primary 底色，右上角方角，配用户头像
+  Widget _buildUserBubble(ThemeData theme, UserProfile userProfile) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -42,11 +53,11 @@ class ChatMessageBubble extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              // 角色标签
+              // 用户名称
               Padding(
                 padding: const EdgeInsets.only(right: 4, bottom: 4),
                 child: Text(
-                  t.agent.chat.you_label,
+                  userProfile.nickname,
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: theme.colorScheme.outline,
                     fontWeight: FontWeight.w500,
@@ -84,7 +95,40 @@ class ChatMessageBubble extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(width: 10),
+        // 用户头像
+        _buildUserAvatar(theme, userProfile),
       ],
+    );
+  }
+
+  /// 构建用户头像
+  Widget _buildUserAvatar(ThemeData theme, UserProfile userProfile) {
+    if (userProfile.avatarPath != null) {
+      return CircleAvatar(
+        radius: 18,
+        backgroundColor: theme.colorScheme.primaryContainer,
+        backgroundImage: FileImage(File(userProfile.avatarPath!)),
+      );
+    }
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer,
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: Text(
+          userProfile.nickname.isNotEmpty
+              ? userProfile.nickname[0].toUpperCase()
+              : 'U',
+          style: theme.textTheme.labelLarge?.copyWith(
+            color: theme.colorScheme.onPrimaryContainer,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
     );
   }
 
@@ -250,7 +294,13 @@ class _ToolResultItem extends StatelessWidget {
 
   const _ToolResultItem({required this.message});
 
-  String _extractToolName() {
+  /// 获取工具名：优先使用 toolName 字段，其次从 callId 解析
+  String _getToolName() {
+    // 优先使用新字段
+    if (message.toolName != null && message.toolName!.isNotEmpty) {
+      return message.toolName!;
+    }
+    // 兼容旧数据：从 callId 解析
     final callId = message.toolCallId;
     if (callId == null) return 'tool';
     final parts = callId.split('_');
@@ -270,7 +320,7 @@ class _ToolResultItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final toolName = _extractToolName();
+    final toolName = _getToolName();
     final content = message.content ?? '';
     final isError = _isError;
 
@@ -302,6 +352,7 @@ class _ToolResultItem extends StatelessWidget {
             toolName,
             style: theme.textTheme.labelSmall?.copyWith(
               color: theme.colorScheme.onSurface,
+              fontWeight: FontWeight.w500,
             ),
           ),
           children: [

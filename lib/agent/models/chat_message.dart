@@ -43,6 +43,7 @@ class ChatMessage {
   final String? content;
   final List<ToolCall>? toolCalls;
   final String? toolCallId;
+  final String? toolName;
   final DateTime timestamp;
 
   ChatMessage({
@@ -51,6 +52,7 @@ class ChatMessage {
     this.content,
     this.toolCalls,
     this.toolCallId,
+    this.toolName,
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
 
@@ -84,12 +86,14 @@ class ChatMessage {
   factory ChatMessage.tool({
     required String callId,
     required String content,
+    String? toolName,
   }) =>
       ChatMessage(
         id: _generateId(),
         role: MessageRole.tool,
         content: content,
         toolCallId: callId,
+        toolName: toolName,
       );
 
   static const _uuid = Uuid();
@@ -101,6 +105,7 @@ class ChatMessage {
         'content': content,
         'toolCalls': toolCalls?.map((t) => t.toMap()).toList(),
         'toolCallId': toolCallId,
+        'toolName': toolName,
         'timestamp': timestamp.toIso8601String(),
       };
 
@@ -112,6 +117,7 @@ class ChatMessage {
             ?.map((t) => ToolCall.fromMap(t as Map<String, dynamic>))
             .toList(),
         toolCallId: map['toolCallId'] as String?,
+        toolName: map['toolName'] as String?,
         timestamp: DateTime.parse(map['timestamp'] as String),
       );
 

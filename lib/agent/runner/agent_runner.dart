@@ -188,6 +188,7 @@ class AgentRunner {
         final toolMsg = ChatMessage.tool(
           callId: call.id,
           content: result.output,
+          toolName: call.name,
         );
         messageHistory.add(toolMsg);
         newMessages.add(toolMsg);
