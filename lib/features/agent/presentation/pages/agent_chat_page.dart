@@ -331,7 +331,6 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
                     text: text,
                     guidelines: guidelines,
                     vaultName: 'default',
-                    vaultPath: '', // TODO: 从 StoragePathService 获取
                   );
             },
           ),

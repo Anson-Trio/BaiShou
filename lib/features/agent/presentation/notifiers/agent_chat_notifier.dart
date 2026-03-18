@@ -14,6 +14,7 @@ import 'package:baishou/agent/tools/tool_repository.dart';
 import 'package:baishou/agent/pricing/model_pricing_service.dart';
 import 'package:baishou/agent/prompts/system_prompt_builder.dart';
 import 'package:baishou/core/services/api_config_service.dart';
+import 'package:baishou/core/storage/storage_path_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -94,7 +95,6 @@ class AgentChatNotifier extends _$AgentChatNotifier {
     await sendMessage(
       text: _lastSendText!,
       vaultName: 'default',
-      vaultPath: '',
     );
   }
 
@@ -112,7 +112,6 @@ class AgentChatNotifier extends _$AgentChatNotifier {
   Future<void> sendMessage({
     required String text,
     required String vaultName,
-    required String vaultPath,
     String? persona,
     String? guidelines,
   }) async {
@@ -129,6 +128,11 @@ class AgentChatNotifier extends _$AgentChatNotifier {
 
     final manager = ref.read(sessionManagerProvider);
     final apiConfig = ref.read(apiConfigServiceProvider);
+
+    // 从 StoragePathService 解析 Vault 的物理路径（供工具读写文件系统）
+    final storageService = ref.read(storagePathServiceProvider);
+    final vaultDir = await storageService.getVaultDirectory(vaultName);
+    final vaultPath = vaultDir.path;
 
     // 获取 AI 供应商配置
     // 暂时使用全局对话模型，后续可改为 Agent 专用模型
