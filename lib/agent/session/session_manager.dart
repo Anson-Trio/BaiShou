@@ -3,6 +3,7 @@
 
 import 'dart:convert';
 import 'package:baishou/agent/database/agent_database.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:baishou/agent/models/chat_message.dart';
 import 'package:baishou/agent/models/message_part.dart';
 import 'package:drift/drift.dart';
@@ -32,7 +33,7 @@ class SessionManager {
           vaultName: vaultName,
           providerId: providerId,
           modelId: modelId,
-          title: Value(title ?? '新对话'),
+          title: Value(title ?? t.agent.sessions.default_title),
         ));
     return id;
   }
@@ -51,14 +52,17 @@ class SessionManager {
           vaultName: vaultName,
           providerId: providerId,
           modelId: modelId,
-          title: const Value('伴侣模式'),
+          title: Value(t.agent.sessions.companion_session_title),
         ));
   }
 
-  /// 获取所有会话（按最后活跃时间降序）
+  /// 获取所有会话（按 isPinned 降序，再按最后活跃时间降序）
   Future<List<AgentSession>> getSessions() async {
     return (_db.select(_db.agentSessions)
-          ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]))
+          ..orderBy([
+            (t) => OrderingTerm.desc(t.isPinned),
+            (t) => OrderingTerm.desc(t.updatedAt),
+          ]))
         .get();
   }
 
@@ -71,10 +75,32 @@ class SessionManager {
 
   /// 更新会话标题
   Future<void> updateSessionTitle(String id, String title) async {
-    await (_db.update(_db.agentSessions)
-          ..where((t) => t.id.equals(id)))
+    await (_db.update(_db.agentSessions)..where((t) => t.id.equals(id)))
         .write(AgentSessionsCompanion(
       title: Value(title),
+      updatedAt: Value(DateTime.now()),
+    ));
+  }
+
+  /// 重命名会话（与 updateSessionTitle 别名）
+  Future<void> renameSession(String id, String newName) async {
+    await updateSessionTitle(id, newName);
+  }
+
+  /// 切换会话置顶状态
+  Future<void> togglePinSession(String id, bool isPinned) async {
+    await (_db.update(_db.agentSessions)..where((t) => t.id.equals(id)))
+        .write(AgentSessionsCompanion(
+      isPinned: Value(isPinned),
+      updatedAt: Value(DateTime.now()),
+    ));
+  }
+
+  /// 更新会话专属 System Prompt
+  Future<void> updateSystemPrompt(String id, String? prompt) async {
+    await (_db.update(_db.agentSessions)..where((t) => t.id.equals(id)))
+        .write(AgentSessionsCompanion(
+      systemPrompt: Value(prompt),
       updatedAt: Value(DateTime.now()),
     ));
   }

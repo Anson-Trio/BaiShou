@@ -9,8 +9,15 @@ import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AgentToolsView extends ConsumerWidget {
+class AgentToolsView extends ConsumerStatefulWidget {
   const AgentToolsView({super.key});
+
+  @override
+  ConsumerState<AgentToolsView> createState() => _AgentToolsViewState();
+}
+
+class _AgentToolsViewState extends ConsumerState<AgentToolsView> {
+  bool _showCommunity = false;
 
   /// 按分类分组
   Map<String, List<AgentTool>> _groupByCategory(List<AgentTool> tools) {
@@ -50,7 +57,7 @@ class AgentToolsView extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final allTools = ref.watch(toolRepositoryProvider);
     final service = ref.watch(apiConfigServiceProvider);
     final colorScheme = Theme.of(context).colorScheme;
@@ -91,22 +98,175 @@ class AgentToolsView extends ConsumerWidget {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+
+          // 切换滑钮
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _showCommunity = false),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: !_showCommunity
+                              ? colorScheme.primary
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.verified_outlined,
+                              size: 16,
+                              color: !_showCommunity
+                                  ? colorScheme.onPrimary
+                                  : colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              t.agent.tools.built_in,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: !_showCommunity
+                                    ? colorScheme.onPrimary
+                                    : colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${allTools.length}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: !_showCommunity
+                                    ? colorScheme.onPrimary.withValues(alpha: 0.7)
+                                    : colorScheme.outline,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _showCommunity = true),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: _showCommunity
+                              ? colorScheme.primary
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.storefront_outlined,
+                              size: 16,
+                              color: _showCommunity
+                                  ? colorScheme.onPrimary
+                                  : colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              t.agent.tools.community,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: _showCommunity
+                                    ? colorScheme.onPrimary
+                                    : colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 12),
 
           // 工具列表
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-              children: [
-                for (final category in grouped.keys) ...[
-                  _buildCategoryHeader(category, colorScheme),
-                  const SizedBox(height: 8),
-                  ...grouped[category]!.map(
-                    (tool) => _ToolCard(tool: tool, service: service),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              ],
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              child: _showCommunity
+                  ? _buildCommunityView(colorScheme)
+                  : _buildBuiltInView(grouped, service, colorScheme),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 内置工具视图
+  Widget _buildBuiltInView(
+    Map<String, List<AgentTool>> grouped,
+    ApiConfigService service,
+    ColorScheme colorScheme,
+  ) {
+    return ListView(
+      key: const ValueKey('built_in'),
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      children: [
+        for (final category in grouped.keys) ...[
+          _buildCategoryHeader(category, colorScheme),
+          const SizedBox(height: 8),
+          ...grouped[category]!.map(
+            (tool) => _ToolCard(tool: tool, service: service),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ],
+    );
+  }
+
+  /// 社区工具视图
+  Widget _buildCommunityView(ColorScheme colorScheme) {
+    return Center(
+      key: const ValueKey('community'),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.rocket_launch_outlined,
+            size: 56,
+            color: colorScheme.outline.withValues(alpha: 0.3),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            t.agent.tools.community_market_coming,
+            style: TextStyle(
+              fontSize: 16,
+              color: colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            t.agent.tools.community_coming_soon,
+            style: TextStyle(
+              fontSize: 13,
+              color: colorScheme.outline,
             ),
           ),
         ],

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:baishou/features/settings/presentation/pages/views/ai_global_models_view.dart';
 import 'package:baishou/features/settings/presentation/pages/views/ai_model_services_view.dart';
 import 'package:baishou/features/settings/presentation/pages/views/agent_tools_view.dart';
+import 'package:baishou/features/settings/presentation/pages/views/rag_memory_view.dart';
 import 'package:baishou/features/settings/presentation/pages/data_sync_page.dart';
 import 'package:baishou/features/settings/presentation/pages/lan_transfer_page.dart';
 import 'package:baishou/features/settings/presentation/pages/views/general_settings_view.dart';
@@ -82,6 +83,8 @@ class _SettingsPageState extends State<SettingsPage> {
         return const DataSyncPage(key: ValueKey('tab_sync'));
       case 5:
         return const LanTransferPage(key: ValueKey('tab_lan'));
+      case 6:
+        return const RagMemoryView(key: ValueKey('tab_rag'));
       default:
         return const SizedBox();
     }
@@ -203,6 +206,11 @@ class _SettingsPageState extends State<SettingsPage> {
                   t.settings.lan_transfer,
                   Icons.wifi_protected_setup_outlined,
                   5,
+                ),
+                _buildSidebarTab(
+                  t.agent.rag.title,
+                  Icons.psychology_outlined,
+                  6,
                 ),
               ],
             ),

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:baishou/agent/database/agent_tables.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:baishou/core/storage/storage_path_provider.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
@@ -20,7 +21,7 @@ class AgentDatabase extends _$AgentDatabase {
   AgentDatabase(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -28,6 +29,12 @@ class AgentDatabase extends _$AgentDatabase {
           await m.createAll();
           await _createFts5Table();
           await _createEmbeddingTable();
+        },
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.addColumn(agentSessions, agentSessions.isPinned);
+            await m.addColumn(agentSessions, agentSessions.systemPrompt);
+          }
         },
       );
 
@@ -86,7 +93,7 @@ class AgentDatabase extends _$AgentDatabase {
         'session_id': row.read<String>('session_id'),
         'role': row.read<String>('role'),
         'snippet': row.read<String>('snippet'),
-        'session_title': row.readNullable<String>('session_title') ?? '未命名会话',
+        'session_title': row.readNullable<String>('session_title') ?? t.agent.sessions.unnamed_session,
         'session_updated_at': row.readNullable<DateTime>('session_updated_at'),
       };
     }).toList();
@@ -217,7 +224,7 @@ class AgentDatabase extends _$AgentDatabase {
         'model_id': row.read<String>('model_id'),
         'distance': row.read<double>('distance'),
         'session_title':
-            row.readNullable<String>('session_title') ?? '未命名会话',
+            row.readNullable<String>('session_title') ?? t.agent.sessions.unnamed_session,
       };
     }).toList();
   }
@@ -227,6 +234,14 @@ class AgentDatabase extends _$AgentDatabase {
     await customStatement(
       'DELETE FROM message_embeddings WHERE message_id = ?',
       [messageId],
+    );
+  }
+
+  /// 根据嵌入 ID 删除单条嵌入
+  Future<void> deleteEmbeddingById(String embeddingId) async {
+    await customStatement(
+      'DELETE FROM message_embeddings WHERE id = ?',
+      [embeddingId],
     );
   }
 

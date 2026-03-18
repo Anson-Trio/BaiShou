@@ -6,7 +6,9 @@
 import 'package:baishou/agent/database/agent_database.dart';
 import 'package:baishou/agent/session/session_manager.dart';
 import 'package:baishou/core/services/api_config_service.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -72,25 +74,112 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('对话历史'),
+        title: Text(t.agent.sessions.history),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Agent 设置',
+            tooltip: t.agent.sessions.settings,
             onPressed: () => _showSettingsSheet(context),
           ),
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: '新对话',
+            tooltip: t.agent.sessions.new_chat,
             onPressed: () => context.push('/agent/chat'),
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _sessions == null || _sessions!.isEmpty
-              ? _buildEmptyState(theme)
-              : _buildSessionList(theme),
+      body: Column(
+        children: [
+          // 模式切换
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: SizedBox(
+              width: double.infinity,
+              child: SegmentedButton<bool>(
+                segments: [
+                  ButtonSegment(
+                    value: true,
+                    label: Text(t.agent.sessions.companion_tab),
+                    icon: const Icon(Icons.favorite_rounded, size: 16),
+                  ),
+                  ButtonSegment(
+                    value: false,
+                    label: Text(t.agent.sessions.session_tab),
+                    icon: const Icon(Icons.chat_rounded, size: 16),
+                  ),
+                ],
+                selected: {ref.watch(apiConfigServiceProvider).agentCompanionMode},
+                onSelectionChanged: (selected) async {
+                  await ref.read(apiConfigServiceProvider).setAgentCompanionMode(selected.first);
+                  setState(() {});
+                },
+                style: ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ),
+          ),
+
+          // 内容区域
+          Expanded(
+            child: _buildModeContent(theme),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 根据当前模式构建内容区域
+  Widget _buildModeContent(ThemeData theme) {
+    final isCompanion = ref.watch(apiConfigServiceProvider).agentCompanionMode;
+
+    if (isCompanion) {
+      return _buildCompanionMode(theme);
+    }
+
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_sessions == null || _sessions!.isEmpty) {
+      return _buildEmptyState(theme);
+    }
+    return _buildSessionList(theme);
+  }
+
+  /// 深度陪伴模式：无会话列表，直接进入对话
+  Widget _buildCompanionMode(ThemeData theme) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.favorite_rounded,
+            size: 64,
+            color: theme.colorScheme.tertiary.withValues(alpha: 0.5),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            t.agent.sessions.companion_title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            t.agent.sessions.companion_desc,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.outline,
+            ),
+          ),
+          const SizedBox(height: 24),
+          FilledButton.icon(
+            onPressed: () => context.push('/agent/chat'),
+            icon: const Icon(Icons.chat_rounded),
+            label: Text(t.agent.sessions.continue_chat),
+          ),
+        ],
+      ),
     );
   }
 
@@ -106,7 +195,7 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
           ),
           const SizedBox(height: 16),
           Text(
-            '还没有对话记录',
+            t.agent.sessions.no_history,
             style: theme.textTheme.bodyLarge?.copyWith(
               color: theme.colorScheme.outline,
             ),
@@ -115,7 +204,7 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
           FilledButton.icon(
             onPressed: () => context.push('/agent/chat'),
             icon: const Icon(Icons.add),
-            label: const Text('开始新对话'),
+            label: Text(t.agent.sessions.start_new),
           ),
         ],
       ),
@@ -148,16 +237,16 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
               return await showDialog<bool>(
                     context: context,
                     builder: (ctx) => AlertDialog(
-                      title: const Text('删除对话'),
-                      content: Text('确定删除"${session.title}"？'),
+                      title: Text(t.agent.sessions.delete_title),
+                      content: Text(t.agent.sessions.delete_confirm.replaceAll('{title}', session.title)),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx, false),
-                          child: const Text('取消'),
+                          child: Text(t.common.cancel),
                         ),
                         TextButton(
                           onPressed: () => Navigator.pop(ctx, true),
-                          child: const Text('删除'),
+                          child: Text(t.agent.sessions.delete_btn),
                         ),
                       ],
                     ),
@@ -273,7 +362,7 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
                       ),
 
                       Text(
-                        'Agent 设置',
+                        t.agent.sessions.settings,
                         style: theme.textTheme.titleLarge,
                       ),
                       const SizedBox(height: 20),
@@ -281,11 +370,11 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
                       // 伴侣模式开关
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: const Text('伴侣模式'),
+                        title: Text(t.agent.sessions.companion_switch),
                         subtitle: Text(
                           companionMode
-                              ? '已开启 — 单一持续对话，无会话概念'
-                              : '已关闭 — 多会话模式',
+                              ? t.agent.sessions.companion_on
+                              : t.agent.sessions.companion_off,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.outline,
                           ),
@@ -302,9 +391,9 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
                       // 上下文窗口大小
                       ListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: const Text('上下文轮数'),
+                        title: Text(t.agent.sessions.memory_window),
                         subtitle: Text(
-                          '发送最近 $windowSize 条消息给模型',
+                          t.agent.sessions.memory_window_desc.replaceAll('{count}', windowSize.toString()),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.outline,
                           ),
@@ -340,7 +429,7 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
                       // 角色人设
                       ListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: const Text('角色人设'),
+                        title: Text(t.agent.sessions.persona),
                         subtitle: Text(
                           persona.length > 50
                               ? '${persona.substring(0, 50)}...'
@@ -355,8 +444,8 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
                         onTap: () async {
                           final result = await _showTextEditDialog(
                             context: context,
-                            title: '角色人设',
-                            hint: '描述 Agent 的身份和风格',
+                            title: t.agent.sessions.persona,
+                            hint: t.agent.sessions.persona_hint,
                             initialValue: persona,
                           );
                           if (result != null) {
@@ -369,7 +458,7 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
                       // 行为准则
                       ListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: const Text('行为准则'),
+                        title: Text(t.agent.sessions.behavior),
                         subtitle: Text(
                           guidelines.length > 50
                               ? '${guidelines.substring(0, 50)}...'
@@ -384,8 +473,8 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
                         onTap: () async {
                           final result = await _showTextEditDialog(
                             context: context,
-                            title: '行为准则',
-                            hint: '描述 Agent 需要遵守的规则',
+                            title: t.agent.sessions.behavior,
+                            hint: t.agent.sessions.behavior_hint,
                             initialValue: guidelines,
                           );
                           if (result != null) {
@@ -440,14 +529,14 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('取消'),
+              child: Text(t.common.cancel),
             ),
             FilledButton(
               onPressed: () {
                 final text = controller.text.trim();
                 Navigator.pop(ctx, text.isEmpty ? null : text);
               },
-              child: const Text('保存'),
+              child: Text(t.common.save),
             ),
           ],
         );
