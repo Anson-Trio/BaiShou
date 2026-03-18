@@ -35,10 +35,9 @@ List<AgentTool> builtInTools(Ref ref) {
     // ── 语义搜索工具 ──
     VectorSearchTool(
       ref.read(agentDatabaseProvider),
-      ref,
     ),
 
     // ── 记忆存储工具 ──
-    MemoryStoreTool(ref),
+    MemoryStoreTool(),
   ];
 }

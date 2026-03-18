@@ -2,6 +2,7 @@
 /// 参考 opencode: packages/opencode/src/tool/tool.ts + registry.ts
 
 import 'package:baishou/agent/models/tool_definition.dart';
+import 'package:baishou/agent/rag/embedding_service.dart';
 import 'package:baishou/agent/tools/tool_config_param.dart';
 import 'package:flutter/material.dart';
 
@@ -13,10 +14,14 @@ class ToolContext {
   /// 用户自定义的工具参数（从持久化配置中加载）
   final Map<String, dynamic> userConfig;
 
+  /// 嵌入服务（由 Notifier 在执行时注入，保证 Ref 有效）
+  final EmbeddingService? embeddingService;
+
   const ToolContext({
     required this.sessionId,
     required this.vaultPath,
     this.userConfig = const {},
+    this.embeddingService,
   });
 }
 

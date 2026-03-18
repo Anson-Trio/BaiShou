@@ -3,18 +3,13 @@
 // Agent 工具：主动存储重要信息为长期记忆。
 // 参考 OpenClaw 的 memory_search/memory_get 模式。
 
-import 'package:baishou/agent/rag/embedding_service.dart';
 import 'package:baishou/agent/tools/agent_tool.dart';
 import 'package:baishou/agent/tools/tool_config_param.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// 记忆存储工具 — 让 Agent 主动存储重要信息
 class MemoryStoreTool extends AgentTool {
-  final Ref _ref;
-
-  MemoryStoreTool(this._ref);
 
   @override
   String get id => 'memory_store';
@@ -69,10 +64,9 @@ class MemoryStoreTool extends AgentTool {
     }
 
     try {
-      // 每次执行时获取 fresh EmbeddingService（避免持有 stale 引用）
-      final embeddingService = _ref.read(embeddingServiceProvider);
-
-      if (!embeddingService.isConfigured) {
+      // 通过 ToolContext 获取 fresh EmbeddingService（由 Notifier 注入，保证 Ref 有效）
+      final embeddingService = context.embeddingService;
+      if (embeddingService == null || !embeddingService.isConfigured) {
         return ToolResult(output: '嵌入模型未配置，无法存储记忆。请在设置中配置嵌入模型。');
       }
 

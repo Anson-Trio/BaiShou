@@ -11,6 +11,7 @@ import 'package:baishou/agent/session/context_window.dart';
 import 'package:baishou/agent/session/session_manager.dart';
 import 'package:baishou/agent/tools/agent_tool.dart';
 import 'package:baishou/agent/tools/tool_repository.dart';
+import 'package:baishou/agent/rag/embedding_service.dart';
 import 'package:baishou/agent/pricing/model_pricing_service.dart';
 import 'package:baishou/agent/prompts/system_prompt_builder.dart';
 import 'package:baishou/core/services/api_config_service.dart';
@@ -289,7 +290,11 @@ class AgentChatNotifier extends _$AgentChatNotifier {
 
       await for (final event in runner.run(
         messages: contextMessages,
-        context: ToolContext(sessionId: sessionId, vaultPath: vaultPath),
+        context: ToolContext(
+          sessionId: sessionId,
+          vaultPath: vaultPath,
+          embeddingService: ref.read(embeddingServiceProvider),
+        ),
       )) {
         // 中止检查：仅在 clearChat 时中止（不因切换会话中止）
         if (_currentRunId != runId) return;

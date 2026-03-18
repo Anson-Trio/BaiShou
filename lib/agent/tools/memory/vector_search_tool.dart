@@ -4,20 +4,17 @@
 // 支持纯向量搜索和 FTS5+向量混合搜索两种模式。
 
 import 'package:baishou/agent/database/agent_database.dart';
-import 'package:baishou/agent/rag/embedding_service.dart';
 import 'package:baishou/agent/rag/hybrid_search.dart';
 import 'package:baishou/agent/tools/agent_tool.dart';
 import 'package:baishou/agent/tools/tool_config_param.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// 向量语义搜索工具
 class VectorSearchTool extends AgentTool {
   final AgentDatabase _db;
-  final Ref _ref;
 
-  VectorSearchTool(this._db, this._ref);
+  VectorSearchTool(this._db);
 
   @override
   String get id => 'vector_search';
@@ -79,8 +76,11 @@ class VectorSearchTool extends AgentTool {
     final maxResults = context.userConfig['max_results'] as int? ?? 10;
 
     try {
-      // 每次执行时获取 fresh EmbeddingService
-      final embeddingService = _ref.read(embeddingServiceProvider);
+      // 通过 ToolContext 获取 fresh EmbeddingService
+      final embeddingService = context.embeddingService;
+      if (embeddingService == null) {
+        return ToolResult(output: '嵌入服务未配置，无法执行语义搜索。');
+      }
       final queryEmbedding = await embeddingService.embedQuery(query);
       if (queryEmbedding == null) {
         return ToolResult(
