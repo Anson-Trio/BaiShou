@@ -74,7 +74,7 @@ class ProviderListPanel extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    '自定义',
+                    t.agent.provider.custom_tag,
                     style: TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.bold,

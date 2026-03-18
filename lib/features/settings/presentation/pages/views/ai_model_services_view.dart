@@ -355,7 +355,7 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
             return AlertDialog(
-              title: const Text('新增 AI 供应商'),
+              title: Text(t.agent.provider.add_title),
               content: SizedBox(
                 width: 400,
                 child: Column(
@@ -364,8 +364,8 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
                     // 类型选择
                     DropdownButtonFormField<ProviderType>(
                       value: selectedType,
-                      decoration: const InputDecoration(
-                        labelText: '供应商类型 (Client)',
+                      decoration: InputDecoration(
+                        labelText: t.agent.provider.add_type_label,
                         border: OutlineInputBorder(),
                         isDense: true,
                       ),
@@ -393,9 +393,9 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
                     // 名称
                     TextField(
                       controller: nameController,
-                      decoration: const InputDecoration(
-                        labelText: '供应商名称',
-                        hintText: '例如: My OpenAI Proxy',
+                      decoration: InputDecoration(
+                        labelText: t.agent.provider.add_name_label,
+                        hintText: t.agent.provider.add_name_hint,
                         border: OutlineInputBorder(),
                         isDense: true,
                       ),
@@ -433,7 +433,7 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
                     _loadProviderConfig();
                     _switchProvider(provider.id);
                   },
-                  child: const Text('添加'),
+                  child: Text(t.agent.provider.add_button),
                 ),
               ],
             );
@@ -448,8 +448,8 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('删除供应商'),
-        content: Text('确定要删除“${_providers.firstWhere((p) => p.id == _selectedProviderId).name}”吗？'),
+        title: Text(t.agent.provider.delete_title),
+        content: Text(t.agent.provider.delete_confirm(name: _providers.firstWhere((p) => p.id == _selectedProviderId).name)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -457,7 +457,7 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('删除', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            child: Text(t.agent.provider.delete_button, style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ),
         ],
       ),
@@ -547,7 +547,7 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
               if (!activeProvider.isSystem)
                 IconButton(
                   icon: Icon(Icons.delete_outline, color: colorScheme.error),
-                  tooltip: '删除供应商',
+                  tooltip: t.agent.provider.delete_tooltip,
                   onPressed: _deleteCurrentProvider,
                 ),
             ],

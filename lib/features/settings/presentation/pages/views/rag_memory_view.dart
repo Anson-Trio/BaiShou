@@ -109,11 +109,11 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
       if (mounted) {
         if (dimension > 0) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('检测成功：${dimension}维'), backgroundColor: Colors.green),
+            SnackBar(content: Text(t.agent.rag.detect_success(dimension: dimension.toString())), backgroundColor: Colors.green),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('检测失败，请检查模型配置'), backgroundColor: Colors.red),
+            SnackBar(content: Text(t.agent.rag.detect_failed), backgroundColor: Colors.red),
           );
         }
         await _loadData();
@@ -121,7 +121,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('检测失败: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(t.agent.rag.detect_error(error: e.toString())), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -135,7 +135,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
     final dimension = apiConfig.globalEmbeddingDimension;
     if (dimension <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('当前未配置维度，无法清空')),
+        SnackBar(content: Text(t.agent.rag.clear_dim_no_config)),
       );
       return;
     }
@@ -143,13 +143,13 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('清空当前维度向量'),
-        content: Text('确定要删除所有 ${dimension} 维的向量数据吗？\n其他维度的数据不受影响。'),
+        title: Text(t.agent.rag.clear_dim_title),
+        content: Text(t.agent.rag.clear_dim_content(dimension: dimension.toString())),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t.common.cancel)),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('确定删除', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            child: Text(t.agent.rag.clear_dim_confirm, style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ),
         ],
       ),
@@ -160,7 +160,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
       final deleted = await db.clearEmbeddingsByDimension(dimension);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已删除 $deleted 条 ${dimension}维 向量数据')),
+          SnackBar(content: Text(t.agent.rag.clear_dim_success(deleted: deleted.toString(), dimension: dimension.toString()))),
         );
         await _loadData();
       }
@@ -172,7 +172,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
     final embeddingService = ref.read(embeddingServiceProvider);
     if (!embeddingService.isConfigured) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请先配置 Embedding 模型'), backgroundColor: Colors.orange),
+        SnackBar(content: Text(t.agent.rag.embedding_not_configured), backgroundColor: Colors.orange),
       );
       return;
     }
@@ -180,11 +180,11 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('全量嵌入日记'),
-        content: const Text('将读取所有日记内容并生成向量嵌入。\n已存在的日记不会重复嵌入。\n过程可能需要一些时间。'),
+        title: Text(t.agent.rag.batch_embed_title),
+        content: Text(t.agent.rag.batch_embed_content),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t.common.cancel)),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('开始嵌入')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(t.agent.rag.batch_embed_start)),
         ],
       ),
     );
@@ -219,14 +219,14 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('完成！已嵌入 $embedded 篇日记'), backgroundColor: Colors.green),
+          SnackBar(content: Text(t.agent.rag.batch_embed_success(count: embedded.toString())), backgroundColor: Colors.green),
         );
         await _loadData();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('批量嵌入出错: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(t.agent.rag.batch_embed_error(error: e.toString())), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -246,14 +246,14 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('添加记忆'),
+        title: Text(t.agent.rag.add_memory_title),
         content: SizedBox(
           width: 400,
           child: TextField(
             controller: controller,
             maxLines: 6,
-            decoration: const InputDecoration(
-              hintText: '输入要记住的内容...\n例如：Anson喜欢喝危地马拉咖啡',
+            decoration: InputDecoration(
+              hintText: t.agent.rag.add_memory_hint,
               border: OutlineInputBorder(),
             ),
             autofocus: true,
@@ -263,7 +263,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: Text(t.common.cancel)),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, controller.text),
-            child: const Text('保存'),
+            child: Text(t.agent.rag.add_memory_save),
           ),
         ],
       ),
@@ -274,7 +274,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
       if (!embeddingService.isConfigured) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('请先配置 Embedding 模型'), backgroundColor: Colors.orange),
+            SnackBar(content: Text(t.agent.rag.embedding_not_configured), backgroundColor: Colors.orange),
           );
         }
         return;
@@ -287,7 +287,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('记忆已保存并嵌入'), backgroundColor: Colors.green),
+          SnackBar(content: Text(t.agent.rag.add_memory_success), backgroundColor: Colors.green),
         );
         await _loadData();
       }
@@ -359,7 +359,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
                     Icon(Icons.info_outline, size: 16, color: colorScheme.error),
                     const SizedBox(width: 8),
                     Text(
-                      '全局记忆已关闭，Agent将不会使用RAG检索',
+                      t.agent.rag.rag_disabled_hint,
                       style: TextStyle(
                         fontSize: 13,
                         color: colorScheme.error,
@@ -388,7 +388,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
                 // 清空当前维度
                 _ActionChip(
                   icon: Icons.layers_clear,
-                  label: '清空当前维度',
+                  label: t.agent.rag.action_clear_dimension,
                   color: colorScheme.error,
                   onTap: _clearCurrentDimension,
                 ),
@@ -396,8 +396,8 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
                 _ActionChip(
                   icon: Icons.auto_stories,
                   label: _isBatchEmbedding
-                      ? '嵌入中 $_batchProgress/$_batchTotal'
-                      : '全量嵌入日记',
+                      ? t.agent.rag.batch_embed_progress(progress: _batchProgress.toString(), total: _batchTotal.toString())
+                      : t.agent.rag.action_batch_embed,
                   color: colorScheme.primary,
                   onTap: _isBatchEmbedding ? null : _batchEmbedDiaries,
                   isLoading: _isBatchEmbedding,
@@ -405,7 +405,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
                 // 手动添加记忆
                 _ActionChip(
                   icon: Icons.add_comment_outlined,
-                  label: '手动添加记忆',
+                  label: t.agent.rag.action_add_memory,
                   color: colorScheme.tertiary,
                   onTap: _addManualMemory,
                 ),
@@ -528,7 +528,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
             Icon(Icons.check_circle_outline, size: 14, color: Colors.green.shade700),
             const SizedBox(width: 4),
             Text(
-              '自动检测: ${configDimension}维',
+              t.agent.rag.dimension_detected(dimension: configDimension.toString()),
               style: TextStyle(fontSize: 11, color: Colors.green.shade700, fontWeight: FontWeight.w500),
             ),
           ],
@@ -562,7 +562,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
                   Icon(Icons.play_circle_outline, size: 14, color: Colors.orange.shade700),
                 const SizedBox(width: 4),
                 Text(
-                  _isDetectingDimension ? '正在检测...' : '点击检测维度',
+                  _isDetectingDimension ? t.agent.rag.dimension_detecting : t.agent.rag.dimension_click_detect,
                   style: TextStyle(fontSize: 11, color: Colors.orange.shade700, fontWeight: FontWeight.w500),
                 ),
               ],
@@ -585,7 +585,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
             Icon(Icons.warning_amber_outlined, size: 14, color: Colors.red.shade700),
             const SizedBox(width: 4),
             Text(
-              '未配置Embedding模型',
+              t.agent.rag.dimension_not_configured,
               style: TextStyle(fontSize: 11, color: Colors.red.shade700, fontWeight: FontWeight.w500),
             ),
           ],
@@ -606,14 +606,14 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
           ),
           const SizedBox(height: 16),
           Text(
-            _searchQuery.isEmpty ? '还没有记忆数据' : '未找到匹配的记忆',
+            _searchQuery.isEmpty ? t.agent.rag.no_memories_yet : t.agent.rag.no_memories_match,
             style: textTheme.bodyLarge?.copyWith(
               color: colorScheme.outline,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            '与 Agent 对话后，记忆会自动存储到这里',
+            t.agent.rag.memories_auto_hint,
             style: textTheme.bodySmall?.copyWith(
               color: colorScheme.outline.withValues(alpha: 0.6),
             ),

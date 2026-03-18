@@ -1,4 +1,4 @@
-﻿{
+{
   "ai_prompt": {
     "context_title": "Shared Memories (Past $months months - Folded by BaiShou Algorithm)",
     "prefix_yearly": "👑 Yearly",
@@ -660,7 +660,49 @@
       "delete_tooltip": "Delete",
       "stat_total": "Total",
       "stat_model": "Model",
-      "stat_dimension": "Dimension"
+      "stat_dimension": "Dimension",
+      "rag_disabled_hint": "Global memory is disabled, Agent will not use RAG retrieval",
+      "dimension_detected": "Auto-detected: ${dimension}D",
+      "dimension_detecting": "Detecting...",
+      "dimension_click_detect": "Click to detect",
+      "dimension_not_configured": "Embedding model not configured",
+      "detect_success": "Detected: ${dimension} dimensions",
+      "detect_failed": "Detection failed, please check model config",
+      "detect_error": "Detection failed: $error",
+      "clear_dim_title": "Clear Current Dimension",
+      "clear_dim_content": "Delete all ${dimension}-D vector data?\nOther dimensions will not be affected.",
+      "clear_dim_confirm": "Confirm Delete",
+      "clear_dim_no_config": "No dimension configured, cannot clear",
+      "clear_dim_success": "Deleted $deleted entries of ${dimension}-D vectors",
+      "batch_embed_title": "Batch Embed All Diaries",
+      "batch_embed_content": "This will read all diary entries and generate vector embeddings.\nExisting entries will not be re-embedded.\nThis may take some time.",
+      "batch_embed_start": "Start Embedding",
+      "batch_embed_progress": "Embedding $progress/$total",
+      "batch_embed_success": "Done! Embedded $count diaries",
+      "batch_embed_error": "Batch embed error: $error",
+      "embedding_not_configured": "Please configure Embedding model first",
+      "no_memories_yet": "No memories yet",
+      "no_memories_match": "No matching memories found",
+      "memories_auto_hint": "Memories will be stored here automatically after chatting with Agent",
+      "action_clear_dimension": "Clear Dimension",
+      "action_batch_embed": "Embed All Diaries",
+      "action_add_memory": "Add Memory",
+      "add_memory_title": "Add Memory",
+      "add_memory_hint": "Enter content to remember...",
+      "add_memory_save": "Save",
+      "add_memory_success": "Memory saved and embedded"
+    },
+    "provider": {
+      "add_title": "Add AI Provider",
+      "add_type_label": "Provider Type (Client)",
+      "add_name_label": "Provider Name",
+      "add_name_hint": "e.g.: My OpenAI Proxy",
+      "add_button": "Add",
+      "delete_title": "Delete Provider",
+      "delete_confirm": "Delete \"$name\"?",
+      "delete_button": "Delete",
+      "delete_tooltip": "Delete Provider",
+      "custom_tag": "Custom"
     }
   }
 }

@@ -1,4 +1,4 @@
-﻿{
+{
   "ai_prompt": {
     "context_title": "共同の思い出 (過去 $months ヶ月 - 白守アルゴリズムにより折り畳み済み)",
     "prefix_yearly": "👑 年間",
@@ -660,7 +660,49 @@
       "delete_tooltip": "削除",
       "stat_total": "総数",
       "stat_model": "モデル",
-      "stat_dimension": "次元"
+      "stat_dimension": "次元",
+      "rag_disabled_hint": "グローバル記憶が無効です。AgentはRAG検索を使用しません",
+      "dimension_detected": "自動検出: ${dimension}次元",
+      "dimension_detecting": "検出中...",
+      "dimension_click_detect": "クリックして検出",
+      "dimension_not_configured": "Embeddingモデル未設定",
+      "detect_success": "検出成功：${dimension}次元",
+      "detect_failed": "検出失敗、モデル設定を確認してください",
+      "detect_error": "検出失敗: $error",
+      "clear_dim_title": "現在の次元のベクトルをクリア",
+      "clear_dim_content": "${dimension}次元の全ベクトルデータを削除しますか？\n他の次元のデータには影響しません。",
+      "clear_dim_confirm": "削除を確認",
+      "clear_dim_no_config": "次元が未設定のため、クリアできません",
+      "clear_dim_success": "${dimension}次元のベクトルを $deleted 件削除しました",
+      "batch_embed_title": "全日記を一括埋め込み",
+      "batch_embed_content": "全ての日記を読み込みベクトル埋め込みを生成します。\n既存の日記は重複埋め込みされません。\n時間がかかる場合があります。",
+      "batch_embed_start": "埋め込み開始",
+      "batch_embed_progress": "埋め込み中 $progress/$total",
+      "batch_embed_success": "完了！$count 件の日記を埋め込みました",
+      "batch_embed_error": "一括埋め込みエラー: $error",
+      "embedding_not_configured": "先にEmbeddingモデルを設定してください",
+      "no_memories_yet": "まだ記憶データがありません",
+      "no_memories_match": "一致する記憶が見つかりません",
+      "memories_auto_hint": "Agentとの対話後、記憶はここに自動保存されます",
+      "action_clear_dimension": "現在の次元をクリア",
+      "action_batch_embed": "全日記を埋め込み",
+      "action_add_memory": "記憶を手動追加",
+      "add_memory_title": "記憶を追加",
+      "add_memory_hint": "覚えておきたい内容を入力...",
+      "add_memory_save": "保存",
+      "add_memory_success": "記憶を保存・埋め込みました"
+    },
+    "provider": {
+      "add_title": "AIプロバイダーを追加",
+      "add_type_label": "プロバイダータイプ (Client)",
+      "add_name_label": "プロバイダー名",
+      "add_name_hint": "例: My OpenAI Proxy",
+      "add_button": "追加",
+      "delete_title": "プロバイダーを削除",
+      "delete_confirm": "\"$name\"を削除しますか？",
+      "delete_button": "削除",
+      "delete_tooltip": "プロバイダーを削除",
+      "custom_tag": "カスタム"
     }
   }
 }

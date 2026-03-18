@@ -1,4 +1,4 @@
-﻿{
+{
   "ai_prompt": {
     "context_title": "共同的回憶 (過去 $months 個月 - 白守演算法已摺疊)",
     "prefix_yearly": "👑 年度",
@@ -669,7 +669,49 @@
       "delete_tooltip": "刪除",
       "stat_total": "總條目",
       "stat_model": "模型",
-      "stat_dimension": "維度"
+      "stat_dimension": "維度",
+      "rag_disabled_hint": "全域記憶已關閉，Agent 將不會使用 RAG 檢索",
+      "dimension_detected": "自動偵測: ${dimension}維",
+      "dimension_detecting": "正在偵測...",
+      "dimension_click_detect": "點擊偵測維度",
+      "dimension_not_configured": "未配置 Embedding 模型",
+      "detect_success": "偵測成功：${dimension}維",
+      "detect_failed": "偵測失敗，請檢查模型配置",
+      "detect_error": "偵測失敗: $error",
+      "clear_dim_title": "清空目前維度向量",
+      "clear_dim_content": "確定要刪除所有 ${dimension} 維的向量資料嗎？\n其他維度的資料不受影響。",
+      "clear_dim_confirm": "確定刪除",
+      "clear_dim_no_config": "目前未配置維度，無法清空",
+      "clear_dim_success": "已刪除 $deleted 筆 ${dimension}維 向量資料",
+      "batch_embed_title": "全量嵌入日記",
+      "batch_embed_content": "將讀取所有日記內容並生成向量嵌入。\n已存在的日記不會重複嵌入。\n過程可能需要一些時間。",
+      "batch_embed_start": "開始嵌入",
+      "batch_embed_progress": "嵌入中 $progress/$total",
+      "batch_embed_success": "完成！已嵌入 $count 篇日記",
+      "batch_embed_error": "批量嵌入出錯: $error",
+      "embedding_not_configured": "請先配置 Embedding 模型",
+      "no_memories_yet": "還沒有記憶資料",
+      "no_memories_match": "未找到符合的記憶",
+      "memories_auto_hint": "與 Agent 對話後，記憶會自動儲存到這裡",
+      "action_clear_dimension": "清空目前維度",
+      "action_batch_embed": "全量嵌入日記",
+      "action_add_memory": "手動新增記憶",
+      "add_memory_title": "新增記憶",
+      "add_memory_hint": "輸入要記住的內容...",
+      "add_memory_save": "儲存",
+      "add_memory_success": "記憶已儲存並嵌入"
+    },
+    "provider": {
+      "add_title": "新增 AI 供應商",
+      "add_type_label": "供應商類型 (Client)",
+      "add_name_label": "供應商名稱",
+      "add_name_hint": "例如: My OpenAI Proxy",
+      "add_button": "新增",
+      "delete_title": "刪除供應商",
+      "delete_confirm": "確定要刪除\"$name\"嗎？",
+      "delete_button": "刪除",
+      "delete_tooltip": "刪除供應商",
+      "custom_tag": "自訂"
     }
   }
 }

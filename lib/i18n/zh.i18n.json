@@ -1,4 +1,4 @@
-﻿{
+{
   "ai_prompt": {
     "context_title": "共同的回忆 (过去 $months 个月 - 白守算法已折叠)",
     "prefix_yearly": "👑 年度",
@@ -660,7 +660,49 @@
       "delete_tooltip": "删除",
       "stat_total": "总条目",
       "stat_model": "模型",
-      "stat_dimension": "维度"
+      "stat_dimension": "维度",
+      "rag_disabled_hint": "全局记忆已关闭，Agent将不会使用RAG检索",
+      "dimension_detected": "自动检测: ${dimension}维",
+      "dimension_detecting": "正在检测...",
+      "dimension_click_detect": "点击检测维度",
+      "dimension_not_configured": "未配置Embedding模型",
+      "detect_success": "检测成功：${dimension}维",
+      "detect_failed": "检测失败，请检查模型配置",
+      "detect_error": "检测失败: $error",
+      "clear_dim_title": "清空当前维度向量",
+      "clear_dim_content": "确定要删除所有 ${dimension} 维的向量数据吗？\n其他维度的数据不受影响。",
+      "clear_dim_confirm": "确定删除",
+      "clear_dim_no_config": "当前未配置维度，无法清空",
+      "clear_dim_success": "已删除 $deleted 条 ${dimension}维 向量数据",
+      "batch_embed_title": "全量嵌入日记",
+      "batch_embed_content": "将读取所有日记内容并生成向量嵌入。\n已存在的日记不会重复嵌入。\n过程可能需要一些时间。",
+      "batch_embed_start": "开始嵌入",
+      "batch_embed_progress": "嵌入中 $progress/$total",
+      "batch_embed_success": "完成！已嵌入 $count 篇日记",
+      "batch_embed_error": "批量嵌入出错: $error",
+      "embedding_not_configured": "请先配置 Embedding 模型",
+      "no_memories_yet": "还没有记忆数据",
+      "no_memories_match": "未找到匹配的记忆",
+      "memories_auto_hint": "与 Agent 对话后，记忆会自动存储到这里",
+      "action_clear_dimension": "清空当前维度",
+      "action_batch_embed": "全量嵌入日记",
+      "action_add_memory": "手动添加记忆",
+      "add_memory_title": "添加记忆",
+      "add_memory_hint": "输入要记住的内容...",
+      "add_memory_save": "保存",
+      "add_memory_success": "记忆已保存并嵌入"
+    },
+    "provider": {
+      "add_title": "新增 AI 供应商",
+      "add_type_label": "供应商类型 (Client)",
+      "add_name_label": "供应商名称",
+      "add_name_hint": "例如: My OpenAI Proxy",
+      "add_button": "添加",
+      "delete_title": "删除供应商",
+      "delete_confirm": "确定要删除\"$name\"吗？",
+      "delete_button": "删除",
+      "delete_tooltip": "删除供应商",
+      "custom_tag": "自定义"
     }
   }
 }
