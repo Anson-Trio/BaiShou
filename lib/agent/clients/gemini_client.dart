@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:baishou/agent/models/ai_provider_model.dart';
@@ -187,8 +187,10 @@ class GeminiClient extends BaseAiClient {
       '$baseUrl/models/$modelId:streamGenerateContent?alt=sse&key=${provider.apiKey}',
     );
 
+    // 构建 Gemini contents 并应用中间件链（如 thought_signature 跳过）
+    final contents = middlewareChain.apply(_messagesToGemini(messages));
     final body = <String, dynamic>{
-      'contents': _messagesToGemini(messages),
+      'contents': contents,
     };
 
     // System Prompt 单独提取
@@ -344,12 +346,14 @@ class GeminiClient extends BaseAiClient {
           break;
 
         case MessageRole.tool:
+          // 从 callId 中提取工具名（格式: gemini_{name}_{timestamp}）
+          final toolName = _extractToolName(msg.toolCallId);
           contents.add({
             'role': 'user',
             'parts': [
               {
                 'functionResponse': {
-                  'name': 'tool_result',
+                  'name': toolName,
                   'response': {'result': msg.content ?? ''},
                 },
               },
@@ -363,5 +367,18 @@ class GeminiClient extends BaseAiClient {
     }
 
     return contents;
+  }
+
+  /// 从 callId 中提取工具名
+  /// callId 格式: gemini_{toolName}_{timestamp}
+  String _extractToolName(String? callId) {
+    if (callId == null) return 'tool_result';
+    final parts = callId.split('_');
+    // gemini_{name}_{timestamp} → 取中间部分
+    if (parts.length >= 3 && parts.first == 'gemini') {
+      // 工具名可能包含下划线，去掉首尾（gemini 和 timestamp）
+      return parts.sublist(1, parts.length - 1).join('_');
+    }
+    return 'tool_result';
   }
 }

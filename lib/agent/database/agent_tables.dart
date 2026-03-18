@@ -11,6 +11,12 @@ class AgentSessions extends Table {
   /// 关联的 Vault 名称
   TextColumn get vaultName => text()();
 
+  /// 是否置顶
+  BoolColumn get isPinned => boolean().withDefault(const Constant(false))();
+
+  /// 独立的系统提示词（如果有）
+  TextColumn get systemPrompt => text().nullable()();
+
   /// 使用的供应商 ID
   TextColumn get providerId => text()();
 

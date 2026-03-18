@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:baishou/agent/models/ai_provider_model.dart';
 import 'package:baishou/agent/clients/ai_client.dart';
+import 'package:baishou/agent/middleware/message_middleware.dart';
+import 'package:baishou/agent/middleware/middleware_factory.dart';
 import 'package:http/http.dart' as http;
 
 /// AI 客户端的抽象基类
@@ -8,11 +10,15 @@ import 'package:http/http.dart' as http;
 /// 提取三个 Client 的公共模板代码：
 /// - URL 规范化（trailing slash 处理）
 /// - HTTP POST/GET 快捷方法（含超时、UTF-8 解码、JSON 解析）
+/// - 中间件链（通过 [MiddlewareFactory] 按 Provider 类型自动组装）
 /// - testConnection 默认实现
 abstract class BaseAiClient implements AiClient {
   final AiProviderModel provider;
+  final MiddlewareChain middlewareChain;
 
-  BaseAiClient({required this.provider});
+  BaseAiClient({required this.provider})
+      : middlewareChain =
+            MiddlewareChain(MiddlewareFactory.buildFor(provider.type));
 
   /// 规范化后的 base URL（去掉尾部斜杠）
   String get baseUrl {
