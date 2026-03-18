@@ -398,38 +398,17 @@ class _ToolCardState extends State<_ToolCard> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        tool.description,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
                     ],
                   ),
                 ),
-                // 开关
-                if (tool.canBeDisabled)
-                  Switch(
-                    value: isEnabled,
-                    onChanged: (val) async {
-                      await service.toggleToolEnabled(tool.id, val);
-                      setState(() {});
-                    },
-                  )
-                else
-                  Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Icon(
-                      Icons.lock_outline,
-                      size: 18,
-                      color:
-                          colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-                    ),
-                  ),
+                // 开关（所有工具均可开关）
+                Switch(
+                  value: isEnabled,
+                  onChanged: (val) async {
+                    await service.toggleToolEnabled(tool.id, val);
+                    setState(() {});
+                  },
+                ),
               ],
             ),
           ),
@@ -476,52 +455,103 @@ class _ToolCardState extends State<_ToolCard> {
                 style: TextStyle(fontSize: 13, color: colorScheme.onSurface),
               ),
             ),
-            SizedBox(
-              width: 100,
+            // 统一高度的数字输入控件（模仿 Ant Design InputNumber）
+            Container(
+              height: 32,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                ),
+              ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.remove_circle_outline, size: 18),
-                    onPressed: intVal <= (param.min ?? 1)
+                  // 减号按钮
+                  GestureDetector(
+                    onTap: intVal <= (param.min ?? 1)
                         ? null
                         : () async {
                             await service.setToolConfigValue(
-                              tool.id,
-                              param.key,
-                              intVal - 1,
-                            );
+                              tool.id, param.key, intVal - 1);
                             setState(() {});
                           },
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                    child: Container(
+                      width: 32,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        border: Border(
+                          right: BorderSide(
+                            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.remove,
+                        size: 16,
+                        color: intVal <= (param.min ?? 1)
+                            ? colorScheme.onSurface.withValues(alpha: 0.2)
+                            : colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                   ),
+                  // 数字输入
                   SizedBox(
-                    width: 32,
-                    child: Text(
-                      '$intVal',
+                    width: 44,
+                    child: TextField(
+                      controller: TextEditingController(text: '$intVal'),
+                      keyboardType: TextInputType.number,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: colorScheme.primary,
                       ),
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 2, vertical: 6),
+                        border: InputBorder.none,
+                      ),
+                      onSubmitted: (value) async {
+                        final parsed = int.tryParse(value);
+                        if (parsed != null) {
+                          final clamped = parsed.clamp(
+                            param.min ?? 1, param.max ?? 50);
+                          await service.setToolConfigValue(
+                            tool.id, param.key, clamped);
+                          setState(() {});
+                        }
+                      },
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.add_circle_outline, size: 18),
-                    onPressed: intVal >= (param.max ?? 50)
+                  // 加号按钮
+                  GestureDetector(
+                    onTap: intVal >= (param.max ?? 50)
                         ? null
                         : () async {
                             await service.setToolConfigValue(
-                              tool.id,
-                              param.key,
-                              intVal + 1,
-                            );
+                              tool.id, param.key, intVal + 1);
                             setState(() {});
                           },
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                    child: Container(
+                      width: 32,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        border: Border(
+                          left: BorderSide(
+                            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.add,
+                        size: 16,
+                        color: intVal >= (param.max ?? 50)
+                            ? colorScheme.onSurface.withValues(alpha: 0.2)
+                            : colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                   ),
                 ],
               ),

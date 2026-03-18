@@ -72,7 +72,7 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
       }
     });
 
-    final isCompanion = ref.watch(apiConfigServiceProvider).agentCompanionMode;
+    final isCompanion = ref.watch(agentCompanionModeProvider);
     // 模式对应的暖色/冷色
     final modeColor = isCompanion
         ? const Color(0xFFD97706) // amber-600
@@ -103,8 +103,17 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
           // 滑块切换：深度陪伴 / 会话模式
           GestureDetector(
             onTap: () async {
-              final apiConfig = ref.read(apiConfigServiceProvider);
-              await apiConfig.setAgentCompanionMode(!isCompanion);
+              final notifier = ref.read(agentCompanionModeProvider.notifier);
+              await notifier.toggle();
+              // 切换模式后重新加载对应的 session
+              final chatNotifier = ref.read(agentChatProvider.notifier);
+              if (!isCompanion) {
+                // 从会话模式切到陪伴模式：加载伴侣会话
+                chatNotifier.loadSession(SessionManager.companionSessionId);
+              } else {
+                // 从陪伴模式切到会话模式：清空当前聊天，让 AgentMainPage 加载会话列表
+                chatNotifier.clearChat();
+              }
             },
             child: Container(
               margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),

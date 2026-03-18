@@ -133,7 +133,14 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isCompanion = ref.watch(apiConfigServiceProvider).agentCompanionMode;
+    final isCompanion = ref.watch(agentCompanionModeProvider);
+
+    // 当从陪伴模式切换到会话模式时，自动重新加载会话列表
+    ref.listen<bool>(agentCompanionModeProvider, (prev, next) {
+      if (prev == true && next == false) {
+        _loadSessions();
+      }
+    });
 
     if (isCompanion) {
        // 全屏陪伴模式
@@ -182,7 +189,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
 
   Widget _buildSidebar(ThemeData theme) {
     return Container(
-      width: 280,
+      width: 320,
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
         border: Border(

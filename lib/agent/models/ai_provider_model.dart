@@ -14,6 +14,8 @@ class AiProviderModel {
   final bool isEnabled;
   final List<String> enabledModels;
   final String? notes;
+  final bool isSystem;
+  final int sortOrder;
 
   AiProviderModel({
     required this.id,
@@ -27,6 +29,8 @@ class AiProviderModel {
     this.isEnabled = true,
     this.enabledModels = const [],
     this.notes,
+    this.isSystem = true,
+    this.sortOrder = 0,
   });
 
   AiProviderModel copyWith({
@@ -41,6 +45,8 @@ class AiProviderModel {
     bool? isEnabled,
     List<String>? enabledModels,
     String? notes,
+    bool? isSystem,
+    int? sortOrder,
   }) {
     return AiProviderModel(
       id: id ?? this.id,
@@ -54,6 +60,8 @@ class AiProviderModel {
       isEnabled: isEnabled ?? this.isEnabled,
       enabledModels: enabledModels ?? this.enabledModels,
       notes: notes ?? this.notes,
+      isSystem: isSystem ?? this.isSystem,
+      sortOrder: sortOrder ?? this.sortOrder,
     );
   }
 
@@ -70,6 +78,8 @@ class AiProviderModel {
       'isEnabled': isEnabled,
       'enabledModels': enabledModels,
       'notes': notes,
+      'isSystem': isSystem,
+      'sortOrder': sortOrder,
     };
   }
 
@@ -91,6 +101,8 @@ class AiProviderModel {
       isEnabled: map['isEnabled'] ?? true,
       enabledModels: List<String>.from(map['enabledModels'] ?? []),
       notes: map['notes'],
+      isSystem: map['isSystem'] ?? true,
+      sortOrder: map['sortOrder'] ?? 0,
     );
   }
 

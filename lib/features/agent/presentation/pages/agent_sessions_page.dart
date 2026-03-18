@@ -108,9 +108,9 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
                     icon: const Icon(Icons.chat_rounded, size: 16),
                   ),
                 ],
-                selected: {ref.watch(apiConfigServiceProvider).agentCompanionMode},
+                selected: {ref.watch(agentCompanionModeProvider)},
                 onSelectionChanged: (selected) async {
-                  await ref.read(apiConfigServiceProvider).setAgentCompanionMode(selected.first);
+                  await ref.read(agentCompanionModeProvider.notifier).set(selected.first);
                   setState(() {});
                 },
                 style: ButtonStyle(
@@ -132,7 +132,7 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
 
   /// 根据当前模式构建内容区域
   Widget _buildModeContent(ThemeData theme) {
-    final isCompanion = ref.watch(apiConfigServiceProvider).agentCompanionMode;
+    final isCompanion = ref.watch(agentCompanionModeProvider);
 
     if (isCompanion) {
       return _buildCompanionMode(theme);
@@ -329,7 +329,7 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
-            final companionMode = apiConfig.agentCompanionMode;
+            final companionMode = ref.read(agentCompanionModeProvider);
             final windowSize = apiConfig.agentContextWindowSize;
             final persona = apiConfig.agentPersona;
             final guidelines = apiConfig.agentGuidelines;
@@ -381,7 +381,7 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
                         ),
                         value: companionMode,
                         onChanged: (v) async {
-                          await apiConfig.setAgentCompanionMode(v);
+                          await ref.read(agentCompanionModeProvider.notifier).set(v);
                           setSheetState(() {});
                         },
                       ),

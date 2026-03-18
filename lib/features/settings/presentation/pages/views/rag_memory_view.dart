@@ -105,7 +105,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 标题
+          // 标题 + 全局开关
           Padding(
             padding: const EdgeInsets.fromLTRB(32, 32, 32, 8),
             child: Row(
@@ -122,6 +122,15 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                const SizedBox(width: 12),
+                // 全局记忆开关
+                Switch(
+                  value: ref.read(apiConfigServiceProvider).ragEnabled,
+                  onChanged: (v) async {
+                    await ref.read(apiConfigServiceProvider).setRagEnabled(v);
+                    setState(() {});
+                  },
+                ),
                 const Spacer(),
                 if (totalCount > 0)
                   TextButton.icon(
@@ -134,6 +143,32 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
               ],
             ),
           ),
+
+          // RAG 关闭提示
+          if (!ref.read(apiConfigServiceProvider).ragEnabled)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: colorScheme.errorContainer.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 16, color: colorScheme.error),
+                    const SizedBox(width: 8),
+                    Text(
+                      '全局记忆已关闭，Agent将不会使用RAG检索',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: colorScheme.error,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
           // 统计信息
           Padding(
@@ -230,8 +265,81 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
             value: '${dimension > 0 ? dimension : configDimension}',
             color: colorScheme.secondary,
           ),
+        // 维度自动检测状态
+        _buildDimensionStatusChip(colorScheme, configDimension),
       ],
     );
+  }
+
+  /// 构建维度自动检测状态芯片
+  Widget _buildDimensionStatusChip(ColorScheme colorScheme, int configDimension) {
+    final apiConfig = ref.read(apiConfigServiceProvider);
+    final hasModel = apiConfig.hasEmbeddingModel;
+
+    if (configDimension > 0) {
+      // 已检测到维度
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.green.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check_circle_outline, size: 14, color: Colors.green.shade700),
+            const SizedBox(width: 4),
+            Text(
+              '自动检测: ${configDimension}维',
+              style: TextStyle(fontSize: 11, color: Colors.green.shade700, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      );
+    } else if (hasModel) {
+      // 已配置模型但未检测
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.orange.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.schedule, size: 14, color: Colors.orange.shade700),
+            const SizedBox(width: 4),
+            Text(
+              '待首次嵌入时自动检测',
+              style: TextStyle(fontSize: 11, color: Colors.orange.shade700, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // 未配置Embedding模型
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.red.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.warning_amber_outlined, size: 14, color: Colors.red.shade700),
+            const SizedBox(width: 4),
+            Text(
+              '未配置Embedding模型',
+              style: TextStyle(fontSize: 11, color: Colors.red.shade700, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   Widget _buildEmptyState(ColorScheme colorScheme, TextTheme textTheme) {

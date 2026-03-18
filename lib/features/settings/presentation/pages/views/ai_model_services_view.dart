@@ -343,6 +343,134 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
     }
   }
 
+  /// 显示新增供应商对话框
+  void _showAddProviderDialog() {
+    final nameController = TextEditingController();
+    final urlController = TextEditingController();
+    ProviderType selectedType = ProviderType.openai;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              title: const Text('新增 AI 供应商'),
+              content: SizedBox(
+                width: 400,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 类型选择
+                    DropdownButtonFormField<ProviderType>(
+                      value: selectedType,
+                      decoration: const InputDecoration(
+                        labelText: '供应商类型 (Client)',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      items: ProviderType.values.map((type) {
+                        return DropdownMenuItem(
+                          value: type,
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: _getProviderIcon(type),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(type.name.toUpperCase()),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (v) {
+                        if (v != null) setDialogState(() => selectedType = v);
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    // 名称
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: '供应商名称',
+                        hintText: '例如: My OpenAI Proxy',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // BaseURL
+                    TextField(
+                      controller: urlController,
+                      decoration: const InputDecoration(
+                        labelText: 'Base URL',
+                        hintText: 'https://api.example.com/v1',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(t.common.cancel),
+                ),
+                FilledButton(
+                  onPressed: () async {
+                    final name = nameController.text.trim();
+                    if (name.isEmpty) return;
+                    final service = ref.read(apiConfigServiceProvider);
+                    final provider = await service.addCustomProvider(
+                      name: name,
+                      type: selectedType,
+                      baseUrl: urlController.text.trim(),
+                    );
+                    Navigator.pop(ctx);
+                    _loadProviderConfig();
+                    _switchProvider(provider.id);
+                  },
+                  child: const Text('添加'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// 删除当前选中的自定义供应商
+  Future<void> _deleteCurrentProvider() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('删除供应商'),
+        content: Text('确定要删除“${_providers.firstWhere((p) => p.id == _selectedProviderId).name}”吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(t.common.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('删除', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final service = ref.read(apiConfigServiceProvider);
+      await service.deleteProvider(_selectedProviderId);
+      _selectedProviderId = service.activeProviderId;
+      _loadProviderConfig();
+    }
+  }
+
   // --- 已交由 ProviderListPanel 接管 ---
 
   Widget _buildRightConfigPanel({StateSetter? setModalState}) {
@@ -410,12 +538,18 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
                     setState(() {
                       _providers[idx] = provider;
                     });
-                    // 如果在通用的移动端详情页打开，同步刷新该页面的 state
                     setModalState?.call(() {});
                   }
                 },
                 activeThumbColor: colorScheme.primary,
               ),
+              // 删除按钮（仅显示于用户自定义供应商）
+              if (!activeProvider.isSystem)
+                IconButton(
+                  icon: Icon(Icons.delete_outline, color: colorScheme.error),
+                  tooltip: '删除供应商',
+                  onPressed: _deleteCurrentProvider,
+                ),
             ],
           ),
 
@@ -542,15 +676,35 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
             isMobile: isMobile,
             iconBuilder: (type) => _getProviderIcon(type),
             onProviderTap: _handleProviderTap,
+            onReorder: isMobile ? null : (oldIndex, newIndex) async {
+              if (oldIndex < newIndex) newIndex--;
+              final item = _providers.removeAt(oldIndex);
+              _providers.insert(newIndex, item);
+              setState(() {});
+              final orderedIds = _providers.map((p) => p.id).toList();
+              await ref.read(apiConfigServiceProvider).reorderProviders(orderedIds);
+              _loadProviderConfig();
+            },
           ),
         ),
         if (!isMobile)
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               border: Border(
                 top: BorderSide(
                   color: colorScheme.outlineVariant.withOpacity(0.5),
+                ),
+              ),
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _showAddProviderDialog,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('新增供应商'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
             ),

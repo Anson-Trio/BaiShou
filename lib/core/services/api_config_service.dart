@@ -34,6 +34,7 @@ class ApiConfigService {
       'global_embedding_model_id';
   static const String _keyDisabledToolIds = 'disabled_tool_ids';
   static const String _keyToolConfigPrefix = 'tool_config_';
+  static const String _keyRagEnabled = 'rag_global_enabled';
 
   final SharedPreferences _prefs;
 
@@ -141,6 +142,55 @@ class ApiConfigService {
     await _saveProviders(providers);
   }
 
+  /// 添加用户自定义的供应商
+  Future<AiProviderModel> addCustomProvider({
+    required String name,
+    required ProviderType type,
+    String baseUrl = '',
+  }) async {
+    final providers = getProviders();
+    final id = 'custom_${DateTime.now().millisecondsSinceEpoch}';
+    final maxOrder = providers.fold<int>(0, (max, p) => p.sortOrder > max ? p.sortOrder : max);
+    final provider = AiProviderModel(
+      id: id,
+      name: name,
+      type: type,
+      baseUrl: baseUrl,
+      models: [],
+      defaultDialogueModel: '',
+      defaultNamingModel: '',
+      isSystem: false,
+      sortOrder: maxOrder + 1,
+    );
+    providers.add(provider);
+    await _saveProviders(providers);
+    return provider;
+  }
+
+  /// 删除供应商（仅允许删除非系统内置供应商）
+  Future<bool> deleteProvider(String id) async {
+    final providers = getProviders();
+    final target = providers.firstWhere((p) => p.id == id, orElse: () => throw Exception('not found'));
+    if (target.isSystem) return false; // 不允许删除系统供应商
+    providers.removeWhere((p) => p.id == id);
+    await _saveProviders(providers);
+    return true;
+  }
+
+  /// 按照给定的 ID 列表重新排序供应商
+  Future<void> reorderProviders(List<String> orderedIds) async {
+    final providers = getProviders();
+    final reordered = <AiProviderModel>[];
+    for (int i = 0; i < orderedIds.length; i++) {
+      final p = providers.firstWhere(
+        (p) => p.id == orderedIds[i],
+        orElse: () => throw Exception('Provider not found: ${orderedIds[i]}'),
+      );
+      reordered.add(p.copyWith(sortOrder: i));
+    }
+    await _saveProviders(reordered);
+  }
+
   /// 获取当前“活跃”供应商的 ID（用于向下兼容或页面默认选中）
   String get activeProviderId {
     return _prefs.getString(_keyActiveProviderId) ?? 'gemini';
@@ -246,7 +296,7 @@ class ApiConfigService {
   /// Agent 角色人设描述
   String get agentPersona {
     return _prefs.getString(_keyAgentPersona) ??
-        '你是白守的 AI 助手，帮助用户回顾日记和生活记录。';
+        '你是 AI 助手，帮助用户回顾日记和生活记录。';
   }
 
   /// 设置 Agent 角色人设
@@ -305,6 +355,18 @@ class ApiConfigService {
   /// 缓存嵌入维度
   Future<void> setGlobalEmbeddingDimension(int dimension) async {
     await _prefs.setInt('global_embedding_dimension', dimension);
+  }
+
+  // --- RAG 全局记忆开关 ---
+
+  /// 是否启用全局记忆（RAG检索），默认启用
+  bool get ragEnabled {
+    return _prefs.getBool(_keyRagEnabled) ?? true;
+  }
+
+  /// 设置全局记忆开关
+  Future<void> setRagEnabled(bool enabled) async {
+    await _prefs.setBool(_keyRagEnabled, enabled);
   }
 
   // --- 工具配置管理 ---
@@ -428,3 +490,29 @@ final apiConfigServiceProvider = Provider<ApiConfigService>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
   return ApiConfigService(prefs);
 });
+
+/// 响应式的伴侣模式状态 Notifier
+/// UI 通过 ref.watch(agentCompanionModeProvider) 实现即时刷新
+class AgentCompanionModeNotifier extends Notifier<bool> {
+  @override
+  bool build() {
+    return ref.read(apiConfigServiceProvider).agentCompanionMode;
+  }
+
+  Future<void> toggle() async {
+    final newValue = !state;
+    await ref.read(apiConfigServiceProvider).setAgentCompanionMode(newValue);
+    state = newValue;
+  }
+
+  Future<void> set(bool value) async {
+    if (state == value) return;
+    await ref.read(apiConfigServiceProvider).setAgentCompanionMode(value);
+    state = value;
+  }
+}
+
+final agentCompanionModeProvider =
+    NotifierProvider<AgentCompanionModeNotifier, bool>(
+  AgentCompanionModeNotifier.new,
+);

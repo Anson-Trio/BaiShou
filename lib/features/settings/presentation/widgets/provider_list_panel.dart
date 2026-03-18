@@ -9,6 +9,7 @@ class ProviderListPanel extends StatelessWidget {
   final bool isMobile;
   final Widget Function(ProviderType) iconBuilder;
   final void Function(String, bool) onProviderTap;
+  final void Function(int oldIndex, int newIndex)? onReorder;
 
   const ProviderListPanel({
     super.key,
@@ -17,6 +18,7 @@ class ProviderListPanel extends StatelessWidget {
     required this.isMobile,
     required this.iconBuilder,
     required this.onProviderTap,
+    this.onReorder,
   });
 
   Widget _buildProviderListItem(
@@ -49,6 +51,11 @@ class ProviderListPanel extends StatelessWidget {
           ),
           child: Row(
             children: [
+              // 拖动手柄
+              if (onReorder != null)
+                Icon(Icons.drag_handle, size: 16, color: colorScheme.outline.withOpacity(0.5)),
+              if (onReorder != null)
+                const SizedBox(width: 8),
               SizedBox(width: 32, height: 32, child: iconBuilder(p.type)),
               const SizedBox(width: 12),
               Expanded(
@@ -62,6 +69,24 @@ class ProviderListPanel extends StatelessWidget {
                   ),
                 ),
               ),
+              // 自定义标签
+              if (!p.isSystem)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  margin: const EdgeInsets.only(right: 4),
+                  decoration: BoxDecoration(
+                    color: colorScheme.tertiaryContainer.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '自定义',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onTertiaryContainer,
+                    ),
+                  ),
+                ),
               // 启用状态标签
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -93,6 +118,27 @@ class ProviderListPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     if (providers.isEmpty) {
       return const Center(child: CircularProgressIndicator());
+    }
+
+    if (onReorder != null) {
+      return ReorderableListView.builder(
+        padding: EdgeInsets.symmetric(vertical: isMobile ? 8 : 16),
+        itemCount: providers.length,
+        onReorder: onReorder!,
+        proxyDecorator: (child, index, animation) {
+          return Material(
+            elevation: 2,
+            borderRadius: BorderRadius.circular(12),
+            child: child,
+          );
+        },
+        itemBuilder: (context, index) {
+          return KeyedSubtree(
+            key: ValueKey(providers[index].id),
+            child: _buildProviderListItem(context, providers[index], isMobile),
+          );
+        },
+      );
     }
 
     return ListView.builder(
