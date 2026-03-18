@@ -51,11 +51,6 @@ class ProviderListPanel extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // 拖动手柄
-              if (onReorder != null)
-                Icon(Icons.drag_handle, size: 16, color: colorScheme.outline.withOpacity(0.5)),
-              if (onReorder != null)
-                const SizedBox(width: 8),
               SizedBox(width: 32, height: 32, child: iconBuilder(p.type)),
               const SizedBox(width: 12),
               Expanded(

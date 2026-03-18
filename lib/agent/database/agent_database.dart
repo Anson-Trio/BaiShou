@@ -258,6 +258,20 @@ class AgentDatabase extends _$AgentDatabase {
     await customStatement('DELETE FROM message_embeddings');
   }
 
+  /// 清空特定维度的向量嵌入
+  Future<int> clearEmbeddingsByDimension(int dimension) async {
+    final count = await customSelect(
+      'SELECT COUNT(*) AS cnt FROM message_embeddings WHERE dimension = ?',
+      variables: [Variable.withInt(dimension)],
+    ).getSingle();
+    final deleted = count.read<int>('cnt');
+    await customStatement(
+      'DELETE FROM message_embeddings WHERE dimension = ?',
+      [dimension],
+    );
+    return deleted;
+  }
+
   /// 获取嵌入统计信息
   Future<Map<String, dynamic>> getEmbeddingStats() async {
     final result = await customSelect('''

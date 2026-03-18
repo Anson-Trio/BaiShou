@@ -2,6 +2,7 @@
 /// 参考 opencode: packages/opencode/src/session/message-v2.ts
 
 import 'dart:convert';
+import 'package:uuid/uuid.dart';
 
 /// 消息角色
 enum MessageRole { system, user, assistant, tool }
@@ -91,9 +92,8 @@ class ChatMessage {
         toolCallId: callId,
       );
 
-  static int _counter = 0;
-  static String _generateId() =>
-      '${DateTime.now().millisecondsSinceEpoch}_${_counter++}';
+  static const _uuid = Uuid();
+  static String _generateId() => 'msg_${_uuid.v4()}';
 
   Map<String, dynamic> toMap() => {
         'id': id,

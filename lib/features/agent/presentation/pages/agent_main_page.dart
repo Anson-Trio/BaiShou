@@ -125,9 +125,8 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
     final notifier = ref.read(agentChatProvider.notifier);
     notifier.clearChat();
     setState(() {
-      _selectedSessionId = ref.read(agentChatProvider).sessionId;
+      _selectedSessionId = null; // 新对话尚未创建，等用户发第一条消息后懒创建
     });
-    _loadSessions();
   }
 
 
@@ -139,6 +138,16 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
     ref.listen<bool>(agentCompanionModeProvider, (prev, next) {
       if (prev == true && next == false) {
         _loadSessions();
+      }
+    });
+
+    // 监听 sessionId 变化，当新会话被懒创建时自动刷新侧边栏
+    ref.listen<AgentChatState>(agentChatProvider, (prev, next) {
+      if (prev?.sessionId != next.sessionId && next.sessionId != null) {
+        if (_selectedSessionId == null) {
+          setState(() => _selectedSessionId = next.sessionId);
+          _loadSessions();
+        }
       }
     });
 

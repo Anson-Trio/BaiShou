@@ -5,6 +5,7 @@
 import 'package:baishou/agent/database/agent_database.dart';
 import 'package:baishou/agent/rag/embedding_service.dart';
 import 'package:baishou/core/services/api_config_service.dart';
+import 'package:baishou/features/diary/data/repositories/diary_repository_impl.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,6 +22,10 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
   List<Map<String, dynamic>> _entries = [];
   Map<String, dynamic> _stats = {};
   bool _isLoading = true;
+  bool _isDetectingDimension = false;
+  bool _isBatchEmbedding = false;
+  int _batchProgress = 0;
+  int _batchTotal = 0;
   String _searchQuery = '';
   final _searchController = TextEditingController();
 
@@ -92,6 +97,201 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
       final model = (e['model_id'] as String?)?.toLowerCase() ?? '';
       return text.contains(q) || model.contains(q);
     }).toList();
+  }
+
+  /// 手动触发维度检测
+  Future<void> _detectDimension() async {
+    setState(() => _isDetectingDimension = true);
+    try {
+      final embeddingService = ref.read(embeddingServiceProvider);
+      await ref.read(apiConfigServiceProvider).setGlobalEmbeddingDimension(0);
+      final dimension = await embeddingService.detectDimension();
+      if (mounted) {
+        if (dimension > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('检测成功：${dimension}维'), backgroundColor: Colors.green),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('检测失败，请检查模型配置'), backgroundColor: Colors.red),
+          );
+        }
+        await _loadData();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('检测失败: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isDetectingDimension = false);
+    }
+  }
+
+  /// 清空当前维度的向量
+  Future<void> _clearCurrentDimension() async {
+    final apiConfig = ref.read(apiConfigServiceProvider);
+    final dimension = apiConfig.globalEmbeddingDimension;
+    if (dimension <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('当前未配置维度，无法清空')),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('清空当前维度向量'),
+        content: Text('确定要删除所有 ${dimension} 维的向量数据吗？\n其他维度的数据不受影响。'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t.common.cancel)),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('确定删除', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final db = ref.read(agentDatabaseProvider);
+      final deleted = await db.clearEmbeddingsByDimension(dimension);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已删除 $deleted 条 ${dimension}维 向量数据')),
+        );
+        await _loadData();
+      }
+    }
+  }
+
+  /// 批量嵌入所有日记
+  Future<void> _batchEmbedDiaries() async {
+    final embeddingService = ref.read(embeddingServiceProvider);
+    if (!embeddingService.isConfigured) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请先配置 Embedding 模型'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('全量嵌入日记'),
+        content: const Text('将读取所有日记内容并生成向量嵌入。\n已存在的日记不会重复嵌入。\n过程可能需要一些时间。'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t.common.cancel)),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('开始嵌入')),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() {
+      _isBatchEmbedding = true;
+      _batchProgress = 0;
+    });
+
+    try {
+      final diaryRepo = ref.read(diaryRepositoryProvider);
+      final diaries = await diaryRepo.getAllDiaries();
+      setState(() => _batchTotal = diaries.length);
+
+      int embedded = 0;
+      for (final diary in diaries) {
+        if (!mounted) break;
+        if (diary.content.trim().isEmpty) {
+          setState(() => _batchProgress++);
+          continue;
+        }
+        await embeddingService.embedText(
+          text: '${diary.date}: ${diary.content}',
+          sessionId: 'diary_batch',
+          customId: 'diary_${diary.id}',
+        );
+        embedded++;
+        if (mounted) setState(() => _batchProgress++);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('完成！已嵌入 $embedded 篇日记'), backgroundColor: Colors.green),
+        );
+        await _loadData();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('批量嵌入出错: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isBatchEmbedding = false;
+          _batchProgress = 0;
+          _batchTotal = 0;
+        });
+      }
+    }
+  }
+
+  /// 手动添加记忆
+  Future<void> _addManualMemory() async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('添加记忆'),
+        content: SizedBox(
+          width: 400,
+          child: TextField(
+            controller: controller,
+            maxLines: 6,
+            decoration: const InputDecoration(
+              hintText: '输入要记住的内容...\n例如：Anson喜欢喝危地马拉咖啡',
+              border: OutlineInputBorder(),
+            ),
+            autofocus: true,
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(t.common.cancel)),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text),
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.trim().isNotEmpty) {
+      final embeddingService = ref.read(embeddingServiceProvider);
+      if (!embeddingService.isConfigured) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('请先配置 Embedding 模型'), backgroundColor: Colors.orange),
+          );
+        }
+        return;
+      }
+
+      await embeddingService.embedText(
+        text: result.trim(),
+        sessionId: 'manual_memory',
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('记忆已保存并嵌入'), backgroundColor: Colors.green),
+        );
+        await _loadData();
+      }
+    }
   }
 
   @override
@@ -174,6 +374,43 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: _buildStatsRow(colorScheme, textTheme, totalCount),
+          ),
+
+          const SizedBox(height: 12),
+
+          // 操作按钮行
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                // 清空当前维度
+                _ActionChip(
+                  icon: Icons.layers_clear,
+                  label: '清空当前维度',
+                  color: colorScheme.error,
+                  onTap: _clearCurrentDimension,
+                ),
+                // 全量嵌入日记
+                _ActionChip(
+                  icon: Icons.auto_stories,
+                  label: _isBatchEmbedding
+                      ? '嵌入中 $_batchProgress/$_batchTotal'
+                      : '全量嵌入日记',
+                  color: colorScheme.primary,
+                  onTap: _isBatchEmbedding ? null : _batchEmbedDiaries,
+                  isLoading: _isBatchEmbedding,
+                ),
+                // 手动添加记忆
+                _ActionChip(
+                  icon: Icons.add_comment_outlined,
+                  label: '手动添加记忆',
+                  color: colorScheme.tertiary,
+                  onTap: _addManualMemory,
+                ),
+              ],
+            ),
           ),
 
           const SizedBox(height: 12),
@@ -298,24 +535,39 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
         ),
       );
     } else if (hasModel) {
-      // 已配置模型但未检测
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: Colors.orange.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.schedule, size: 14, color: Colors.orange.shade700),
-            const SizedBox(width: 4),
-            Text(
-              '待首次嵌入时自动检测',
-              style: TextStyle(fontSize: 11, color: Colors.orange.shade700, fontWeight: FontWeight.w500),
+      // 已配置模型但未检测 — 可点击手动检测
+      return GestureDetector(
+        onTap: _isDetectingDimension ? null : _detectDimension,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.orange.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
             ),
-          ],
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_isDetectingDimension)
+                  SizedBox(
+                    width: 14, height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.orange.shade700,
+                    ),
+                  )
+                else
+                  Icon(Icons.play_circle_outline, size: 14, color: Colors.orange.shade700),
+                const SizedBox(width: 4),
+                Text(
+                  _isDetectingDimension ? '正在检测...' : '点击检测维度',
+                  style: TextStyle(fontSize: 11, color: Colors.orange.shade700, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+          ),
         ),
       );
     } else {
@@ -478,6 +730,62 @@ class _StatChip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 操作按钮 Chip
+class _ActionChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback? onTap;
+  final bool isLoading;
+
+  const _ActionChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+    this.onTap,
+    this.isLoading = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: MouseRegion(
+        cursor: onTap != null ? SystemMouseCursors.click : SystemMouseCursors.basic,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: color.withValues(alpha: 0.25)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isLoading)
+                SizedBox(
+                  width: 14, height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: color),
+                )
+              else
+                Icon(icon, size: 14, color: color),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
