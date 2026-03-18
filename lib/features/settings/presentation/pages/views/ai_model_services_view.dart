@@ -369,7 +369,7 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
                         border: OutlineInputBorder(),
                         isDense: true,
                       ),
-                      items: ProviderType.values.map((type) {
+                      items: ProviderType.values.where((t) => t != ProviderType.custom).map((type) {
                         return DropdownMenuItem(
                           value: type,
                           child: Row(

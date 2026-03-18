@@ -35,8 +35,16 @@ class ToolRepository extends _$ToolRepository {
 
   /// 启用的工具（过滤掉被用户禁用的）
   List<AgentTool> get enabledTools {
-    final disabledIds = ref.read(apiConfigServiceProvider).disabledToolIds;
-    return state.where((t) => !disabledIds.contains(t.id)).toList();
+    final apiConfig = ref.read(apiConfigServiceProvider);
+    final disabledIds = apiConfig.disabledToolIds;
+    final ragEnabled = apiConfig.ragEnabled;
+    // RAG 关闭时自动排除 memory_store 和 vector_search
+    const ragToolIds = {'memory_store', 'vector_search'};
+    return state.where((t) {
+      if (disabledIds.contains(t.id)) return false;
+      if (!ragEnabled && ragToolIds.contains(t.id)) return false;
+      return true;
+    }).toList();
   }
 
   /// 构建 ToolRegistry（供 AgentRunner 使用）

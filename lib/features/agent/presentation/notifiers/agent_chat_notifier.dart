@@ -11,6 +11,7 @@ import 'package:baishou/agent/session/context_window.dart';
 import 'package:baishou/agent/session/session_manager.dart';
 import 'package:baishou/agent/tools/agent_tool.dart';
 import 'package:baishou/agent/tools/tool_repository.dart';
+import 'package:baishou/agent/database/agent_database.dart';
 import 'package:baishou/agent/rag/embedding_service.dart';
 import 'package:baishou/agent/pricing/model_pricing_service.dart';
 import 'package:baishou/agent/prompts/system_prompt_builder.dart';
@@ -293,7 +294,10 @@ class AgentChatNotifier extends _$AgentChatNotifier {
         context: ToolContext(
           sessionId: sessionId,
           vaultPath: vaultPath,
-          embeddingService: EmbeddingService(ref),
+          embeddingService: EmbeddingService(
+            ref.read(apiConfigServiceProvider),
+            ref.read(agentDatabaseProvider),
+          ),
         ),
       )) {
         // 中止检查：仅在 clearChat 时中止（不因切换会话中止）

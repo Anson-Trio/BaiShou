@@ -591,6 +591,7 @@
       "tool_call_results": "工具调用 · ${count} 个结果",
       "community_market_coming": "社区工具市场即将上线",
       "diary_read": "日记读取",
+      "diary_write": "日记写入",
       "diary_list": "日记列表",
       "diary_search": "日记搜索",
       "summary_read": "总结读取",

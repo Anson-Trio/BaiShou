@@ -78,7 +78,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
     );
 
     if (confirmed == true) {
-      final embeddingService = ref.read(embeddingServiceProvider);
+      final embeddingService = EmbeddingService(ref.read(apiConfigServiceProvider), ref.read(agentDatabaseProvider));
       await embeddingService.clearAllEmbeddings();
       await _loadData();
     }
@@ -104,7 +104,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
   Future<void> _detectDimension() async {
     setState(() => _isDetectingDimension = true);
     try {
-      final embeddingService = ref.read(embeddingServiceProvider);
+      final embeddingService = EmbeddingService(ref.read(apiConfigServiceProvider), ref.read(agentDatabaseProvider));
       await ref.read(apiConfigServiceProvider).setGlobalEmbeddingDimension(0);
       final dimension = await embeddingService.detectDimension();
       if (mounted) {
@@ -160,7 +160,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
 
   /// 批量嵌入所有日记
   Future<void> _batchEmbedDiaries() async {
-    final embeddingService = ref.read(embeddingServiceProvider);
+    final embeddingService = EmbeddingService(ref.read(apiConfigServiceProvider), ref.read(agentDatabaseProvider));
     if (!embeddingService.isConfigured) {
       AppToast.showError(context, t.agent.rag.embedding_not_configured);
       return;
@@ -255,7 +255,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
     );
 
     if (result != null && result.trim().isNotEmpty) {
-      final embeddingService = ref.read(embeddingServiceProvider);
+      final embeddingService = EmbeddingService(ref.read(apiConfigServiceProvider), ref.read(agentDatabaseProvider));
       if (!embeddingService.isConfigured) {
         if (mounted) {
           AppToast.showError(context, t.agent.rag.embedding_not_configured);

@@ -591,6 +591,7 @@
       "tool_call_results": "ツール呼び出し · ${count} 件",
       "community_market_coming": "コミュニティツール市場はまもなく公開されます",
       "diary_read": "日記読み取り",
+      "diary_write": "日記書き込み",
       "diary_list": "日記一覧",
       "diary_search": "日記検索",
       "summary_read": "サマリー読み取り",

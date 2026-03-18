@@ -10,6 +10,7 @@ import 'package:baishou/agent/clients/ai_client.dart';
 import 'package:baishou/agent/database/agent_database.dart';
 import 'package:baishou/core/services/api_config_service.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
 
@@ -27,15 +28,15 @@ class EmbeddingService {
   static const int _maxChunkLength = 512; // 字符数
   static const int _chunkOverlap = 64;
 
-  final Ref _ref;
+  final ApiConfigService _apiConfig;
+  final AgentDatabase _db;
 
-  EmbeddingService(this._ref);
+  EmbeddingService(this._apiConfig, this._db);
 
   /// 检查用户是否配置了嵌入模型
   bool get isConfigured {
-    final service = _ref.read(apiConfigServiceProvider);
-    final embeddingModelId = service.globalEmbeddingModelId;
-    final embeddingProviderId = service.globalEmbeddingProviderId;
+    final embeddingModelId = _apiConfig.globalEmbeddingModelId;
+    final embeddingProviderId = _apiConfig.globalEmbeddingProviderId;
     return embeddingModelId.isNotEmpty && embeddingProviderId.isNotEmpty;
   }
 
@@ -46,14 +47,13 @@ class EmbeddingService {
   Future<int> detectDimension() async {
     if (!isConfigured) return 0;
 
-    final service = _ref.read(apiConfigServiceProvider);
-    final cachedDimension = service.globalEmbeddingDimension;
+    final cachedDimension = _apiConfig.globalEmbeddingDimension;
     if (cachedDimension > 0) return cachedDimension;
 
     try {
-      final embeddingModelId = service.globalEmbeddingModelId;
-      final embeddingProviderId = service.globalEmbeddingProviderId;
-      final provider = service.getProvider(embeddingProviderId);
+      final embeddingModelId = _apiConfig.globalEmbeddingModelId;
+      final embeddingProviderId = _apiConfig.globalEmbeddingProviderId;
+      final provider = _apiConfig.getProvider(embeddingProviderId);
       if (provider == null) return 0;
 
       final client = AiClientFactory.createClient(provider);
@@ -62,7 +62,7 @@ class EmbeddingService {
         modelId: embeddingModelId,
       );
       final dimension = testEmbedding.length;
-      await service.setGlobalEmbeddingDimension(dimension);
+      await _apiConfig.setGlobalEmbeddingDimension(dimension);
       debugPrint('EmbeddingService: 检测到维度 $dimension ($embeddingModelId)');
       return dimension;
     } catch (e) {
@@ -81,15 +81,13 @@ class EmbeddingService {
     if (content.trim().isEmpty) return;
 
     try {
-      final service = _ref.read(apiConfigServiceProvider);
-      final embeddingModelId = service.globalEmbeddingModelId;
-      final embeddingProviderId = service.globalEmbeddingProviderId;
+      final embeddingModelId = _apiConfig.globalEmbeddingModelId;
+      final embeddingProviderId = _apiConfig.globalEmbeddingProviderId;
 
-      final provider = service.getProvider(embeddingProviderId);
+      final provider = _apiConfig.getProvider(embeddingProviderId);
       if (provider == null) return;
 
       final client = AiClientFactory.createClient(provider);
-      final db = _ref.read(agentDatabaseProvider);
       final uuid = const Uuid();
 
       // 首次嵌入前自动检测维度
@@ -97,7 +95,7 @@ class EmbeddingService {
 
       // 检查已有数据的维度一致性
       if (currentDimension > 0) {
-        final stats = await db.getEmbeddingStats();
+        final stats = await _db.getEmbeddingStats();
         final totalCount = stats['total_count'] as int;
         if (totalCount > 0) {
           final dimensionCount = stats['dimension_count'] as int;
@@ -109,7 +107,7 @@ class EmbeddingService {
             );
             if (hasMismatch) {
               debugPrint('EmbeddingService: 维度不一致，清空旧数据并重建');
-              await db.clearEmbeddings();
+              await _db.clearEmbeddings();
             }
           }
         }
@@ -126,7 +124,7 @@ class EmbeddingService {
             modelId: embeddingModelId,
           );
 
-          await db.insertEmbedding(
+          await _db.insertEmbedding(
             id: uuid.v4(),
             messageId: messageId,
             sessionId: sessionId,
@@ -149,11 +147,10 @@ class EmbeddingService {
     if (!isConfigured) return null;
 
     try {
-      final service = _ref.read(apiConfigServiceProvider);
-      final embeddingModelId = service.globalEmbeddingModelId;
-      final embeddingProviderId = service.globalEmbeddingProviderId;
+      final embeddingModelId = _apiConfig.globalEmbeddingModelId;
+      final embeddingProviderId = _apiConfig.globalEmbeddingProviderId;
 
-      final provider = service.getProvider(embeddingProviderId);
+      final provider = _apiConfig.getProvider(embeddingProviderId);
       if (provider == null) return null;
 
       final client = AiClientFactory.createClient(provider);
@@ -180,14 +177,12 @@ class EmbeddingService {
   }) async {
     if (!isConfigured || text.trim().isEmpty) return;
 
-    final service = _ref.read(apiConfigServiceProvider);
-    final embeddingModelId = service.globalEmbeddingModelId;
-    final embeddingProviderId = service.globalEmbeddingProviderId;
-    final provider = service.getProvider(embeddingProviderId);
+    final embeddingModelId = _apiConfig.globalEmbeddingModelId;
+    final embeddingProviderId = _apiConfig.globalEmbeddingProviderId;
+    final provider = _apiConfig.getProvider(embeddingProviderId);
     if (provider == null) return;
 
     final client = AiClientFactory.createClient(provider);
-    final db = _ref.read(agentDatabaseProvider);
     final uuid = const Uuid();
     final messageId = customId ?? 'mem_${uuid.v4()}';
     final chunks = _splitIntoChunks(text);
@@ -195,7 +190,7 @@ class EmbeddingService {
     // 首次嵌入前自动检测维度并初始化向量索引
     final currentDimension = await detectDimension();
     if (currentDimension > 0) {
-      await db.initVectorIndex(currentDimension);
+      await _db.initVectorIndex(currentDimension);
     }
 
     for (final chunk in chunks) {
@@ -204,7 +199,7 @@ class EmbeddingService {
           input: chunk.text,
           modelId: embeddingModelId,
         );
-        await db.insertEmbedding(
+        await _db.insertEmbedding(
           id: uuid.v4(),
           messageId: messageId,
           sessionId: sessionId,
@@ -225,8 +220,7 @@ class EmbeddingService {
     required String sessionId,
     required String content,
   }) async {
-    final db = _ref.read(agentDatabaseProvider);
-    await db.deleteEmbeddingsByMessage(messageId);
+    await _db.deleteEmbeddingsByMessage(messageId);
     await embedMessage(
       messageId: messageId,
       sessionId: sessionId,
@@ -236,11 +230,9 @@ class EmbeddingService {
 
   /// 清空全部嵌入数据
   Future<void> clearAllEmbeddings() async {
-    final db = _ref.read(agentDatabaseProvider);
-    await db.clearEmbeddings();
+    await _db.clearEmbeddings();
     // 同时清除维度缓存
-    final service = _ref.read(apiConfigServiceProvider);
-    await service.setGlobalEmbeddingDimension(0);
+    await _apiConfig.setGlobalEmbeddingDimension(0);
   }
 
   // ── Phase 7: 异步迁移 ──────────────────────────────────────
@@ -255,20 +247,18 @@ class EmbeddingService {
       return;
     }
 
-    final service = _ref.read(apiConfigServiceProvider);
-    final embeddingModelId = service.globalEmbeddingModelId;
-    final embeddingProviderId = service.globalEmbeddingProviderId;
-    final provider = service.getProvider(embeddingProviderId);
+    final embeddingModelId = _apiConfig.globalEmbeddingModelId;
+    final embeddingProviderId = _apiConfig.globalEmbeddingProviderId;
+    final provider = _apiConfig.getProvider(embeddingProviderId);
     if (provider == null) {
       yield MigrationProgress(total: 0, completed: 0, status: '供应商未找到');
       return;
     }
 
     final client = AiClientFactory.createClient(provider);
-    final db = _ref.read(agentDatabaseProvider);
 
     // 读取所有已嵌入的 chunks
-    final chunks = await db.getAllEmbeddingChunks();
+    final chunks = await _db.getAllEmbeddingChunks();
     final total = chunks.length;
 
     if (total == 0) {
@@ -289,7 +279,7 @@ class EmbeddingService {
         );
 
         // 用新的嵌入覆盖旧的（INSERT OR REPLACE）
-        await db.insertEmbedding(
+        await _db.insertEmbedding(
           id: chunk['embedding_id'] as String,
           messageId: chunk['message_id'] as String,
           sessionId: chunk['session_id'] as String,
@@ -352,7 +342,10 @@ class EmbeddingService {
 /// EmbeddingService Provider
 @riverpod
 EmbeddingService embeddingService(Ref ref) {
-  return EmbeddingService(ref);
+  return EmbeddingService(
+    ref.read(apiConfigServiceProvider),
+    ref.read(agentDatabaseProvider),
+  );
 }
 
 /// 嵌入迁移进度

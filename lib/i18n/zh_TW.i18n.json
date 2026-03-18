@@ -600,6 +600,7 @@
       "tool_call_results": "工具呼叫 · ${count} 個結果",
       "community_market_coming": "社群工具市場即將上線",
       "diary_read": "日記讀取",
+      "diary_write": "日記寫入",
       "diary_list": "日記列表",
       "diary_search": "日記搜尋",
       "summary_read": "總結讀取",

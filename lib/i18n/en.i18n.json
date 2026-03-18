@@ -591,6 +591,7 @@
       "tool_call_results": "Tool Calls · ${count} results",
       "community_market_coming": "Community tool market coming soon",
       "diary_read": "Diary Read",
+      "diary_write": "Diary Write",
       "diary_list": "Diary List",
       "diary_search": "Diary Search",
       "summary_read": "Summary Read",

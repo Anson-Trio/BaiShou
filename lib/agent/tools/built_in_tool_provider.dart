@@ -4,6 +4,7 @@ import 'package:baishou/agent/tools/agent_tool.dart';
 import 'package:baishou/agent/tools/diary/diary_list_tool.dart';
 import 'package:baishou/agent/tools/diary/diary_read_tool.dart';
 import 'package:baishou/agent/tools/diary/diary_search_tool.dart';
+import 'package:baishou/agent/tools/diary/diary_write_tool.dart';
 import 'package:baishou/agent/tools/memory/memory_store_tool.dart';
 import 'package:baishou/agent/tools/memory/vector_search_tool.dart';
 import 'package:baishou/agent/tools/message/message_search_tool.dart';
@@ -23,6 +24,7 @@ List<AgentTool> builtInTools(Ref ref) {
   return [
     // ── 日记工具 ──
     DiaryReadTool(),
+    DiaryWriteTool(),
     DiaryListTool(),
     DiarySearchTool(ref.read(shadowIndexDatabaseProvider.notifier)),
 
