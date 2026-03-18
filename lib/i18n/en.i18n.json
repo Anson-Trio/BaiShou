@@ -615,7 +615,10 @@
       "start_chat": "Start chatting with Agent",
       "session_settings": "Session Settings",
       "session_name": "Session Name",
-      "system_prompt_label": "Behavior Rules (System Prompt)"
+      "system_prompt_label": "Behavior Rules (System Prompt)",
+      "you_label": "You",
+      "ai_label": "AI Assistant",
+      "input_hint": "Message..."
     },
     "sessions": {
       "history": "Chat History",

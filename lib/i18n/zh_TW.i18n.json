@@ -624,7 +624,10 @@
       "start_chat": "開始和 Agent 對話",
       "session_settings": "會話設定",
       "session_name": "會話名稱",
-      "system_prompt_label": "行為準則 (System Prompt)"
+      "system_prompt_label": "行為準則 (System Prompt)",
+      "you_label": "你",
+      "ai_label": "AI 助手",
+      "input_hint": "輸入訊息..."
     },
     "sessions": {
       "history": "對話歷史",

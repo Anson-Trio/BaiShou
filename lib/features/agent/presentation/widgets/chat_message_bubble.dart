@@ -5,10 +5,11 @@
 
 import 'package:baishou/agent/models/chat_message.dart';
 import 'package:baishou/features/agent/presentation/notifiers/agent_chat_notifier.dart';
-import 'package:baishou/features/agent/presentation/widgets/tool_result_group_card.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+
+// ─── 消息气泡 ─────────────────────────────────────────────────
 
 class ChatMessageBubble extends StatelessWidget {
   final ChatMessage message;
@@ -19,159 +20,140 @@ class ChatMessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isUser = message.role == MessageRole.user;
-    final isTool = message.role == MessageRole.tool;
 
-    // 工具结果消息 — 可折叠卡片
-    if (isTool) {
-      return _ToolResultCard(message: message);
+    // 工具结果消息不在这里渲染（由 ToolResultGroup 处理）
+    if (message.role == MessageRole.tool) {
+      return const SizedBox.shrink();
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Row(
-        mainAxisAlignment:
-            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (!isUser) ...[
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: theme.colorScheme.primaryContainer,
-              child: Icon(
-                Icons.smart_toy_outlined,
-                size: 18,
-                color: theme.colorScheme.onPrimaryContainer,
-              ),
-            ),
-            const SizedBox(width: 8),
-          ],
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: isUser
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(16),
-                  topRight: const Radius.circular(16),
-                  bottomLeft: Radius.circular(isUser ? 16 : 4),
-                  bottomRight: Radius.circular(isUser ? 4 : 16),
-                ),
-              ),
-              child: isUser
-                  ? Text(
-                      message.content ?? '',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onPrimary,
-                      ),
-                    )
-                  : MarkdownBody(
-                      data: message.content ?? '',
-                      selectable: true,
-                      styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
-                        p: theme.textTheme.bodyMedium,
-                        code: theme.textTheme.bodySmall?.copyWith(
-                          backgroundColor:
-                              theme.colorScheme.surfaceContainerLow,
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                    ),
-            ),
-          ),
-          if (isUser) const SizedBox(width: 8),
-        ],
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: isUser ? _buildUserBubble(theme) : _buildAiBubble(theme),
     );
   }
-}
 
-// ─── 工具结果卡片（可折叠） ────────────────────────────────────
-
-class _ToolResultCard extends StatelessWidget {
-  final ChatMessage message;
-
-  const _ToolResultCard({required this.message});
-
-  /// 从 callId 中提取工具名
-  String _extractToolName() {
-    final callId = message.toolCallId;
-    if (callId == null) return 'tool';
-    final parts = callId.split('_');
-    // gemini_{name}_{timestamp}
-    if (parts.length >= 3 && parts.first == 'gemini') {
-      return parts.sublist(1, parts.length - 1).join('_');
-    }
-    // OpenAI: chatcmpl-xxx 格式，无工具名
-    return 'tool';
-  }
-
-  bool get _isError {
-    final content = message.content ?? '';
-    return content.startsWith('Tool execution failed:') ||
-        content.startsWith('Unknown tool') ||
-        content.startsWith('Error');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final toolName = _extractToolName();
-    final content = message.content ?? '';
-    final isError = _isError;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 2),
-      child: Container(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isError
-                ? theme.colorScheme.error.withValues(alpha: 0.3)
-                : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+  /// 用户消息 — 右对齐，primary 底色，右上角方角
+  Widget _buildUserBubble(ThemeData theme) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              // 角色标签
+              Padding(
+                padding: const EdgeInsets.only(right: 4, bottom: 4),
+                child: Text(
+                  t.agent.chat.you_label,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              // 消息气泡
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(18),
+                    topRight: Radius.circular(4),
+                    bottomLeft: Radius.circular(18),
+                    bottomRight: Radius.circular(18),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  message.content ?? '',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onPrimary,
+                    height: 1.5,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        child: Theme(
-          data: theme.copyWith(dividerColor: Colors.transparent),
-          child: ExpansionTile(
-            tilePadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-            childrenPadding:
-                const EdgeInsets.fromLTRB(12, 0, 12, 10),
-            dense: true,
-            visualDensity: VisualDensity.compact,
-            leading: Icon(
-              isError ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
-              size: 16,
-              color: isError
-                  ? theme.colorScheme.error
-                  : theme.colorScheme.primary,
-            ),
-            title: Text(
-              toolName,
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.onSurface,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            trailing: Icon(
-              Icons.expand_more_rounded,
-              size: 18,
-              color: theme.colorScheme.outline,
-            ),
+      ],
+    );
+  }
+
+  /// AI 消息 — 左对齐，surfaceContainer 底色，左上角方角，配头像
+  Widget _buildAiBubble(ThemeData theme) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // AI 头像
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primaryContainer.withValues(alpha: 0.6),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            Icons.smart_toy_outlined,
+            size: 20,
+            color: theme.colorScheme.primary,
+          ),
+        ),
+        const SizedBox(width: 10),
+        // 消息内容
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 200),
-                child: SingleChildScrollView(
-                  child: SelectableText(
-                    content,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+              // 角色标签
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 4),
+                child: Text(
+                  t.agent.chat.ai_label,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              // 消息气泡
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                constraints: const BoxConstraints(maxWidth: 600),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(4),
+                    topRight: Radius.circular(18),
+                    bottomLeft: Radius.circular(18),
+                    bottomRight: Radius.circular(18),
+                  ),
+                  border: Border.all(
+                    color:
+                        theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: MarkdownBody(
+                  data: message.content ?? '',
+                  selectable: true,
+                  styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
+                    p: theme.textTheme.bodyMedium?.copyWith(height: 1.6),
+                    code: theme.textTheme.bodySmall?.copyWith(
+                      backgroundColor: theme.colorScheme.surfaceContainerLow,
                       fontFamily: 'monospace',
-                      fontSize: 11,
-                      height: 1.5,
+                    ),
+                    codeblockDecoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                 ),
@@ -179,14 +161,14 @@ class _ToolResultCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
+      ],
     );
   }
 }
 
 // ─── 工具结果分组容器 ──────────────────────────────────────────
 
-/// 将多个连续的工具结果合并到一个分组容器中展示
+/// 将多个连续的工具结果合并到一个通知式分组容器中展示
 class ToolResultGroup extends StatelessWidget {
   final List<ChatMessage> messages;
 
@@ -197,47 +179,66 @@ class ToolResultGroup extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 4),
-      child: Container(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-          ),
-        ),
-        child: Theme(
-          data: theme.copyWith(dividerColor: Colors.transparent),
-          child: ExpansionTile(
-            tilePadding:
-                const EdgeInsets.symmetric(horizontal: 12),
-            childrenPadding: const EdgeInsets.fromLTRB(0, 0, 0, 4),
-            dense: true,
-            visualDensity: VisualDensity.compact,
-            initiallyExpanded: false,
-            leading: Icon(
-              Icons.build_rounded,
-              size: 16,
-              color: theme.colorScheme.primary,
-            ),
-            title: Text(
-              t.agent.tools.tool_call_results(count: messages.length),
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.onSurface,
-                fontWeight: FontWeight.w500,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 占位，与 AI 头像对齐
+          const SizedBox(width: 46),
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: theme.colorScheme.outlineVariant
+                      .withValues(alpha: 0.5),
+                ),
+              ),
+              child: Theme(
+                data: theme.copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  tilePadding:
+                      const EdgeInsets.symmetric(horizontal: 14),
+                  childrenPadding: const EdgeInsets.fromLTRB(0, 0, 0, 4),
+                  dense: true,
+                  visualDensity: VisualDensity.compact,
+                  initiallyExpanded: false,
+                  leading: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer
+                          .withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.build_rounded,
+                      size: 16,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  title: Text(
+                    t.agent.tools.tool_call_results(
+                        count: messages.length),
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onSurface,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  trailing: Icon(
+                    Icons.expand_more_rounded,
+                    size: 20,
+                    color: theme.colorScheme.outline,
+                  ),
+                  children: [
+                    for (final msg in messages) _ToolResultItem(message: msg),
+                  ],
+                ),
               ),
             ),
-            trailing: Icon(
-              Icons.expand_more_rounded,
-              size: 18,
-              color: theme.colorScheme.outline,
-            ),
-            children: [
-              for (final msg in messages)
-                _ToolResultItem(message: msg),
-            ],
           ),
-        ),
+        ],
       ),
     );
   }
@@ -262,7 +263,7 @@ class _ToolResultItem extends StatelessWidget {
   bool get _isError {
     final content = message.content ?? '';
     return content.startsWith('Tool execution failed:') ||
-        content.startsWith('Unknown tool') ||
+        content.startsWith('Tool "') ||
         content.startsWith('Error');
   }
 
@@ -284,13 +285,14 @@ class _ToolResultItem extends StatelessWidget {
       child: Theme(
         data: theme.copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
-          tilePadding:
-              const EdgeInsets.symmetric(horizontal: 10),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 10),
           childrenPadding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
           dense: true,
           visualDensity: VisualDensity.compact,
           leading: Icon(
-            isError ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
+            isError
+                ? Icons.error_outline_rounded
+                : Icons.check_circle_outline_rounded,
             size: 14,
             color: isError
                 ? theme.colorScheme.error
@@ -345,24 +347,42 @@ class StreamingBubble extends StatelessWidget {
     final hasTools = completedTools.isNotEmpty || activeToolName != null;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: theme.colorScheme.primaryContainer,
+          // AI 头像（与 ChatMessageBubble 一致）
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color:
+                  theme.colorScheme.primaryContainer.withValues(alpha: 0.6),
+              shape: BoxShape.circle,
+            ),
             child: Icon(
               Icons.smart_toy_outlined,
-              size: 18,
-              color: theme.colorScheme.onPrimaryContainer,
+              size: 20,
+              color: theme.colorScheme.primary,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           Flexible(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 角色标签
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 4),
+                  child: Text(
+                    t.agent.chat.ai_label,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.outline,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+
                 // 工具执行分组容器
                 if (hasTools)
                   _ToolExecutionGroup(
@@ -374,28 +394,33 @@ class StreamingBubble extends StatelessWidget {
                 if (text.isNotEmpty)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
+                        horizontal: 16, vertical: 12),
+                    constraints: const BoxConstraints(maxWidth: 600),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surfaceContainerHighest,
                       borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(16),
-                        topRight: Radius.circular(16),
-                        bottomLeft: Radius.circular(4),
-                        bottomRight: Radius.circular(16),
+                        topLeft: Radius.circular(4),
+                        topRight: Radius.circular(18),
+                        bottomLeft: Radius.circular(18),
+                        bottomRight: Radius.circular(18),
+                      ),
+                      border: Border.all(
+                        color: theme.colorScheme.outlineVariant
+                            .withValues(alpha: 0.4),
                       ),
                     ),
                     child: MarkdownBody(
                       data: text,
                       styleSheet:
                           MarkdownStyleSheet.fromTheme(theme).copyWith(
-                        p: theme.textTheme.bodyMedium,
+                        p: theme.textTheme.bodyMedium?.copyWith(height: 1.6),
                       ),
                     ),
                   ),
 
                 // 等待中（无工具、无文本）
                 if (text.isEmpty && !hasTools)
-                  Container(
+                  Padding(
                     padding: const EdgeInsets.all(12),
                     child: SizedBox(
                       width: 20,
@@ -431,11 +456,11 @@ class _ToolExecutionGroup extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.all(10),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
         ),
@@ -447,24 +472,33 @@ class _ToolExecutionGroup extends StatelessWidget {
           // 标题行
           Row(
             children: [
-              Icon(
-                Icons.build_rounded,
-                size: 14,
-                color: theme.colorScheme.primary,
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer
+                      .withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Icon(
+                  Icons.build_rounded,
+                  size: 14,
+                  color: theme.colorScheme.primary,
+                ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
               Text(
                 t.agent.tools.tool_call,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.onSurface,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
               if (completedTools.isNotEmpty)
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
@@ -481,15 +515,13 @@ class _ToolExecutionGroup extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
 
           // 已完成的工具列表
-          for (final tool in completedTools)
-            _CompletedToolItem(tool: tool),
+          for (final tool in completedTools) _CompletedToolItem(tool: tool),
 
           // 正在执行的工具
-          if (activeToolName != null)
-            _ActiveToolItem(name: activeToolName!),
+          if (activeToolName != null) _ActiveToolItem(name: activeToolName!),
         ],
       ),
     );
@@ -511,20 +543,21 @@ class _CompletedToolItem extends StatelessWidget {
         : '${(tool.durationMs / 1000).toStringAsFixed(1)}s';
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 3),
+      padding: const EdgeInsets.only(bottom: 4),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             Icons.check_circle_rounded,
-            size: 13,
+            size: 14,
             color: theme.colorScheme.primary.withValues(alpha: 0.7),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           Text(
             tool.name,
             style: theme.textTheme.labelSmall?.copyWith(
               color: theme.colorScheme.onSurface,
+              fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(width: 8),
@@ -581,25 +614,29 @@ class _ActiveToolItemState extends State<_ActiveToolItem>
 
     return FadeTransition(
       opacity: _opacityAnim,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: 13,
-            height: 13,
-            child: CircularProgressIndicator(
-              strokeWidth: 1.5,
-              color: theme.colorScheme.tertiary,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.5,
+                color: theme.colorScheme.tertiary,
+              ),
             ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            '${widget.name} ...',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.tertiary,
+            const SizedBox(width: 8),
+            Text(
+              '${widget.name} ...',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.tertiary,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

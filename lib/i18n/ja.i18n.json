@@ -615,7 +615,10 @@
       "start_chat": "Agentと会話を始める",
       "session_settings": "セッション設定",
       "session_name": "セッション名",
-      "system_prompt_label": "行動規範 (System Prompt)"
+      "system_prompt_label": "行動規範 (System Prompt)",
+      "you_label": "あなた",
+      "ai_label": "AIアシスタント",
+      "input_hint": "メッセージを入力..."
     },
     "sessions": {
       "history": "対話履歴",

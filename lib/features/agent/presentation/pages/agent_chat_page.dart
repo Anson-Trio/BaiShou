@@ -231,7 +231,7 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
                 ? _buildEmptyState(theme)
                 : ListView.builder(
                     controller: _scrollController,
-                    padding: const EdgeInsets.only(top: 8, bottom: 8),
+                    padding: const EdgeInsets.only(top: 16, bottom: 16),
                     itemCount: _buildDisplayItems(chatState).length +
                         (chatState.isLoading ? 1 : 0),
                     itemBuilder: (context, index) {
@@ -402,23 +402,32 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.chat_bubble_outline_rounded,
-            size: 64,
-            color: theme.colorScheme.outline.withOpacity(0.3),
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.chat_bubble_outline_rounded,
+              size: 36,
+              color: theme.colorScheme.primary.withValues(alpha: 0.5),
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Text(
             t.agent.chat.start_chat,
             style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.outline.withOpacity(0.5),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             t.agent.chat.empty_hint,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.outline.withOpacity(0.4),
+              color: theme.colorScheme.outline.withValues(alpha: 0.6),
             ),
           ),
         ],
