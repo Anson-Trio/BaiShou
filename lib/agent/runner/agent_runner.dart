@@ -77,11 +77,12 @@ class AgentRunner {
   /// 运行 Agent Loop
   Stream<AgentEvent> run({
     required List<ChatMessage> messages,
-    required String userMessage,
     required ToolContext context,
   }) async* {
+    // messages 已由调用方包含完整上下文（含最新 userMessage）
     final messageHistory = List<ChatMessage>.from(messages);
-    messageHistory.add(ChatMessage.user(userMessage));
+    // 单独追踪本轮新增的消息（assistant/tool），用于返回给调用方持久化
+    final newMessages = <ChatMessage>[];
 
     int step = 0;
     int totalInputTokens = 0;
@@ -137,15 +138,17 @@ class AgentRunner {
         }
       }
 
-      messageHistory.add(ChatMessage.assistant(
+      final assistantMsg = ChatMessage.assistant(
         content: textBuffer.isNotEmpty ? textBuffer : null,
         toolCalls: pendingToolCalls.isNotEmpty ? pendingToolCalls : null,
-      ));
+      );
+      messageHistory.add(assistantMsg);
+      newMessages.add(assistantMsg);
 
       if (pendingToolCalls.isEmpty) {
         yield AgentComplete(
           textBuffer,
-          messageHistory,
+          newMessages,
           usage: TokenUsage(
             inputTokens: totalInputTokens,
             outputTokens: totalOutputTokens,
@@ -181,16 +184,18 @@ class AgentRunner {
           durationMs: stopwatch.elapsedMilliseconds,
         );
 
-        messageHistory.add(ChatMessage.tool(
+        final toolMsg = ChatMessage.tool(
           callId: call.id,
           content: result.output,
-        ));
+        );
+        messageHistory.add(toolMsg);
+        newMessages.add(toolMsg);
       }
     }
 
     yield AgentComplete(
       '达到最大执行步数限制 (${config.maxSteps})，已中止。',
-      messageHistory,
+      newMessages,
       usage: TokenUsage(
         inputTokens: totalInputTokens,
         outputTokens: totalOutputTokens,
