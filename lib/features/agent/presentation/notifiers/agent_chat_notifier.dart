@@ -293,7 +293,7 @@ class AgentChatNotifier extends _$AgentChatNotifier {
         context: ToolContext(
           sessionId: sessionId,
           vaultPath: vaultPath,
-          embeddingService: ref.read(embeddingServiceProvider),
+          embeddingService: EmbeddingService(ref),
         ),
       )) {
         // 中止检查：仅在 clearChat 时中止（不因切换会话中止）
