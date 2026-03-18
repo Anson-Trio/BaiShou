@@ -8,6 +8,7 @@ import 'package:baishou/agent/rag/embedding_service.dart';
 import 'package:baishou/agent/rag/hybrid_search.dart';
 import 'package:baishou/agent/tools/agent_tool.dart';
 import 'package:baishou/agent/tools/tool_config_param.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 
 /// 向量语义搜索工具
@@ -21,7 +22,7 @@ class VectorSearchTool extends AgentTool {
   String get id => 'vector_search';
 
   @override
-  String get displayName => '语义搜索';
+  String get displayName => t.agent.tools.vector_search;
 
   @override
   String get category => 'memory';
@@ -34,9 +35,10 @@ class VectorSearchTool extends AgentTool {
 
   @override
   String get description =>
-      '语义搜索历史对话和记忆。'
-      '当用户提问涉及历史内容、之前的决定、个人偏好、或任何之前讨论过的事情时，'
-      '必须先调用此工具进行检索。返回语义最相关的对话片段和评分。';
+      'Semantic search over conversation history and stored memories. '
+      'When the user asks about past content, previous decisions, personal preferences, '
+      'or anything discussed before, you MUST call this tool first. '
+      'Returns the most semantically relevant conversation snippets with scores.';
 
   @override
   Map<String, dynamic> get parameterSchema => {
@@ -169,8 +171,8 @@ class VectorSearchTool extends AgentTool {
   List<ToolConfigParam> get configurableParams => [
         ToolConfigParam(
           key: 'max_results',
-          label: '最大结果数',
-          description: '语义搜索返回的最大结果数量',
+          label: t.agent.tools.param_max_results,
+          description: t.agent.tools.param_max_results_desc,
           type: ParamType.integer,
           defaultValue: 10,
           min: 1,

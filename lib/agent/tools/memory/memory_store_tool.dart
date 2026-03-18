@@ -6,6 +6,7 @@
 import 'package:baishou/agent/rag/embedding_service.dart';
 import 'package:baishou/agent/tools/agent_tool.dart';
 import 'package:baishou/agent/tools/tool_config_param.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 
 /// 记忆存储工具 — 让 Agent 主动存储重要信息
@@ -18,7 +19,7 @@ class MemoryStoreTool extends AgentTool {
   String get id => 'memory_store';
 
   @override
-  String get displayName => '记忆存储';
+  String get displayName => t.agent.tools.memory_store;
 
   @override
   String get category => 'memory';
@@ -31,9 +32,10 @@ class MemoryStoreTool extends AgentTool {
 
   @override
   String get description =>
-      '将重要信息存储为长期记忆，供后续语义搜索检索。'
-      '当用户告知偏好、做出决定、或你认为应该记住的信息时使用此工具。'
-      '存储的记忆会被向量化索引，可通过 vector_search 工具检索。';
+      'Store important information as long-term memory for later semantic search retrieval. '
+      'Use this tool when the user expresses preferences, makes decisions, '
+      'or when you encounter information worth remembering. '
+      'Stored memories are vectorized and can be retrieved via the vector_search tool.';
 
   @override
   Map<String, dynamic> get parameterSchema => {
@@ -42,12 +44,12 @@ class MemoryStoreTool extends AgentTool {
           'content': {
             'type': 'string',
             'description':
-                '要存储为记忆的文本内容。建议包含清晰的上下文，例如"用户偏好：喜欢深色主题"。',
+                'The text content to store as memory. Include clear context, e.g. "User preference: prefers dark theme".',
           },
           'tags': {
             'type': 'string',
             'description':
-                '可选标签，用逗号分隔，帮助分类记忆。例如: "偏好,UI设计"',
+                'Optional comma-separated tags to categorize the memory. e.g. "preference,UI design"',
           },
         },
         'required': ['content'],

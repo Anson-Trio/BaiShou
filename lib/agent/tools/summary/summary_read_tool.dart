@@ -4,6 +4,7 @@
 
 import 'package:baishou/agent/tools/agent_tool.dart';
 import 'package:baishou/core/database/app_database.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
 
@@ -16,7 +17,7 @@ class SummaryReadTool extends AgentTool {
   String get id => 'summary_read';
 
   @override
-  String get displayName => '总结读取';
+  String get displayName => t.agent.tools.summary_read;
 
   @override
   String get category => 'summary';

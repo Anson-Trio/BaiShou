@@ -6,6 +6,7 @@
 import 'package:baishou/agent/session/session_manager.dart';
 import 'package:baishou/agent/tools/agent_tool.dart';
 import 'package:baishou/agent/tools/tool_config_param.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 
 class MessageSearchTool extends AgentTool {
@@ -17,7 +18,7 @@ class MessageSearchTool extends AgentTool {
   String get id => 'message_search';
 
   @override
-  String get displayName => '消息搜索';
+  String get displayName => t.agent.tools.message_search;
 
   @override
   String get category => 'memory';
@@ -27,10 +28,10 @@ class MessageSearchTool extends AgentTool {
 
   @override
   List<ToolConfigParam> get configurableParams => [
-        const ToolConfigParam(
+        ToolConfigParam(
           key: 'max_results',
-          label: '搜索结果上限',
-          description: 'AI 每次搜索历史消息时返回的最大结果数量',
+          label: t.agent.tools.param_max_results,
+          description: t.agent.tools.param_max_results_desc,
           type: ParamType.integer,
           defaultValue: 10,
           min: 1,

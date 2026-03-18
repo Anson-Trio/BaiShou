@@ -4,6 +4,7 @@
 
 import 'dart:io';
 import 'package:baishou/agent/tools/agent_tool.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 
 class DiaryListTool extends AgentTool {
@@ -11,7 +12,7 @@ class DiaryListTool extends AgentTool {
   String get id => 'diary_list';
 
   @override
-  String get displayName => '日记列表';
+  String get displayName => t.agent.tools.diary_list;
 
   @override
   String get category => 'diary';
