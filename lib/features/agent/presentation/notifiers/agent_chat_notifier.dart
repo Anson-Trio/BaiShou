@@ -71,9 +71,31 @@ class AgentChatState {
 
 @riverpod
 class AgentChatNotifier extends _$AgentChatNotifier {
+  /// 最近一次发送的用户文本（用于重试）
+  String? _lastSendText;
+
   @override
   AgentChatState build() {
     return const AgentChatState();
+  }
+
+  /// 重试最后一次发送
+  Future<void> retryLast() async {
+    if (_lastSendText == null || _lastSendText!.isEmpty) return;
+    // 移除失败产生的最后一条 assistant 消息（如果有）
+    final msgs = List<ChatMessage>.from(state.messages);
+    while (msgs.isNotEmpty && msgs.last.role != MessageRole.user) {
+      msgs.removeLast();
+    }
+    state = state.copyWith(
+      messages: msgs,
+      error: () => null,
+    );
+    await sendMessage(
+      text: _lastSendText!,
+      vaultName: 'default',
+      vaultPath: '',
+    );
   }
 
   /// 加载已有会话
@@ -95,6 +117,9 @@ class AgentChatNotifier extends _$AgentChatNotifier {
     String? guidelines,
   }) async {
     if (text.trim().isEmpty || state.isLoading) return;
+
+    // 缓存发送文本用于重试
+    _lastSendText = text.trim();
 
     // 清除错误状态
     state = state.copyWith(
