@@ -1,4 +1,4 @@
-{
+﻿{
   "ai_prompt": {
     "context_title": "Shared Memories (Past $months months - Folded by BaiShou Algorithm)",
     "prefix_yearly": "👑 Yearly",
@@ -73,6 +73,7 @@
       "Dec"
     ],
     "unknown": "Unknown",
+    "not_configured": "Not Configured",
     "nickname": "Nickname",
     "avatar": "Avatar",
     "done": "Done",
@@ -580,5 +581,86 @@
     "local_first_desc": "Write diaries offline seamlessly. AI summaries are generated on-demand; we don't store your generated texts.",
     "transparency": "3. Transparency & Security",
     "transparency_desc": "Supports end-to-end data export. Take your memories with you anytime via ZIP or sync to your own S3/WebDAV space."
+  },
+  "agent": {
+    "tools": {
+      "built_in": "Built-in Tools",
+      "community": "Community Tools",
+      "community_coming_soon": "You will be able to install and share tools from the community",
+      "tool_call": "Tool Call",
+      "tool_call_results": "Tool Calls · ${count} results",
+      "community_market_coming": "Community tool market coming soon",
+      "diary_read": "Diary Read",
+      "diary_list": "Diary List",
+      "diary_search": "Diary Search",
+      "summary_read": "Summary Read",
+      "message_search": "Message Search",
+      "vector_search": "Semantic Search",
+      "memory_store": "Memory Store",
+      "param_max_results": "Max Results",
+      "param_max_results_desc": "Maximum number of results returned per AI search"
+    },
+    "chat": {
+      "companion_mode": "Deep Companion",
+      "session_mode": "Agent Session",
+      "empty_hint": "Try asking: 'What diaries did I write this week?'",
+      "input_system_prompt_hint": "Enter custom Agent behavior rules...",
+      "retry": "Retry",
+      "err_format": "Invalid request format, please check message content and retry",
+      "err_unauthorized": "Invalid API Key or no access to this model",
+      "err_too_many_requests": "Too many requests, please try again later",
+      "err_server": "Server temporarily unavailable, please try again later",
+      "err_timeout": "Request timeout, please check network and retry",
+      "err_network": "Could not connect to server, please check network settings",
+      "start_chat": "Start chatting with Agent",
+      "session_settings": "Session Settings",
+      "session_name": "Session Name",
+      "system_prompt_label": "Behavior Rules (System Prompt)"
+    },
+    "sessions": {
+      "history": "Chat History",
+      "settings": "Agent Settings",
+      "new_chat": "New Chat",
+      "companion_tab": "Companion",
+      "session_tab": "Session",
+      "companion_title": "Deep Companion Mode",
+      "companion_desc": "Start chatting directly without managing sessions",
+      "continue_chat": "Continue Chat",
+      "no_history": "No conversation history yet",
+      "start_new": "Start New Chat",
+      "delete_title": "Delete Chat",
+      "delete_confirm": "Delete \"{title}\"?",
+      "delete_btn": "Delete",
+      "companion_switch": "Companion Mode",
+      "companion_on": "Enabled — Single continuous chat, no session concept",
+      "companion_off": "Disabled — Multi-session mode",
+      "memory_window": "Context Window",
+      "memory_window_desc": "Send recent {count} messages to the model",
+      "persona": "Persona",
+      "persona_hint": "Describe the Agent's identity and style",
+      "behavior": "Behavior Rules",
+      "behavior_hint": "Describe rules the Agent must follow",
+      "rename": "Rename",
+      "rename_hint": "Enter new session name",
+      "actions": "Actions",
+      "pin": "Pin Chat",
+      "unpin": "Unpin",
+      "delete_session": "Delete Chat",
+      "default_title": "New Chat",
+      "unnamed_session": "Unnamed Session",
+      "companion_session_title": "Companion Mode"
+    },
+    "rag": {
+      "title": "RAG Memory Management",
+      "search_hint": "Search memories...",
+      "clear_all": "Clear",
+      "clear_all_title": "Clear All Memories",
+      "clear_all_content": "Are you sure you want to delete all embedded vector data? This action cannot be undone.",
+      "clear_confirm": "Confirm Clear",
+      "delete_tooltip": "Delete",
+      "stat_total": "Total",
+      "stat_model": "Model",
+      "stat_dimension": "Dimension"
+    }
   }
 }

@@ -1,4 +1,4 @@
-{
+﻿{
   "ai_prompt": {
     "context_title": "共同的回忆 (过去 $months 个月 - 白守算法已折叠)",
     "prefix_yearly": "👑 年度",
@@ -73,6 +73,7 @@
       "十二月"
     ],
     "unknown": "未知",
+    "not_configured": "未配置",
     "nickname": "昵称",
     "avatar": "头像",
     "done": "完成",
@@ -580,5 +581,86 @@
     "local_first_desc": "即便没有网络，你依然可以流畅地写日记。所有的 AI 总结都是在你发起请求时即时生成的，我们不存储任何生成的文本。",
     "transparency": "3. 透明与安全",
     "transparency_desc": "白守支持端到端的数据导出与同步。你可以随时通过 ZIP 导出彻底带走自己的回忆，或者将其同步至你完全掌控的 S3/WebDAV 空间。"
+  },
+  "agent": {
+    "tools": {
+      "built_in": "内置工具",
+      "community": "社区工具",
+      "community_coming_soon": "你将可以从社区安装和分享工具",
+      "tool_call": "工具调用",
+      "tool_call_results": "工具调用 · ${count} 个结果",
+      "community_market_coming": "社区工具市场即将上线",
+      "diary_read": "日记读取",
+      "diary_list": "日记列表",
+      "diary_search": "日记搜索",
+      "summary_read": "总结读取",
+      "message_search": "消息搜索",
+      "vector_search": "语义搜索",
+      "memory_store": "记忆存储",
+      "param_max_results": "搜索结果上限",
+      "param_max_results_desc": "AI 每次搜索时返回的最大结果数量"
+    },
+    "chat": {
+      "companion_mode": "深度陪伴",
+      "session_mode": "Agent 对话",
+      "empty_hint": "试试问：「我这周写了什么日记？」",
+      "input_system_prompt_hint": "输入自定义 Agent 行为准则 (如：用简短的中文回答)",
+      "retry": "重试",
+      "err_format": "请求格式错误，请检查消息内容后重试",
+      "err_unauthorized": "API Key 无效或无权限访问此模型",
+      "err_too_many_requests": "请求过于频繁，请稍后重试",
+      "err_server": "服务器暂时不可用，请稍后重试",
+      "err_timeout": "请求超时，请检查网络连接后重试",
+      "err_network": "无法连接到服务器，请检查网络设置",
+      "start_chat": "开始和 Agent 对话",
+      "session_settings": "会话设置",
+      "session_name": "会话名称",
+      "system_prompt_label": "行为准则 (System Prompt)"
+    },
+    "sessions": {
+      "history": "对话历史",
+      "settings": "Agent 设置",
+      "new_chat": "新对话",
+      "companion_tab": "深度陪伴",
+      "session_tab": "会话模式",
+      "companion_title": "深度陪伴模式",
+      "companion_desc": "不需要管理会话，直接开始聊天",
+      "continue_chat": "继续对话",
+      "no_history": "还没有对话记录",
+      "start_new": "开始新对话",
+      "delete_title": "删除对话",
+      "delete_confirm": "确定删除\"{title}\"？",
+      "delete_btn": "删除",
+      "companion_switch": "伴侣模式",
+      "companion_on": "已开启 — 单一持续对话，无会话概念",
+      "companion_off": "已关闭 — 多会话模式",
+      "memory_window": "上下文轮数",
+      "memory_window_desc": "发送最近 {count} 条消息给模型",
+      "persona": "角色人设",
+      "persona_hint": "描述 Agent 的身份和风格",
+      "behavior": "行为准则",
+      "behavior_hint": "描述 Agent 需要遵守的规则",
+      "rename": "重命名",
+      "rename_hint": "输入新会话名称",
+      "actions": "操作",
+      "pin": "置顶对话",
+      "unpin": "取消置顶",
+      "delete_session": "删除对话",
+      "default_title": "新对话",
+      "unnamed_session": "未命名会话",
+      "companion_session_title": "伴侣模式"
+    },
+    "rag": {
+      "title": "RAG 记忆管理",
+      "search_hint": "搜索记忆内容...",
+      "clear_all": "清空",
+      "clear_all_title": "清空所有记忆",
+      "clear_all_content": "确定要删除所有已嵌入的向量数据吗？此操作不可撤销。",
+      "clear_confirm": "确认清空",
+      "delete_tooltip": "删除",
+      "stat_total": "总条目",
+      "stat_model": "模型",
+      "stat_dimension": "维度"
+    }
   }
 }

@@ -1,4 +1,4 @@
-{
+﻿{
   "ai_prompt": {
     "context_title": "共同の思い出 (過去 $months ヶ月 - 白守アルゴリズムにより折り畳み済み)",
     "prefix_yearly": "👑 年間",
@@ -73,6 +73,7 @@
       "12月"
     ],
     "unknown": "未知",
+    "not_configured": "未設定",
     "nickname": "ニックネーム",
     "avatar": "アイコン",
     "done": "完了",
@@ -580,5 +581,86 @@
     "local_first_desc": "オフラインでも日記を書くことができます。AI によるまとめはリクエストごとに生成され、生成されたテキストをこちらで保存することはありません。",
     "transparency": "3. 透明性と安全",
     "transparency_desc": "エンドツーエンドのエクスポートと同期をサポートしています。ZIP 形式でいつでもデータを持ち出せますし、自分の S3/WebDAV に同期することも可能です。"
+  },
+  "agent": {
+    "tools": {
+      "built_in": "組み込みツール",
+      "community": "コミュニティツール",
+      "community_coming_soon": "コミュニティからツールをインストールして共有できるようになります",
+      "tool_call": "ツール呼び出し",
+      "tool_call_results": "ツール呼び出し · ${count} 件",
+      "community_market_coming": "コミュニティツール市場はまもなく公開されます",
+      "diary_read": "日記読み取り",
+      "diary_list": "日記一覧",
+      "diary_search": "日記検索",
+      "summary_read": "サマリー読み取り",
+      "message_search": "メッセージ検索",
+      "vector_search": "セマンティック検索",
+      "memory_store": "記憶保存",
+      "param_max_results": "最大結果数",
+      "param_max_results_desc": "AI検索時の最大結果数"
+    },
+    "chat": {
+      "companion_mode": "ディープ・コンパニオン",
+      "session_mode": "Agent 対話",
+      "empty_hint": "「今週はどんな日記を書いた？」と聞いてみてください",
+      "input_system_prompt_hint": "Agentのカスタム行動規範を入力してください...",
+      "retry": "再試行",
+      "err_format": "リクエストの形式が正しくありません。メッセージの内容を確認して再試行してください",
+      "err_unauthorized": "API Keyが無効であるか、このモデルへのアクセス権限がありません",
+      "err_too_many_requests": "リクエストが多すぎます。後で再試行してください",
+      "err_server": "サーバーを一時的に利用できません。後で再試行してください",
+      "err_timeout": "リクエストがタイムアウトしました。ネットワークを確認して再試行してください",
+      "err_network": "サーバーに接続できませんでした。ネットワーク設定を確認してください",
+      "start_chat": "Agentと会話を始める",
+      "session_settings": "セッション設定",
+      "session_name": "セッション名",
+      "system_prompt_label": "行動規範 (System Prompt)"
+    },
+    "sessions": {
+      "history": "対話履歴",
+      "settings": "Agent 設定",
+      "new_chat": "新しい対話",
+      "companion_tab": "コンパニオン",
+      "session_tab": "対話モード",
+      "companion_title": "ディープ・コンパニオン",
+      "companion_desc": "セッションを管理せず、直接チャットを開始します",
+      "continue_chat": "対話を続ける",
+      "no_history": "まだ対話記録がありません",
+      "start_new": "新しく始める",
+      "delete_title": "対話を削除",
+      "delete_confirm": "「{title}」を削除しますか？",
+      "delete_btn": "削除",
+      "companion_switch": "コンパニオンモード",
+      "companion_on": "ON — セッションの概念がない単一の継続的な対話",
+      "companion_off": "OFF — マルチセッションモード",
+      "memory_window": "コンテキストウィンドウ",
+      "memory_window_desc": "直近の {count} 件のメッセージをモデルに送信します",
+      "persona": "ペルソナ",
+      "persona_hint": "Agentのアイデンティティとスタイルを説明します",
+      "behavior": "行動規範",
+      "behavior_hint": "Agentが従うべきルールを説明します",
+      "rename": "名前を変更",
+      "rename_hint": "新しいセッション名を入力",
+      "actions": "操作",
+      "pin": "ピン留め",
+      "unpin": "ピン留め解除",
+      "delete_session": "対話を削除",
+      "default_title": "新しい対話",
+      "unnamed_session": "名前なしセッション",
+      "companion_session_title": "コンパニオンモード"
+    },
+    "rag": {
+      "title": "RAG 記憶管理",
+      "search_hint": "記憶内容を検索...",
+      "clear_all": "クリア",
+      "clear_all_title": "全ての記憶をクリア",
+      "clear_all_content": "埋め込まれた全てのベクトルデータを削除してもよろしいですか？この操作は取り消せません。",
+      "clear_confirm": "クリアを確認",
+      "delete_tooltip": "削除",
+      "stat_total": "総数",
+      "stat_model": "モデル",
+      "stat_dimension": "次元"
+    }
   }
 }
