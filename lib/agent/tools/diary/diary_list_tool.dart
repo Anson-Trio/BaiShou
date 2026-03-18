@@ -89,10 +89,10 @@ class DiaryListTool extends AgentTool {
     while (!current.isAfter(endDate)) {
       final dateStr =
           '${current.year}-${current.month.toString().padLeft(2, '0')}-${current.day.toString().padLeft(2, '0')}';
-      final yearMonth =
-          '${current.year}-${current.month.toString().padLeft(2, '0')}';
+      final year = '${current.year}';
+      final month = current.month.toString().padLeft(2, '0');
       final filePath =
-          '${context.vaultPath}/Journals/$yearMonth/$dateStr.md';
+          '${context.vaultPath}/Journals/$year/$month/$dateStr.md';
 
       if (await File(filePath).exists()) {
         foundDates.add(dateStr);

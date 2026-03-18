@@ -59,11 +59,12 @@ class DiaryReadTool extends AgentTool {
       );
     }
 
-    // 解析年月 → 构建路径: Journals/YYYY-MM/YYYY-MM-DD.md
+    // 解析年月 → 构建路径: Journals/YYYY/MM/YYYY-MM-DD.md
     final parts = date.split('-');
-    final yearMonth = '${parts[0]}-${parts[1]}';
+    final year = parts[0];
+    final month = parts[1];
     final filePath =
-        '${context.vaultPath}/Journals/$yearMonth/$date.md';
+        '${context.vaultPath}/Journals/$year/$month/$date.md';
 
     final file = File(filePath);
     if (!await file.exists()) {

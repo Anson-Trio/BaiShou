@@ -330,7 +330,6 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
               ref.read(agentChatProvider.notifier).sendMessage(
                     text: text,
                     guidelines: guidelines,
-                    vaultName: 'default',
                   );
             },
           ),

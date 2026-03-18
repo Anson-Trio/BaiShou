@@ -15,6 +15,7 @@ import 'package:baishou/agent/pricing/model_pricing_service.dart';
 import 'package:baishou/agent/prompts/system_prompt_builder.dart';
 import 'package:baishou/core/services/api_config_service.dart';
 import 'package:baishou/core/storage/storage_path_provider.dart';
+import 'package:baishou/core/storage/vault_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -94,7 +95,6 @@ class AgentChatNotifier extends _$AgentChatNotifier {
     );
     await sendMessage(
       text: _lastSendText!,
-      vaultName: 'default',
     );
   }
 
@@ -111,7 +111,6 @@ class AgentChatNotifier extends _$AgentChatNotifier {
   /// 发送消息并运行 Agent
   Future<void> sendMessage({
     required String text,
-    required String vaultName,
     String? persona,
     String? guidelines,
   }) async {
@@ -128,6 +127,10 @@ class AgentChatNotifier extends _$AgentChatNotifier {
 
     final manager = ref.read(sessionManagerProvider);
     final apiConfig = ref.read(apiConfigServiceProvider);
+
+    // 从 VaultService 获取当前活跃的 Vault 名称
+    final vaultInfo = await ref.read(vaultServiceProvider.future);
+    final vaultName = vaultInfo?.name ?? 'Personal';
 
     // 从 StoragePathService 解析 Vault 的物理路径（供工具读写文件系统）
     final storageService = ref.read(storagePathServiceProvider);
