@@ -167,7 +167,8 @@ class AgentRunner {
 
         if (tool == null) {
           result = ToolResult.error(
-            'Unknown tool "${call.name}". Available tools: ${tools.ids.join(", ")}',
+            'Tool "${call.name}" does not exist or has been disabled by the user. '
+            'Available tools: ${tools.ids.join(", ")}',
           );
         } else {
           try {
