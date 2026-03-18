@@ -6,6 +6,8 @@
 // 3. 文本分块（chunk）后逐块嵌入
 // 4. 存入 AgentDatabase
 
+import 'dart:math';
+
 import 'package:baishou/agent/clients/ai_client.dart';
 import 'package:baishou/agent/database/agent_database.dart';
 import 'package:baishou/core/services/api_config_service.dart';
@@ -115,7 +117,7 @@ class EmbeddingService {
             sessionId: sessionId,
             chunkIndex: chunk.index,
             chunkText: chunk.text,
-            embedding: embedding,
+            embedding: _normalize(embedding),
             modelId: embeddingModelId,
           );
         }, label: 'embedMessage chunk ${chunk.index}');
@@ -137,10 +139,11 @@ class EmbeddingService {
       if (provider == null) return null;
 
       final client = AiClientFactory.createClient(provider);
-      return await client.generateEmbedding(
+      final raw = await client.generateEmbedding(
         input: query,
         modelId: embeddingModelId,
       );
+      return _normalize(raw);
     } catch (e) {
       debugPrint('Query embedding failed: $e');
       return null;
@@ -188,7 +191,7 @@ class EmbeddingService {
           sessionId: sessionId,
           chunkIndex: chunk.index,
           chunkText: chunk.text,
-          embedding: embedding,
+          embedding: _normalize(embedding),
           modelId: embeddingModelId,
         );
       }, label: 'embedText chunk ${chunk.index}');
@@ -340,6 +343,23 @@ class EmbeddingService {
         }
       }
     }
+  }
+
+  /// L2 归一化：将向量缩放为单位向量
+  ///
+  /// 归一化后 L2 距离范围变为 [0, 2]，语义相似的向量距离接近 0。
+  List<double> _normalize(List<double> vec) {
+    double norm = 0;
+    for (final v in vec) norm += v * v;
+    norm = sqrt(norm);
+    debugPrint('_normalize: dim=${vec.length}, norm_before=$norm');
+    if (norm == 0) return vec;
+    final result = vec.map((v) => v / norm).toList();
+    // 验证归一化后的 norm ≈ 1.0
+    double check = 0;
+    for (final v in result) check += v * v;
+    debugPrint('_normalize: norm_after=${sqrt(check)}');
+    return result;
   }
 }
 

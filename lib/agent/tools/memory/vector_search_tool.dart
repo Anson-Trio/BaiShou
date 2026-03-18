@@ -102,7 +102,7 @@ class VectorSearchTool extends AgentTool {
                   sessionId: r['session_id'] as String,
                   chunkText: r['chunk_text'] as String,
                   sessionTitle: r['session_title'] as String,
-                  score: 1.0 - (r['distance'] as double), // distance → similarity
+                  score: 1.0 - (r['distance'] as double), // cosine distance → similarity
                   source: 'vector',
                 ))
             .toList();
@@ -143,11 +143,14 @@ class VectorSearchTool extends AgentTool {
             .toList();
       }
 
-      // 按 min_score 过滤
-      results = results.where((r) => r.score >= minScore).toList();
+      // 排序（高分优先）+ 按 min_score 过滤
+      results.sort((a, b) => b.score.compareTo(a.score));
+      if (minScore > 0) {
+        results = results.where((r) => r.score >= minScore).toList();
+      }
 
       if (results.isEmpty) {
-        return ToolResult(output: '没有找到语义相关的历史消息（min_score=$minScore）。');
+        return ToolResult(output: '没有找到语义相关的历史消息。');
       }
 
       // 格式化输出

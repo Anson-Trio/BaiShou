@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:baishou/agent/database/agent_tables.dart';
 import 'package:baishou/i18n/strings.g.dart';
@@ -176,7 +178,7 @@ class AgentDatabase extends _$AgentDatabase {
 
   /// 原生 KNN 向量搜索 — 使用 sqlite-vec 的 vector_full_scan
   ///
-  /// 在 SQL 层直接用 SIMD 加速计算最近邻，比 Dart 侧全量扫描快数量级。
+  /// 使用 sqlite-vec 的 vec_distance_cosine() 在 SQL 层计算余弦距离（SIMD 加速）。
   /// [dimension] 用于过滤维度不匹配的向量，防止跨模型搜索出错。
   Future<List<Map<String, dynamic>>> searchSimilar({
     required List<double> queryEmbedding,
@@ -186,47 +188,130 @@ class AgentDatabase extends _$AgentDatabase {
     final vectorJson = '[${queryEmbedding.join(',')}]';
     final effectiveDimension = dimension ?? queryEmbedding.length;
 
-    final results = await customSelect(
-      '''
-      SELECT
-        e.embedding_id,
-        e.message_id,
-        e.session_id,
-        e.chunk_index,
-        e.chunk_text,
-        e.dimension,
-        e.model_id,
-        v.distance,
-        s.title AS session_title
-      FROM message_embeddings AS e
-      JOIN vector_full_scan(
-        'message_embeddings', 'embedding',
-        vector_as_f32(?), ?
-      ) AS v ON e.id = v.rowid
-      LEFT JOIN agent_sessions AS s ON e.session_id = s.id
-      WHERE e.dimension = ?
-      ''',
-      variables: [
-        Variable.withString(vectorJson),
-        Variable.withInt(topK),
-        Variable.withInt(effectiveDimension),
-      ],
+    debugPrint('searchSimilar: queryLen=${queryEmbedding.length}, '
+        'dim=$effectiveDimension, topK=$topK');
+
+    try {
+      // 使用 vec_distance_cosine 在 SQL 层计算余弦距离
+      final results = await customSelect(
+        '''
+        SELECT
+          e.embedding_id,
+          e.message_id,
+          e.session_id,
+          e.chunk_index,
+          e.chunk_text,
+          e.dimension,
+          e.model_id,
+          vec_distance_cosine(e.embedding, vector_as_f32(?)) AS distance,
+          s.title AS session_title
+        FROM message_embeddings AS e
+        LEFT JOIN agent_sessions AS s ON e.session_id = s.id
+        WHERE e.dimension = ?
+        ORDER BY distance ASC
+        LIMIT ?
+        ''',
+        variables: [
+          Variable.withString(vectorJson),
+          Variable.withInt(effectiveDimension),
+          Variable.withInt(topK),
+        ],
+      ).get();
+
+      debugPrint('searchSimilar: got ${results.length} results, '
+          'best distance=${results.isNotEmpty ? results.first.read<double>('distance') : 'N/A'}');
+
+      return results.map((row) {
+        return {
+          'embedding_id': row.read<String>('embedding_id'),
+          'message_id': row.read<String>('message_id'),
+          'session_id': row.read<String>('session_id'),
+          'chunk_index': row.read<int>('chunk_index'),
+          'chunk_text': row.read<String>('chunk_text'),
+          'dimension': row.read<int>('dimension'),
+          'model_id': row.read<String>('model_id'),
+          'distance': row.read<double>('distance'),
+          'session_title':
+              row.readNullable<String>('session_title') ?? t.agent.sessions.unnamed_session,
+        };
+      }).toList();
+    } catch (e) {
+      debugPrint('searchSimilar vec_distance_cosine failed: $e');
+      // 回退到 Dart 侧计算
+      return _dartCosineSearch(queryEmbedding, effectiveDimension, topK);
+    }
+  }
+
+  /// Dart 侧余弦相似度搜索（回退方案）
+  Future<List<Map<String, dynamic>>> _dartCosineSearch(
+    List<double> queryEmbedding,
+    int dimension,
+    int topK,
+  ) async {
+    debugPrint('_dartCosineSearch: using Dart-side cosine similarity');
+    final rows = await customSelect(
+      '''SELECT e.*, s.title AS session_title
+         FROM message_embeddings AS e
+         LEFT JOIN agent_sessions AS s ON e.session_id = s.id
+         WHERE e.dimension = ?''',
+      variables: [Variable.withInt(dimension)],
     ).get();
 
-    return results.map((row) {
-      return {
-        'embedding_id': row.read<String>('embedding_id'),
-        'message_id': row.read<String>('message_id'),
-        'session_id': row.read<String>('session_id'),
-        'chunk_index': row.read<int>('chunk_index'),
-        'chunk_text': row.read<String>('chunk_text'),
-        'dimension': row.read<int>('dimension'),
-        'model_id': row.read<String>('model_id'),
-        'distance': row.read<double>('distance'),
-        'session_title':
-            row.readNullable<String>('session_title') ?? t.agent.sessions.unnamed_session,
-      };
-    }).toList();
+    if (rows.isEmpty) return [];
+
+    final scored = <Map<String, dynamic>>[];
+    final queryNorm = _vecNorm(queryEmbedding);
+
+    for (final row in rows) {
+      try {
+        final blob = row.read<Uint8List>('embedding');
+        final stored = _blobToFloats(blob);
+        if (stored.length != queryEmbedding.length) continue;
+
+        final dot = _vecDot(queryEmbedding, stored);
+        final storedNorm = _vecNorm(stored);
+        final cosine = (queryNorm > 0 && storedNorm > 0)
+            ? dot / (queryNorm * storedNorm)
+            : 0.0;
+
+        scored.add({
+          'embedding_id': row.read<String>('embedding_id'),
+          'message_id': row.read<String>('message_id'),
+          'session_id': row.read<String>('session_id'),
+          'chunk_index': row.read<int>('chunk_index'),
+          'chunk_text': row.read<String>('chunk_text'),
+          'dimension': row.read<int>('dimension'),
+          'model_id': row.read<String>('model_id'),
+          'distance': 1.0 - cosine,
+          'session_title':
+              row.readNullable<String>('session_title') ?? t.agent.sessions.unnamed_session,
+        });
+      } catch (e) {
+        // skip corrupt entries
+      }
+    }
+
+    scored.sort((a, b) => (a['distance'] as double).compareTo(b['distance'] as double));
+    return scored.take(topK).toList();
+  }
+
+  // 向量工具函数
+  double _vecDot(List<double> a, List<double> b) {
+    double sum = 0;
+    for (int i = 0; i < a.length; i++) sum += a[i] * b[i];
+    return sum;
+  }
+
+  double _vecNorm(List<double> v) {
+    double sum = 0;
+    for (final x in v) sum += x * x;
+    return sqrt(sum);
+  }
+
+  List<double> _blobToFloats(Uint8List blob) {
+    final byteData = ByteData.sublistView(blob);
+    final count = blob.length ~/ 4; // float32 = 4 bytes
+    return List.generate(count, (i) => byteData.getFloat32(i * 4, Endian.little));
   }
 
   /// 删除某条消息的所有嵌入

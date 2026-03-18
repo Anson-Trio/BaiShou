@@ -45,7 +45,7 @@ class HybridSearch {
   }) {
     final scoreMap = <String, _MergedScore>{};
 
-    // FTS RRF 分数
+    // FTS RRF 分数（FTS 没有有意义的分数，用 RRF 排名分数）
     for (int i = 0; i < ftsResults.length; i++) {
       final r = ftsResults[i];
       final key = '${r.messageId}:${r.sessionId}';
@@ -54,13 +54,13 @@ class HybridSearch {
       scoreMap[key]!.ftsScore = rrfScore;
     }
 
-    // Vector RRF 分数
+    // Vector 分数：使用原始余弦相似度 × 权重
     for (int i = 0; i < vectorResults.length; i++) {
       final r = vectorResults[i];
       final key = '${r.messageId}:${r.sessionId}';
-      final rrfScore = vectorWeight / (i + _rrfK);
       scoreMap.putIfAbsent(key, () => _MergedScore(result: r));
-      scoreMap[key]!.vectorScore = rrfScore;
+      scoreMap[key]!.vectorScore = r.score * vectorWeight;
+      scoreMap[key]!.rawVectorScore = r.score; // 保留原始分数
     }
 
     // 合并排序
@@ -74,7 +74,8 @@ class HybridSearch {
               sessionId: m.result.sessionId,
               chunkText: m.result.chunkText,
               sessionTitle: m.result.sessionTitle,
-              score: m.totalScore,
+              // 混合结果用blended分数，纯向量结果用原始余弦分数
+              score: m.rawVectorScore > 0 ? m.rawVectorScore : m.totalScore,
               source: m.source,
             ))
         .toList();
@@ -133,6 +134,7 @@ class _MergedScore {
   final SearchResult result;
   double ftsScore = 0;
   double vectorScore = 0;
+  double rawVectorScore = 0; // 原始余弦相似度（未加权）
 
   _MergedScore({required this.result});
 
