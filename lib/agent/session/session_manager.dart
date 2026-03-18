@@ -356,6 +356,9 @@ class SessionManager {
         messageId: msg.id,
         sessionId: sessionId,
         text: msg.content!,
+        // tool result 消息额外存储 toolCallId 和 toolName
+        toolCallId: msg.toolCallId,
+        toolName: msg.toolName,
       ));
     }
 
@@ -413,22 +416,27 @@ class SessionManager {
     String? content;
     List<ToolCall>? toolCalls;
     String? toolCallId;
+    String? toolName;
 
     for (final partRow in partRows) {
       final part = _rowToPart(partRow);
       switch (part) {
         case TextPart(:final text):
           content = (content ?? '') + text;
-        case ToolPart(:final callId, :final toolName, :final input):
+          // 从 TextPart 恢复 tool result 消息的 toolCallId 和 toolName
+          if (part.toolCallId != null) toolCallId = part.toolCallId;
+          if (part.toolName != null) toolName = part.toolName;
+        case ToolPart():
           toolCalls ??= [];
           toolCalls.add(ToolCall(
-            id: callId,
-            name: toolName,
-            arguments: input,
+            id: part.callId,
+            name: part.toolName,
+            arguments: part.input,
           ));
           // tool result 消息的 toolCallId 来自 ToolPart
           if (row.role == 'tool') {
-            toolCallId = callId;
+            toolCallId = part.callId;
+            toolName = part.toolName;
           }
         case StepFinishPart():
         case CompactionPart():
@@ -442,6 +450,7 @@ class SessionManager {
       content: content,
       toolCalls: toolCalls,
       toolCallId: toolCallId,
+      toolName: toolName,
       timestamp: row.createdAt,
     );
   }

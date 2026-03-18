@@ -90,6 +90,45 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
     await _loadData();
   }
 
+  /// 展示记忆条目完整内容
+  void _showFullContent(String text, String model, String timeStr) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.data_object_rounded, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '$model · $timeStr',
+                style: Theme.of(context).textTheme.titleSmall,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 500,
+          child: SingleChildScrollView(
+            child: SelectableText(
+              text,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    height: 1.6,
+                  ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(t.common.cancel),
+          ),
+        ],
+      ),
+    );
+  }
+
   List<Map<String, dynamic>> get _filteredEntries {
     if (_searchQuery.isEmpty) return _entries;
     final q = _searchQuery.toLowerCase();
@@ -192,9 +231,8 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
 
       int embedded = 0;
       for (final diary in diaries) {
-        if (!mounted) break;
         if (diary.content.trim().isEmpty) {
-          setState(() => _batchProgress++);
+          if (mounted) setState(() => _batchProgress++);
           continue;
         }
         await embeddingService.embedText(
@@ -664,6 +702,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
               onPressed: () => _deleteEntry(embeddingId),
               tooltip: t.agent.rag.delete_tooltip,
             ),
+            onTap: () => _showFullContent(text, model, timeStr),
           ),
         );
       },

@@ -93,32 +93,17 @@ class EmbeddingService {
       // 首次嵌入前自动检测维度
       final currentDimension = await detectDimension();
 
-      // 检查已有数据的维度一致性
+      // 初始化向量索引
       if (currentDimension > 0) {
-        final stats = await _db.getEmbeddingStats();
-        final totalCount = stats['total_count'] as int;
-        if (totalCount > 0) {
-          final dimensionCount = stats['dimension_count'] as int;
-          if (dimensionCount > 0) {
-            // 检查是否有不同维度的旧数据
-            final models = stats['models'] as List;
-            final hasMismatch = models.any(
-              (m) => (m as Map)['dimension'] != currentDimension,
-            );
-            if (hasMismatch) {
-              debugPrint('EmbeddingService: 维度不一致，清空旧数据并重建');
-              await _db.clearEmbeddings();
-            }
-          }
-        }
+        await _db.initVectorIndex(currentDimension);
       }
 
       // 文本分块
       final chunks = _splitIntoChunks(content);
 
-      // 逐块嵌入并存储
+      // 逐块嵌入并存储（带重试）
       for (final chunk in chunks) {
-        try {
+        await _retryEmbed(() async {
           final embedding = await client.generateEmbedding(
             input: chunk.text,
             modelId: embeddingModelId,
@@ -133,9 +118,7 @@ class EmbeddingService {
             embedding: embedding,
             modelId: embeddingModelId,
           );
-        } catch (e) {
-          debugPrint('Failed to embed chunk ${chunk.index}: $e');
-        }
+        }, label: 'embedMessage chunk ${chunk.index}');
       }
     } catch (e) {
       debugPrint('Embedding failed: $e');
@@ -194,7 +177,7 @@ class EmbeddingService {
     }
 
     for (final chunk in chunks) {
-      try {
+      await _retryEmbed(() async {
         final embedding = await client.generateEmbedding(
           input: chunk.text,
           modelId: embeddingModelId,
@@ -208,9 +191,7 @@ class EmbeddingService {
           embedding: embedding,
           modelId: embeddingModelId,
         );
-      } catch (e) {
-        debugPrint('embedText chunk ${chunk.index} failed: $e');
-      }
+      }, label: 'embedText chunk ${chunk.index}');
     }
   }
 
@@ -336,6 +317,29 @@ class EmbeddingService {
     }
 
     return chunks;
+  }
+
+  /// 重试包装器：遇到网络波动时自动重试（最多 3 次，指数退避）
+  Future<void> _retryEmbed(
+    Future<void> Function() action, {
+    String label = '',
+    int maxAttempts = 3,
+  }) async {
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await action();
+        return;
+      } catch (e) {
+        if (attempt < maxAttempts) {
+          final delay = Duration(seconds: attempt); // 1s, 2s
+          debugPrint('$label 失败 (attempt $attempt/$maxAttempts), '
+              '${delay.inSeconds}s 后重试: $e');
+          await Future.delayed(delay);
+        } else {
+          debugPrint('$label 失败 (已耗尽重试): $e');
+        }
+      }
+    }
   }
 }
 

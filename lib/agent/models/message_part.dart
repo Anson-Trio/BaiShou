@@ -56,6 +56,8 @@ sealed class MessagePart {
           messageId: messageId,
           sessionId: sessionId,
           text: data['text'] as String? ?? '',
+          toolCallId: data['toolCallId'] as String?,
+          toolName: data['toolName'] as String?,
         ),
       PartType.tool => ToolPart(
           id: id,
@@ -94,19 +96,29 @@ sealed class MessagePart {
 /// 文本 Part — 消息的文本内容
 class TextPart extends MessagePart {
   final String text;
+  /// tool result 消息的 toolCallId（仅 role=tool 时有值）
+  final String? toolCallId;
+  /// tool result 消息的 toolName（仅 role=tool 时有值）
+  final String? toolName;
 
   const TextPart({
     required super.id,
     required super.messageId,
     required super.sessionId,
     required this.text,
+    this.toolCallId,
+    this.toolName,
   });
 
   @override
   PartType get type => PartType.text;
 
   @override
-  Map<String, dynamic> toDataMap() => {'text': text};
+  Map<String, dynamic> toDataMap() => {
+        'text': text,
+        if (toolCallId != null) 'toolCallId': toolCallId,
+        if (toolName != null) 'toolName': toolName,
+      };
 }
 
 /// 工具调用 Part 状态

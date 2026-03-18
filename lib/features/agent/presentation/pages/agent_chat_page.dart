@@ -437,22 +437,27 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
 
   /// 将原始错误信息转换为用户友好的提示
   String _friendlyError(String raw) {
-    if (raw.contains('400')) return t.agent.chat.err_format;
-    if (raw.contains('401') || raw.contains('403')) {
-      return t.agent.chat.err_unauthorized;
-    }
-    if (raw.contains('429')) return t.agent.chat.err_too_many_requests;
-    if (raw.contains('500') || raw.contains('502') || raw.contains('503')) {
-      return t.agent.chat.err_server;
+    // 使用正则匹配 HTTP 状态码（避免误匹配端口号/时间戳等）
+    final statusMatch = RegExp(r'(?:status\s*(?:code)?|HTTP)\s*:?\s*(\d{3})').firstMatch(raw);
+    final statusCode = statusMatch != null ? int.tryParse(statusMatch.group(1)!) : null;
+
+    String? friendly;
+    if (statusCode != null) {
+      if (statusCode == 400) friendly = t.agent.chat.err_format;
+      if (statusCode == 401 || statusCode == 403) friendly = t.agent.chat.err_unauthorized;
+      if (statusCode == 429) friendly = t.agent.chat.err_too_many_requests;
+      if (statusCode >= 500 && statusCode <= 503) friendly = t.agent.chat.err_server;
     }
     if (raw.contains('timeout') || raw.contains('TimeoutException')) {
-      return t.agent.chat.err_timeout;
+      friendly = t.agent.chat.err_timeout;
     }
     if (raw.contains('SocketException') || raw.contains('Connection refused')) {
-      return t.agent.chat.err_network;
+      friendly = t.agent.chat.err_network;
     }
-    // 截断过长的原始错误
-    return raw.length > 150 ? '${raw.substring(0, 150)}...' : raw;
+
+    // 拼接友好提示 + 原始错误（方便排查）
+    final truncated = raw.length > 200 ? '${raw.substring(0, 200)}...' : raw;
+    return friendly != null ? '$friendly\n$truncated' : truncated;
   }
 
   /// 将消息列表预处理为展示项
