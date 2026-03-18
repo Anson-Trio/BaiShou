@@ -76,9 +76,11 @@ class AgentChatNotifier extends _$AgentChatNotifier {
   /// 最近一次发送的用户文本（用于重试）
   String? _lastSendText;
 
-  /// 当前运行 ID（用于会话隔离）
-  /// 切换会话时递增，以中断旧的 Agent 结果流
+  /// 当前运行 ID（用于中止当前会话的生成）
   int _currentRunId = 0;
+
+  /// 每个会话的状态缓存（支持切换后保持生成）
+  final Map<String, AgentChatState> _sessionStateCache = {};
 
   @override
   AgentChatState build() {
@@ -103,9 +105,23 @@ class AgentChatNotifier extends _$AgentChatNotifier {
   }
 
   /// 加载已有会话
+  ///
+  /// 不中断正在进行的生成 — 当前会话的状态会保存到缓存中，
+  /// 后台生成的结果会持续写入缓存。切换回来时从缓存恢复。
   Future<void> loadSession(String sessionId) async {
-    // 中断当前正在进行的生成
-    _currentRunId++;
+    // 保存当前会话状态到缓存
+    if (state.sessionId != null && state.sessionId!.isNotEmpty) {
+      _sessionStateCache[state.sessionId!] = state;
+    }
+
+    // 尝试从缓存恢复目标会话
+    final cached = _sessionStateCache[sessionId];
+    if (cached != null) {
+      state = cached;
+      return;
+    }
+
+    // 缓存中没有，从数据库加载
     final manager = ref.read(sessionManagerProvider);
     final messages = await manager.getMessages(sessionId);
     state = state.copyWith(
@@ -117,6 +133,20 @@ class AgentChatNotifier extends _$AgentChatNotifier {
       error: () => null,
       completedTools: const [],
     );
+  }
+
+  /// 更新指定会话的缓存状态（后台生成使用）
+  void _updateSessionCache(String sessionId, AgentChatState newState) {
+    _sessionStateCache[sessionId] = newState;
+    // 如果是当前显示的会话，同步更新 UI
+    if (state.sessionId == sessionId) {
+      state = newState;
+    }
+  }
+
+  /// 获取指定会话的最新状态（优先缓存，回退到当前 state）
+  AgentChatState _getSessionState(String sessionId) {
+    return _sessionStateCache[sessionId] ?? state;
   }
 
   /// 发送消息并运行 Agent
@@ -258,31 +288,44 @@ class AgentChatNotifier extends _$AgentChatNotifier {
         messages: contextMessages,
         context: ToolContext(sessionId: sessionId, vaultPath: vaultPath),
       )) {
-        // 会话隔离检查：如果用户已切换会话，丢弃旧结果
+        // 中止检查：仅在 clearChat 时中止（不因切换会话中止）
         if (_currentRunId != runId) return;
+
+        // 从缓存获取当前会话的最新状态
+        final currentState = _getSessionState(sessionId);
+
         switch (event) {
           case AgentTextDelta(:final text):
-            state = state.copyWith(
-              streamingText: state.streamingText + text,
+            _updateSessionCache(
+              sessionId,
+              currentState.copyWith(
+                streamingText: currentState.streamingText + text,
+              ),
             );
             break;
 
           case AgentToolStart(:final toolCall):
-            state = state.copyWith(
-              activeToolName: () => toolCall.name,
+            _updateSessionCache(
+              sessionId,
+              currentState.copyWith(
+                activeToolName: () => toolCall.name,
+              ),
             );
             break;
 
           case AgentToolComplete(:final toolCall, :final durationMs):
-            state = state.copyWith(
-              activeToolName: () => null,
-              completedTools: [
-                ...state.completedTools,
-                ToolExecution(
-                  name: toolCall.name,
-                  durationMs: durationMs,
-                ),
-              ],
+            _updateSessionCache(
+              sessionId,
+              currentState.copyWith(
+                activeToolName: () => null,
+                completedTools: [
+                  ...currentState.completedTools,
+                  ToolExecution(
+                    name: toolCall.name,
+                    durationMs: durationMs,
+                  ),
+                ],
+              ),
             );
             break;
 
@@ -300,13 +343,17 @@ class AgentChatNotifier extends _$AgentChatNotifier {
               );
             }
 
-            // 更新 UI 状态
-            state = state.copyWith(
-              messages: [...state.messages, ...assistantMessages],
-              streamingText: '',
-              isLoading: false,
-              activeToolName: () => null,
-              completedTools: const [],
+            // 更新会话状态
+            final latestState = _getSessionState(sessionId);
+            _updateSessionCache(
+              sessionId,
+              latestState.copyWith(
+                messages: [...latestState.messages, ...assistantMessages],
+                streamingText: '',
+                isLoading: false,
+                activeToolName: () => null,
+                completedTools: const [],
+              ),
             );
 
             // 自动生成对话标题（仅新会话首次回复时触发，异步不阻塞）
@@ -334,11 +381,14 @@ class AgentChatNotifier extends _$AgentChatNotifier {
             break;
 
           case AgentError(:final error):
-            state = state.copyWith(
-              error: () => error.toString(),
-              isLoading: false,
-              streamingText: '',
-              activeToolName: () => null,
+            _updateSessionCache(
+              sessionId,
+              currentState.copyWith(
+                error: () => error.toString(),
+                isLoading: false,
+                streamingText: '',
+                activeToolName: () => null,
+              ),
             );
             break;
 
@@ -348,11 +398,15 @@ class AgentChatNotifier extends _$AgentChatNotifier {
       }
     } catch (e) {
       debugPrint('AgentChatNotifier error: $e');
-      state = state.copyWith(
-        error: () => e.toString(),
-        isLoading: false,
-        streamingText: '',
-        activeToolName: () => null,
+      final currentState = _getSessionState(sessionId);
+      _updateSessionCache(
+        sessionId,
+        currentState.copyWith(
+          error: () => e.toString(),
+          isLoading: false,
+          streamingText: '',
+          activeToolName: () => null,
+        ),
       );
     }
   }
@@ -442,6 +496,9 @@ class AgentChatNotifier extends _$AgentChatNotifier {
   /// 清空当前对话
   void clearChat() {
     _currentRunId++; // 中断当前生成
+    if (state.sessionId != null) {
+      _sessionStateCache.remove(state.sessionId);
+    }
     state = const AgentChatState();
   }
 }

@@ -45,6 +45,18 @@ class SystemPromptBuilder {
         }
       }
       buffer.writeln();
+
+      // RAG 工具禁用时，指引 AI 使用日记工具
+      final hasMemoryStore = tools.get('memory_store') != null;
+      final hasVectorSearch = tools.get('vector_search') != null;
+      if (!hasMemoryStore || !hasVectorSearch) {
+        buffer.writeln(
+          'Note: Memory/RAG tools are currently disabled by the user. '
+          'For storing and retrieving information, use the diary/summary tools instead. '
+          'Do NOT attempt to call memory_store or vector_search.',
+        );
+        buffer.writeln();
+      }
     }
 
     // 行为准则

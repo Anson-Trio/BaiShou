@@ -62,6 +62,19 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
     }
   }
 
+  /// 仅刷新会话列表（不触发 loadSession，避免中断正在进行的生成）
+  Future<void> _refreshSessionList() async {
+    try {
+      final manager = ref.read(sessionManagerProvider);
+      final sessions = (await manager.getSessions())
+          .where((s) => s.id != SessionManager.companionSessionId)
+          .toList();
+      if (mounted) {
+        setState(() => _sessions = sessions);
+      }
+    } catch (_) {}
+  }
+
   Future<void> _deleteSession(String id) async {
     final act = await showDialog<bool>(
       context: context,
@@ -142,11 +155,13 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
     });
 
     // 监听 sessionId 变化，当新会话被懒创建时自动刷新侧边栏
+    // 注意：只更新 UI 侧边栏，不能调用 loadSession，否则会中断正在进行的 sendMessage
     ref.listen<AgentChatState>(agentChatProvider, (prev, next) {
       if (prev?.sessionId != next.sessionId && next.sessionId != null) {
         if (_selectedSessionId == null) {
           setState(() => _selectedSessionId = next.sessionId);
-          _loadSessions();
+          // 异步刷新会话列表（不触发 loadSession）
+          _refreshSessionList();
         }
       }
     });

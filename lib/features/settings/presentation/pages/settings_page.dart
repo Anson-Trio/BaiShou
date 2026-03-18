@@ -181,36 +181,45 @@ class _SettingsPageState extends State<SettingsPage> {
                     ],
                   ),
                 ),
-                _buildSidebarTab(
-                  t.settings.general,
-                  Icons.settings_outlined,
-                  0,
-                ),
-                _buildSidebarTab(
-                  t.settings.ai_services,
-                  Icons.cloud_queue_outlined,
-                  1,
-                ),
-                _buildSidebarTab(
-                  t.settings.ai_global_models,
-                  Icons.star_border_rounded,
-                  2,
-                ),
-                _buildSidebarTab(
-                  t.settings.agent_tools_title,
-                  Icons.extension_outlined,
-                  3,
-                ),
-                _buildSidebarTab(t.data_sync.title, Icons.sync_rounded, 4),
-                _buildSidebarTab(
-                  t.settings.lan_transfer,
-                  Icons.wifi_protected_setup_outlined,
-                  5,
-                ),
-                _buildSidebarTab(
-                  t.agent.rag.title,
-                  Icons.psychology_outlined,
-                  6,
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildSidebarTab(
+                          t.settings.general,
+                          Icons.settings_outlined,
+                          0,
+                        ),
+                        _buildSidebarTab(
+                          t.settings.ai_services,
+                          Icons.cloud_queue_outlined,
+                          1,
+                        ),
+                        _buildSidebarTab(
+                          t.settings.ai_global_models,
+                          Icons.star_border_rounded,
+                          2,
+                        ),
+                        _buildSidebarTab(
+                          t.settings.agent_tools_title,
+                          Icons.extension_outlined,
+                          3,
+                        ),
+                        _buildSidebarTab(t.data_sync.title, Icons.sync_rounded, 4),
+                        _buildSidebarTab(
+                          t.settings.lan_transfer,
+                          Icons.wifi_protected_setup_outlined,
+                          5,
+                        ),
+                        _buildSidebarTab(
+                          t.agent.rag.title,
+                          Icons.psychology_outlined,
+                          6,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
