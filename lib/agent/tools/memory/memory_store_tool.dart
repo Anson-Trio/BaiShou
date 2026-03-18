@@ -67,11 +67,11 @@ class MemoryStoreTool extends AgentTool {
       return ToolResult(output: '请提供要存储的记忆内容。');
     }
 
-    if (!_embeddingService.isConfigured) {
-      return ToolResult(output: '嵌入模型未配置，无法存储记忆。请在设置中配置嵌入模型。');
-    }
-
     try {
+      if (!_embeddingService.isConfigured) {
+        return ToolResult(output: '嵌入模型未配置，无法存储记忆。请在设置中配置嵌入模型。');
+      }
+
       // 如果有标签，附加到内容后面帮助检索
       final fullContent = tags.isNotEmpty ? '$content\n[标签: $tags]' : content;
 
