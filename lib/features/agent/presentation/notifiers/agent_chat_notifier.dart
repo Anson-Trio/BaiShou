@@ -264,12 +264,15 @@ class AgentChatNotifier extends _$AgentChatNotifier {
             break;
 
           case AgentComplete(:final text, :final messages, :final usage):
-            // 提取出新增的消息（跳过我们已有的 user message）
-            // messages 包含了整个历史（含 runner 内添加的 user msg）
-            // 我们只需要 assistant 和 tool 类型的新消息
+            // 提取出本轮新增的消息
+            // messages 包含了整个历史（上下文旧消息 + runner 新增的消息）
+            // 我们只需要 assistant 和 tool 类型的 **新** 消息
+            // 通过已有消息 ID 过滤，避免重复 INSERT 触发 UNIQUE 冲突
+            final existingIds = state.messages.map((m) => m.id).toSet();
             for (final msg in messages) {
-              if (msg.role == MessageRole.assistant ||
-                  msg.role == MessageRole.tool) {
+              if ((msg.role == MessageRole.assistant ||
+                      msg.role == MessageRole.tool) &&
+                  !existingIds.contains(msg.id)) {
                 assistantMessages.add(msg);
               }
             }
