@@ -121,11 +121,14 @@ class FileStateScheduler extends _$FileStateScheduler {
       final dateFileRegex = RegExp(r'^(\d{4}-\d{2}-\d{2})\.md$');
       final String sourcePath = event.path;
 
+      // 过滤 .baishou 系统目录下的事件（SQLite WAL/SHM 等内部文件）
+      final normalizedSource = sourcePath.replaceAll('\\', '/');
+      if (normalizedSource.contains('/.baishou')) return;
+
       // 日志记录最原生的 Watcher 事件（帮助排错 Windows 回收站行为）
       debugPrint('FileStateScheduler RawEvent: [${event.type}] $sourcePath');
 
-      // 宽容适配路径斜杠问题（Windows vs Linux）
-      final normalizedSource = sourcePath.replaceAll('\\', '/');
+      // 路径已在上方规范化为 normalizedSource
       final isJournalsScope = normalizedSource.contains('/Journals');
       final isJournalsDirItself = normalizedSource.endsWith('/Journals');
       final isArchivesScope = normalizedSource.contains('/Archives');

@@ -4,7 +4,6 @@ import 'package:baishou/features/diary/domain/entities/diary_meta.dart';
 import 'package:baishou/features/index/data/shadow_index_database.dart';
 import 'package:baishou/features/index/data/shadow_index_sync_service.dart';
 import 'package:flutter/foundation.dart';
-import 'package:baishou/core/storage/vault_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'vault_index_notifier.g.dart';
@@ -22,10 +21,11 @@ class VaultIndex extends _$VaultIndex {
 
   @override
   FutureOr<List<DiaryMeta>> build() async {
-    // 监听活跃 Vault 的变化
-    ref.watch(vaultServiceProvider);
+    // 等待 ShadowIndexDatabase 初始化完成（它内部 watch 了 vaultServiceProvider，
+    // 所以 Vault 切换时会自动重建，VaultIndex 也会跟着重建，无需重复 watch）
+    await ref.watch(shadowIndexDatabaseProvider.future);
 
-    // 异步初始化：从 SQLite 加载所有元数据
+    // 从 SQLite 加载所有元数据
     final metas = await _loadFromDb();
 
     // 订阅文件 Watcher 事件：只处理外部变化
@@ -71,8 +71,10 @@ class VaultIndex extends _$VaultIndex {
       debugPrint('VaultIndex: Loaded ${metas.length} entries from DB');
       return metas;
     } catch (e) {
-      debugPrint('VaultIndex: Failed to load from DB: $e');
-      rethrow;
+      // DB 尚未就绪（Vault 未挂载），返回空列表
+      // 当 ShadowIndexDatabase 初始化完成后会触发 VaultIndex 重建
+      debugPrint('VaultIndex: DB not ready yet, will retry on rebuild: $e');
+      return [];
     }
   }
 
