@@ -240,7 +240,7 @@ class AgentDatabase extends _$AgentDatabase {
   /// 根据嵌入 ID 删除单条嵌入
   Future<void> deleteEmbeddingById(String embeddingId) async {
     await customStatement(
-      'DELETE FROM message_embeddings WHERE id = ?',
+      'DELETE FROM message_embeddings WHERE embedding_id = ?',
       [embeddingId],
     );
   }

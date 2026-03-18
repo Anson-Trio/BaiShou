@@ -8,12 +8,13 @@ import 'package:baishou/agent/tools/agent_tool.dart';
 import 'package:baishou/agent/tools/tool_config_param.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// 记忆存储工具 — 让 Agent 主动存储重要信息
 class MemoryStoreTool extends AgentTool {
-  final EmbeddingService _embeddingService;
+  final Ref _ref;
 
-  MemoryStoreTool(this._embeddingService);
+  MemoryStoreTool(this._ref);
 
   @override
   String get id => 'memory_store';
@@ -68,14 +69,17 @@ class MemoryStoreTool extends AgentTool {
     }
 
     try {
-      if (!_embeddingService.isConfigured) {
+      // 每次执行时获取 fresh EmbeddingService（避免持有 stale 引用）
+      final embeddingService = _ref.read(embeddingServiceProvider);
+
+      if (!embeddingService.isConfigured) {
         return ToolResult(output: '嵌入模型未配置，无法存储记忆。请在设置中配置嵌入模型。');
       }
 
       // 如果有标签，附加到内容后面帮助检索
       final fullContent = tags.isNotEmpty ? '$content\n[标签: $tags]' : content;
 
-      await _embeddingService.embedText(
+      await embeddingService.embedText(
         text: fullContent,
         sessionId: context.sessionId,
       );
@@ -84,11 +88,6 @@ class MemoryStoreTool extends AgentTool {
         output: '记忆已成功存储并建立向量索引。\n'
             '内容: ${content.length > 100 ? '${content.substring(0, 100)}...' : content}'
             '${tags.isNotEmpty ? '\n标签: $tags' : ''}',
-      );
-    } on StateError catch (_) {
-      // EmbeddingService 的 Ref 已 disposed（供应商配置变更等）
-      return ToolResult(
-        output: '嵌入服务已重置，请重新发送消息重试存储记忆。',
       );
     } catch (e) {
       return ToolResult(output: '存储记忆失败: $e');

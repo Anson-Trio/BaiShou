@@ -246,6 +246,9 @@ class AgentChatNotifier extends _$AgentChatNotifier {
     final updatedMessages = [...state.messages, userMsg];
     state = state.copyWith(messages: updatedMessages);
 
+    // ★ 同步到缓存：确保 event loop 中 _getSessionState 拿到最新 state
+    _sessionStateCache[sessionId] = state;
+
     // 持久化用户消息
     await manager.addMessage(sessionId, userMsg);
 

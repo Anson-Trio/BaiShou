@@ -5,6 +5,7 @@
 import 'package:baishou/agent/database/agent_database.dart';
 import 'package:baishou/agent/rag/embedding_service.dart';
 import 'package:baishou/core/services/api_config_service.dart';
+import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:baishou/features/diary/data/repositories/diary_repository_impl.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
@@ -108,21 +109,15 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
       final dimension = await embeddingService.detectDimension();
       if (mounted) {
         if (dimension > 0) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(t.agent.rag.detect_success(dimension: dimension.toString())), backgroundColor: Colors.green),
-          );
+          AppToast.showSuccess(context, t.agent.rag.detect_success(dimension: dimension.toString()));
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(t.agent.rag.detect_failed), backgroundColor: Colors.red),
-          );
+          AppToast.showError(context, t.agent.rag.detect_failed);
         }
         await _loadData();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t.agent.rag.detect_error(error: e.toString())), backgroundColor: Colors.red),
-        );
+        AppToast.showError(context, t.agent.rag.detect_error(error: e.toString()));
       }
     } finally {
       if (mounted) setState(() => _isDetectingDimension = false);
@@ -134,9 +129,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
     final apiConfig = ref.read(apiConfigServiceProvider);
     final dimension = apiConfig.globalEmbeddingDimension;
     if (dimension <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.agent.rag.clear_dim_no_config)),
-      );
+      AppToast.showError(context, t.agent.rag.clear_dim_no_config);
       return;
     }
 
@@ -159,9 +152,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
       final db = ref.read(agentDatabaseProvider);
       final deleted = await db.clearEmbeddingsByDimension(dimension);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t.agent.rag.clear_dim_success(deleted: deleted.toString(), dimension: dimension.toString()))),
-        );
+        AppToast.showSuccess(context, t.agent.rag.clear_dim_success(deleted: deleted.toString(), dimension: dimension.toString()));
         await _loadData();
       }
     }
@@ -171,9 +162,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
   Future<void> _batchEmbedDiaries() async {
     final embeddingService = ref.read(embeddingServiceProvider);
     if (!embeddingService.isConfigured) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.agent.rag.embedding_not_configured), backgroundColor: Colors.orange),
-      );
+      AppToast.showError(context, t.agent.rag.embedding_not_configured);
       return;
     }
 
@@ -218,16 +207,12 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t.agent.rag.batch_embed_success(count: embedded.toString())), backgroundColor: Colors.green),
-        );
+        AppToast.showSuccess(context, t.agent.rag.batch_embed_success(count: embedded.toString()));
         await _loadData();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t.agent.rag.batch_embed_error(error: e.toString())), backgroundColor: Colors.red),
-        );
+        AppToast.showError(context, t.agent.rag.batch_embed_error(error: e.toString()));
       }
     } finally {
       if (mounted) {
@@ -273,9 +258,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
       final embeddingService = ref.read(embeddingServiceProvider);
       if (!embeddingService.isConfigured) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(t.agent.rag.embedding_not_configured), backgroundColor: Colors.orange),
-          );
+          AppToast.showError(context, t.agent.rag.embedding_not_configured);
         }
         return;
       }
@@ -286,9 +269,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t.agent.rag.add_memory_success), backgroundColor: Colors.green),
-        );
+        AppToast.showSuccess(context, t.agent.rag.add_memory_success);
         await _loadData();
       }
     }

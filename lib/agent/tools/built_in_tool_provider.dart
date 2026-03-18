@@ -1,5 +1,4 @@
 import 'package:baishou/agent/database/agent_database.dart';
-import 'package:baishou/agent/rag/embedding_service.dart';
 import 'package:baishou/agent/session/session_manager.dart';
 import 'package:baishou/agent/tools/agent_tool.dart';
 import 'package:baishou/agent/tools/diary/diary_list_tool.dart';
@@ -36,10 +35,10 @@ List<AgentTool> builtInTools(Ref ref) {
     // ── 语义搜索工具 ──
     VectorSearchTool(
       ref.read(agentDatabaseProvider),
-      ref.read(embeddingServiceProvider),
+      ref,
     ),
 
     // ── 记忆存储工具 ──
-    MemoryStoreTool(ref.read(embeddingServiceProvider)),
+    MemoryStoreTool(ref),
   ];
 }

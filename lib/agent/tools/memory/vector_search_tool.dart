@@ -10,13 +10,14 @@ import 'package:baishou/agent/tools/agent_tool.dart';
 import 'package:baishou/agent/tools/tool_config_param.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// 向量语义搜索工具
 class VectorSearchTool extends AgentTool {
   final AgentDatabase _db;
-  final EmbeddingService _embeddingService;
+  final Ref _ref;
 
-  VectorSearchTool(this._db, this._embeddingService);
+  VectorSearchTool(this._db, this._ref);
 
   @override
   String get id => 'vector_search';
@@ -78,8 +79,9 @@ class VectorSearchTool extends AgentTool {
     final maxResults = context.userConfig['max_results'] as int? ?? 10;
 
     try {
-      // 生成查询向量
-      final queryEmbedding = await _embeddingService.embedQuery(query);
+      // 每次执行时获取 fresh EmbeddingService
+      final embeddingService = _ref.read(embeddingServiceProvider);
+      final queryEmbedding = await embeddingService.embedQuery(query);
       if (queryEmbedding == null) {
         return ToolResult(
           output: '嵌入模型未配置或查询嵌入失败。请在设置中配置嵌入模型。',
