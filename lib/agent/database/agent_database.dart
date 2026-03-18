@@ -306,17 +306,23 @@ class AgentDatabase extends _$AgentDatabase {
   /// 返回每条 chunk 的 id、message_id、session_id、chunk_index、chunk_text。
   Future<List<Map<String, dynamic>>> getAllEmbeddingChunks() async {
     final results = await customSelect('''
-      SELECT embedding_id, message_id, session_id, chunk_index, chunk_text
+      SELECT embedding_id, message_id, session_id, chunk_index, chunk_text,
+             model_id, dimension, created_at
       FROM message_embeddings
-      ORDER BY message_id, chunk_index
+      ORDER BY created_at DESC, chunk_index
     ''').get();
 
-    return results.map((row) => {
-      'embedding_id': row.read<String>('embedding_id'),
-      'message_id': row.read<String>('message_id'),
-      'session_id': row.read<String>('session_id'),
-      'chunk_index': row.read<int>('chunk_index'),
-      'chunk_text': row.read<String>('chunk_text'),
+    return results.map((row) {
+      return {
+        'embedding_id': row.read<String>('embedding_id'),
+        'message_id': row.read<String>('message_id'),
+        'session_id': row.read<String>('session_id'),
+        'chunk_index': row.read<int>('chunk_index'),
+        'chunk_text': row.read<String>('chunk_text'),
+        'model_id': row.read<String>('model_id'),
+        'dimension': row.read<int>('dimension'),
+        'created_at': row.read<int>('created_at'),
+      };
     }).toList();
   }
 }

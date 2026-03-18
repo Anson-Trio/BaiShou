@@ -192,6 +192,12 @@ class EmbeddingService {
     final messageId = customId ?? 'mem_${uuid.v4()}';
     final chunks = _splitIntoChunks(text);
 
+    // 首次嵌入前自动检测维度并初始化向量索引
+    final currentDimension = await detectDimension();
+    if (currentDimension > 0) {
+      await db.initVectorIndex(currentDimension);
+    }
+
     for (final chunk in chunks) {
       try {
         final embedding = await client.generateEmbedding(

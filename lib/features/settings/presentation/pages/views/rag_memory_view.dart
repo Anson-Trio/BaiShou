@@ -456,9 +456,14 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
       final configuredModel = apiConfig.globalEmbeddingModelId;
       modelDisplay = configuredModel.isNotEmpty ? configuredModel : t.common.not_configured;
     }
-    final dimension = _stats['dimension_count'] as int? ?? 0;
-    // 也从配置读维度
+    // 从 DB 统计读取实际维度值（不是 COUNT，而是真正的维度数如768/1536）
+    final models = _stats['models'] as List? ?? [];
+    final dbDimension = models.isNotEmpty
+        ? (models.first as Map)['dimension'] as int? ?? 0
+        : 0;
+    // 回退到配置里缓存的维度
     final configDimension = ref.read(apiConfigServiceProvider).globalEmbeddingDimension;
+    final dimension = dbDimension > 0 ? dbDimension : configDimension;
 
     return Wrap(
       spacing: 16,
@@ -616,9 +621,10 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
         final text = entry['chunk_text'] as String? ?? '';
         final model = entry['model_id'] as String? ?? '';
         final embeddingId = entry['embedding_id'] as String? ?? '';
-        final createdAt = entry['created_at'] as String?;
-        final timeStr =
-            createdAt != null ? dateFormat.format(DateTime.parse(createdAt)) : '';
+        final createdAt = entry['created_at'] as int?;
+        final timeStr = createdAt != null
+            ? dateFormat.format(DateTime.fromMillisecondsSinceEpoch(createdAt))
+            : '';
 
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 3),
