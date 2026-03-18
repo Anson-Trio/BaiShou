@@ -76,6 +76,10 @@ class AgentChatNotifier extends _$AgentChatNotifier {
   /// 最近一次发送的用户文本（用于重试）
   String? _lastSendText;
 
+  /// 当前运行 ID（用于会话隔离）
+  /// 切换会话时递增，以中断旧的 Agent 结果流
+  int _currentRunId = 0;
+
   @override
   AgentChatState build() {
     return const AgentChatState();
@@ -100,11 +104,18 @@ class AgentChatNotifier extends _$AgentChatNotifier {
 
   /// 加载已有会话
   Future<void> loadSession(String sessionId) async {
+    // 中断当前正在进行的生成
+    _currentRunId++;
     final manager = ref.read(sessionManagerProvider);
     final messages = await manager.getMessages(sessionId);
     state = state.copyWith(
       sessionId: sessionId,
       messages: messages,
+      isLoading: false,
+      streamingText: '',
+      activeToolName: () => null,
+      error: () => null,
+      completedTools: const [],
     );
   }
 
@@ -118,6 +129,10 @@ class AgentChatNotifier extends _$AgentChatNotifier {
 
     // 缓存发送文本用于重试
     _lastSendText = text.trim();
+
+    // 生成本次运行的唯一 ID（用于会话隔离检查）
+    _currentRunId++;
+    final runId = _currentRunId;
 
     // 清除错误状态
     state = state.copyWith(
@@ -243,6 +258,8 @@ class AgentChatNotifier extends _$AgentChatNotifier {
         messages: contextMessages,
         context: ToolContext(sessionId: sessionId, vaultPath: vaultPath),
       )) {
+        // 会话隔离检查：如果用户已切换会话，丢弃旧结果
+        if (_currentRunId != runId) return;
         switch (event) {
           case AgentTextDelta(:final text):
             state = state.copyWith(
@@ -424,6 +441,7 @@ class AgentChatNotifier extends _$AgentChatNotifier {
 
   /// 清空当前对话
   void clearChat() {
+    _currentRunId++; // 中断当前生成
     state = const AgentChatState();
   }
 }

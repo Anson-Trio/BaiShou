@@ -85,6 +85,11 @@ class MemoryStoreTool extends AgentTool {
             '内容: ${content.length > 100 ? '${content.substring(0, 100)}...' : content}'
             '${tags.isNotEmpty ? '\n标签: $tags' : ''}',
       );
+    } on StateError catch (_) {
+      // EmbeddingService 的 Ref 已 disposed（供应商配置变更等）
+      return ToolResult(
+        output: '嵌入服务已重置，请重新发送消息重试存储记忆。',
+      );
     } catch (e) {
       return ToolResult(output: '存储记忆失败: $e');
     }

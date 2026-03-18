@@ -22,15 +22,34 @@ class ChatInputBar extends StatefulWidget {
 
 class _ChatInputBarState extends State<ChatInputBar> {
   final _controller = TextEditingController();
-  final _focusNode = FocusNode();
+  late final FocusNode _focusNode;
   bool _hasFocus = false;
 
   @override
   void initState() {
     super.initState();
+    _focusNode = FocusNode(
+      onKeyEvent: _handleKeyEvent,
+    );
     _focusNode.addListener(() {
       setState(() => _hasFocus = _focusNode.hasFocus);
     });
+  }
+
+  /// 拦截键盘事件：仅 Enter 发送，Shift/Ctrl+Enter 换行
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.enter) {
+      final isShift = HardwareKeyboard.instance.isShiftPressed;
+      final isCtrl = HardwareKeyboard.instance.isControlPressed;
+      if (!isShift && !isCtrl) {
+        // 纯 Enter → 发送消息，拦截事件阻止换行
+        _handleSend();
+        return KeyEventResult.handled;
+      }
+      // Shift+Enter 或 Ctrl+Enter → 放行给 TextField 插入换行
+    }
+    return KeyEventResult.ignored;
   }
 
   void _handleSend() {
@@ -106,40 +125,27 @@ class _ChatInputBarState extends State<ChatInputBar> {
                   children: [
                     // 输入框
                     Expanded(
-                      child: KeyboardListener(
-                        focusNode: FocusNode(),
-                        onKeyEvent: (event) {
-                          // 桌面端：Enter 发送，Shift+Enter 换行
-                          if (event is KeyDownEvent &&
-                              event.logicalKey ==
-                                  LogicalKeyboardKey.enter &&
-                              !HardwareKeyboard
-                                  .instance.isShiftPressed) {
-                            _handleSend();
-                          }
-                        },
-                        child: TextField(
-                          controller: _controller,
-                          focusNode: _focusNode,
-                          maxLines: 5,
-                          minLines: 1,
-                          textInputAction: TextInputAction.newline,
-                          decoration: InputDecoration(
-                            hintText: t.agent.chat.input_hint,
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 18,
-                              vertical: 14,
-                            ),
-                            isDense: true,
-                            hintStyle:
-                                theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.outline
-                                  .withValues(alpha: 0.6),
-                            ),
+                      child: TextField(
+                        controller: _controller,
+                        focusNode: _focusNode,
+                        maxLines: 5,
+                        minLines: 1,
+                        textInputAction: TextInputAction.newline,
+                        decoration: InputDecoration(
+                          hintText: t.agent.chat.input_hint,
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 14,
                           ),
-                          style: theme.textTheme.bodyMedium,
+                          isDense: true,
+                          hintStyle:
+                              theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.outline
+                                .withValues(alpha: 0.6),
+                          ),
                         ),
+                        style: theme.textTheme.bodyMedium,
                       ),
                     ),
                     // 发送按钮
