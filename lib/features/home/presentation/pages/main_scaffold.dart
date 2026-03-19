@@ -22,17 +22,48 @@ class MainScaffold extends ConsumerStatefulWidget {
   ConsumerState<MainScaffold> createState() => _MainScaffoldState();
 }
 
-class _MainScaffoldState extends ConsumerState<MainScaffold> {
+class _MainScaffoldState extends ConsumerState<MainScaffold>
+    with TickerProviderStateMixin {
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: widget.navigationShell.currentIndex == 4 ? 1 : 0,
+    );
+    _tabController.addListener(_onTabChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant MainScaffold oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 同步外部路由变化到 TabController
+    final newIndex = widget.navigationShell.currentIndex == 4 ? 1 : 0;
+    if (_tabController.index != newIndex) {
+      _tabController.animateTo(newIndex);
+    }
+  }
+
+  void _onTabChanged() {
+    if (!_tabController.indexIsChanging) return;
+    // Tab 0 = 记忆(Branch 0), Tab 1 = Agent(Branch 4)
+    _goBranch(_tabController.index == 0 ? 0 : 4);
+  }
+
+  @override
+  void dispose() {
+    _tabController.removeListener(_onTabChanged);
+    _tabController.dispose();
+    super.dispose();
+  }
   void _goBranch(int index) {
     widget.navigationShell.goBranch(
       index,
       initialLocation: index == widget.navigationShell.currentIndex,
     );
-  }
-
-  /// 当前顶部标签索引：0=记忆（Branch 0,1,2），1=Agent（Branch 4）
-  int get _topTabIndex {
-    return widget.navigationShell.currentIndex == 4 ? 1 : 0;
   }
 
   /// 移动端底栏索引映射
@@ -129,29 +160,46 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
       child: Row(
         children: [
           const SizedBox(width: 16),
-          // App icon
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: Image.asset(
-              'assets/icon/icon.png',
-              width: 24,
-              height: 24,
-            ),
-          ),
-          const SizedBox(width: 16),
 
-          // 标签按钮
-          _TopTab(
-            icon: Icons.auto_stories_rounded,
-            label: t.diary.title,
-            isSelected: _topTabIndex == 0,
-            onTap: () => _goBranch(0), // 切到 日记(Branch 0)
-          ),
-          _TopTab(
-            icon: Icons.auto_awesome_rounded,
-            label: 'Agent',
-            isSelected: _topTabIndex == 1,
-            onTap: () => _goBranch(4), // 切到 Agent(Branch 4)
+          // 标签栏（带滑动动画指示器）
+          SizedBox(
+            width: 240,
+            child: TabBar(
+              controller: _tabController,
+              indicatorSize: TabBarIndicatorSize.tab,
+              indicatorWeight: 2.5,
+              indicatorColor: theme.colorScheme.primary,
+              labelColor: theme.colorScheme.primary,
+              unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
+              labelStyle: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              unselectedLabelStyle: theme.textTheme.bodySmall,
+              dividerHeight: 0,
+              splashBorderRadius: BorderRadius.circular(8),
+              tabs: [
+                Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.auto_stories_rounded, size: 16),
+                      const SizedBox(width: 6),
+                      Text(t.diary.title),
+                    ],
+                  ),
+                ),
+                Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.auto_awesome_rounded, size: 16),
+                      const SizedBox(width: 6),
+                      const Text('Agent'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
 
           const Spacer(),
@@ -257,77 +305,6 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
             label: t.settings.title,
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ─── 顶部标签按钮 ──────────────────────────────────────────────
-
-class _TopTab extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _TopTab({
-    required this.icon,
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return GestureDetector(
-      onTap: onTap,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          margin: const EdgeInsets.only(right: 4),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? theme.colorScheme.surface
-                : Colors.transparent,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(8),
-              topRight: Radius.circular(8),
-            ),
-            border: isSelected
-                ? Border(
-                    bottom: BorderSide(
-                      color: theme.colorScheme.primary,
-                      width: 2,
-                    ),
-                  )
-                : null,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 16,
-                color: isSelected
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  color: isSelected
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
