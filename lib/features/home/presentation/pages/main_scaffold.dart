@@ -22,7 +22,10 @@ class MainScaffold extends ConsumerStatefulWidget {
   ConsumerState<MainScaffold> createState() => _MainScaffoldState();
 }
 
-class _MainScaffoldState extends ConsumerState<MainScaffold> {
+class _MainScaffoldState extends ConsumerState<MainScaffold>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _overlayController;
+
   void _goBranch(int index) {
     widget.navigationShell.goBranch(
       index,
@@ -40,6 +43,37 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
   }
 
   DateTime? _lastBackPress;
+
+  @override
+  void initState() {
+    super.initState();
+    _overlayController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+      value: 0.0, // 初始透明（不遮挡）
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant MainScaffold oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.navigationShell.currentIndex !=
+        widget.navigationShell.currentIndex) {
+      final oldIndex = oldWidget.navigationShell.currentIndex;
+      final newIndex = widget.navigationShell.currentIndex;
+      // 仅在进出 Agent（大 Tab 切换）时触发渐变，侧边栏切换不需要
+      if (oldIndex == 4 || newIndex == 4) {
+        _overlayController.value = 1.0;
+        _overlayController.reverse();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _overlayController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,32 +100,43 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      body: isAgent
-          ? widget.navigationShell
-          : Row(
-              children: [
+      body: Stack(
+        children: [
+          // 底层：实际内容（始终满透明度）
+          Row(
+            children: [
+              if (!isAgent)
                 DesktopSidebar(
                   navigationShell: widget.navigationShell,
                   onBranchChange: _goBranch,
                 ),
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surface,
-                      boxShadow: [
-                        if (theme.brightness == Brightness.light)
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.02),
-                            blurRadius: 10,
-                            offset: const Offset(-5, 0),
-                          ),
-                      ],
-                    ),
-                    child: widget.navigationShell,
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    boxShadow: [
+                      if (theme.brightness == Brightness.light)
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.02),
+                          blurRadius: 10,
+                          offset: const Offset(-5, 0),
+                        ),
+                    ],
                   ),
+                  child: widget.navigationShell,
                 ),
-              ],
+              ),
+            ],
+          ),
+          // 顶层：背景色覆盖层，切换时瞬间出现 → 淡出揭示新内容
+          IgnorePointer(
+            child: FadeTransition(
+              opacity: _overlayController,
+              child: Container(color: theme.colorScheme.surface),
             ),
+          ),
+        ],
+      ),
     );
   }
 
