@@ -197,7 +197,7 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView>
             indicatorSize: TabBarIndicatorSize.tab,
             labelColor: AppTheme.primary,
             unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
-            labelStyle: theme.textTheme.titleSmall?.copyWith(
+            labelStyle: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
             ),
             tabs: [
@@ -623,7 +623,7 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView>
                   indicatorColor: AppTheme.primary,
                   labelColor: AppTheme.primary,
                   unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
-                  labelStyle: theme.textTheme.labelSmall?.copyWith(
+                  labelStyle: theme.textTheme.labelLarge?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                   dividerHeight: 0,
