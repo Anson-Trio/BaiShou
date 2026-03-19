@@ -37,152 +37,224 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
             final missing = snapshot.data!;
             if (missing.isEmpty) return const SizedBox.shrink();
 
-            return Card(
-              elevation: 0,
-              color: Theme.of(
-                context,
-              ).colorScheme.surfaceContainerHighest.withOpacity(0.3),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(
-                  color: Theme.of(context).colorScheme.outlineVariant,
-                ),
-              ),
-              margin: const EdgeInsets.only(bottom: 16),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      alignment: WrapAlignment.start,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.auto_awesome,
-                              size: 20,
-                              color: AppTheme.primary,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              t.summary.ai_suggestions,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                        // 批量生成按钮
-                        FilledButton.tonal(
-                          onPressed: () => _batchGenerate(missing),
-                          style: FilledButton.styleFrom(
-                            visualDensity: VisualDensity.compact,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                          ),
-                          child: Text(t.summary.generate_all),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            t.common.count_items(count: missing.length),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppTheme.primary,
-                            ),
-                          ),
-                        ),
-                      ],
+                    Icon(
+                      Icons.auto_fix_high_rounded,
+                      size: 20,
+                      color: Colors.amber.shade700,
                     ),
-                    const SizedBox(height: 12),
-                    ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: missing.length,
-                      separatorBuilder: (c, i) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final item = missing[index];
-                        final key = item.label;
-                        final status = generationStatus[key];
-                        final isError =
-                            status != null &&
-                            (status.startsWith(t.summary.generation_failed) ||
-                                status.startsWith(t.summary.content_empty) ||
-                                status == t.summary.tap_to_retry);
-                        // 加载中：状态已设置且不是错误
-                        final isLoading = status != null && !isError;
-
-                        return ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          dense: true,
-                          title: Text(
-                            item.label,
-                            style: const TextStyle(fontWeight: FontWeight.w500),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          subtitle: Text(
-                            status ??
-                                '${item.startDate.year}/${item.startDate.month}/${item.startDate.day} - ${item.endDate.month}/${item.endDate.day}',
-                            style: TextStyle(
-                              color: status != null
-                                  ? (isError ? Colors.red : AppTheme.primary)
-                                  : null,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          trailing: isLoading
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    minWidth: 70,
-                                  ),
-                                  child: FilledButton.tonal(
-                                    onPressed: () => _generate(item),
-                                    style: FilledButton.styleFrom(
-                                      visualDensity: VisualDensity.compact,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                      ),
-                                      backgroundColor: isError
-                                          ? Colors.red.withOpacity(0.1)
-                                          : null,
-                                      foregroundColor: isError
-                                          ? Colors.red
-                                          : null,
-                                    ),
-                                    child: Text(
-                                      isError
-                                          ? t.common.retry
-                                          : t.common.generate,
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
-                                  ),
-                                ),
-                        );
-                      },
+                    const SizedBox(width: 8),
+                    Text(
+                      t.summary.ai_suggestions,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    // 批量生成按钮
+                    FilledButton.tonal(
+                      onPressed: () => _batchGenerate(missing),
+                      style: FilledButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        backgroundColor: AppTheme.primary.withValues(
+                          alpha: 0.1,
+                        ),
+                        foregroundColor: AppTheme.primary,
+                      ),
+                      child: Text(
+                        t.summary.generate_all,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // 数量标签
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        t.common.count_items(count: missing.length),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primary,
+                        ),
+                      ),
                     ),
                   ],
                 ),
-              ),
-            );
+                const SizedBox(height: 16),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isWide = constraints.maxWidth > 600;
+                    return GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: isWide ? 2 : 1,
+                        mainAxisExtent: 96,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 12,
+                      ),
+                  itemCount: missing.length,
+                  itemBuilder: (context, index) {
+                    final item = missing[index];
+                    final key = item.label;
+                    final status = generationStatus[key];
+                    final isError =
+                        status != null &&
+                        (status.startsWith(t.summary.generation_failed) ||
+                            status.startsWith(t.summary.content_empty) ||
+                            status == t.summary.tap_to_retry);
+                    // 加载中：状态已设置且不是错误
+                    final isLoading = status != null && !isError;
+                    final theme = Theme.of(context);
+
+                    return Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: theme.colorScheme.outlineVariant.withValues(
+                            alpha: 0.5,
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          // 1. 图标区域
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF4E5), // 浅橘色背景
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.calendar_today_rounded,
+                              color: Color(0xFFF28B50), // 橘色图标
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+
+                          // 2. 文本区域
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.label,
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Text(
+                                      '${item.startDate.month}月${item.startDate.day}日 - ${item.endDate.month}月${item.endDate.day}日',
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: theme
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                          ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFFF4E5),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        t.summary.suggestion_generate,
+                                        style: const TextStyle(
+                                          color: Color(0xFFF28B50),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (status != null) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    status,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                      color: isError
+                                          ? Colors.red
+                                          : AppTheme.primary,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+
+                          // 3. 按钮区域
+                          if (isLoading)
+                            const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          else
+                            Material(
+                              color: isError
+                                  ? Colors.red.withValues(alpha: 0.1)
+                                  : const Color(0xFFF2EFFF),
+                              borderRadius: BorderRadius.circular(12),
+                              child: InkWell(
+                                onTap: () => _generate(item),
+                                borderRadius: BorderRadius.circular(12),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(10),
+                                  child: Icon(
+                                    isError
+                                        ? Icons.refresh_rounded
+                                        : Icons.auto_fix_high_rounded,
+                                    color: isError
+                                        ? Colors.red
+                                        : const Color(0xFF6C5CE7),
+                                    size: 18,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ],
+        );
           },
         );
       },
