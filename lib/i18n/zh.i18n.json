@@ -91,6 +91,7 @@
     "network_error": "网络错误",
     "timeout": "请求超时",
     "copied": "已复制到剪贴板",
+    "copy": "复制",
     "copy_failed": "复制失败",
     "back": "上一步",
     "errors": {
@@ -619,6 +620,7 @@
       "system_prompt_label": "行为准则 (System Prompt)",
       "you_label": "你",
       "ai_label": "AI 助手",
+      "regenerate": "重新生成",
       "input_hint": "输入消息..."
     },
     "sessions": {

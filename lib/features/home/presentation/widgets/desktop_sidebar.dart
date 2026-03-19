@@ -100,7 +100,7 @@ class DesktopSidebar extends ConsumerWidget {
                   onTap: () => onBranchChange(2),
                 ),
                 _NavMenuItem(
-                  icon: Icons.smart_toy_outlined,
+                  icon: Icons.auto_awesome_rounded,
                   label: 'Agent',
                   isSelected: false,
                   onTap: () => context.push('/agent/chat'),

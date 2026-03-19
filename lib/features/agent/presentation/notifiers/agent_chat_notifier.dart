@@ -505,6 +505,23 @@ class AgentChatNotifier extends _$AgentChatNotifier {
     }
   }
 
+  /// 编辑用户消息并重新发送
+  ///
+  /// 截断 [messageIndex] 及之后的所有消息，用 [newText] 替代原始用户消息重新发送。
+  Future<void> editAndResend(int messageIndex, String newText) async {
+    if (newText.trim().isEmpty) return;
+
+    // 截断消息列表到指定位置（不包含该位置）
+    final truncated = state.messages.sublist(0, messageIndex);
+    state = state.copyWith(
+      messages: truncated,
+      error: () => null,
+    );
+
+    // 使用新文本发送消息
+    await sendMessage(text: newText);
+  }
+
   /// 清空当前对话
   void clearChat() {
     _currentRunId++; // 中断当前生成

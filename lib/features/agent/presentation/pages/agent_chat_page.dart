@@ -78,27 +78,57 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
         ? const Color(0xFFD97706) // amber-600
         : theme.colorScheme.primary;
 
+    // 获取当前模型名称
+    final apiConfig = ref.watch(apiConfigServiceProvider);
+    final currentModel = apiConfig.globalDialogueModelId;
+
     return Scaffold(
       appBar: AppBar(
-        title: Row(
+        title: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              isCompanion ? Icons.favorite_rounded : Icons.smart_toy_outlined,
-              size: 20,
-              color: modeColor,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isCompanion ? Icons.favorite_rounded : Icons.smart_toy_outlined,
+                  size: 20,
+                  color: modeColor,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  isCompanion ? t.agent.chat.companion_mode : t.agent.chat.session_mode,
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurface,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            Text(
-              isCompanion ? t.agent.chat.companion_mode : t.agent.chat.session_mode,
-              style: TextStyle(
-                color: theme.colorScheme.onSurface,
+            // 当前模型名称
+            if (currentModel.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  currentModel,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                    fontSize: 10,
+                  ),
+                ),
               ),
-            ),
           ],
         ),
         centerTitle: true,
         elevation: 0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            height: 1,
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+          ),
+        ),
         actions: [
           // 滑块切换：深度陪伴 / 会话模式
           GestureDetector(
@@ -231,7 +261,7 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
                 ? _buildEmptyState(theme)
                 : ListView.builder(
                     controller: _scrollController,
-                    padding: const EdgeInsets.only(top: 16, bottom: 16),
+                    padding: const EdgeInsets.only(top: 20, bottom: 20),
                     itemCount: _buildDisplayItems(chatState).length +
                         (chatState.isLoading ? 1 : 0),
                     itemBuilder: (context, index) {
@@ -259,7 +289,15 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
                           (message.content == null || message.content!.trim().isEmpty)) {
                         return const SizedBox.shrink();
                       }
-                      return ChatMessageBubble(message: message);
+                      return ChatMessageBubble(
+                        message: message,
+                        onEdit: message.role == MessageRole.user
+                            ? () => _showEditDialog(context, ref, message, chatState.messages.indexOf(message))
+                            : null,
+                        onRegenerate: message.role == MessageRole.assistant
+                            ? () => ref.read(agentChatProvider.notifier).retryLast()
+                            : null,
+                      );
                     },
                   ),
           ),
@@ -337,6 +375,43 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
       ),
     );
   }
+  /// 编辑消息弹窗
+  Future<void> _showEditDialog(BuildContext context, WidgetRef ref, ChatMessage message, int messageIndex) async {
+    final controller = TextEditingController(text: message.content ?? '');
+    final theme = Theme.of(context);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(t.common.edit),
+        content: TextField(
+          controller: controller,
+          maxLines: 6,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: t.agent.chat.input_hint,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            filled: true,
+            fillColor: theme.colorScheme.surfaceContainerLow,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(t.common.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text),
+            child: Text(t.common.confirm),
+          ),
+        ],
+      ),
+    );
+    if (result != null && result.trim().isNotEmpty && result != message.content) {
+      ref.read(agentChatProvider.notifier).editAndResend(messageIndex, result);
+    }
+  }
 
   Future<void> _showSettingsDialog(BuildContext context, String sessionId) async {
     final sessionManager = ref.read(sessionManagerProvider);
@@ -402,28 +477,43 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          // 渐变背景圆形图标
           Container(
-            width: 80,
-            height: 80,
+            width: 88,
+            height: 88,
             decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
               shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
+                  theme.colorScheme.primary.withValues(alpha: 0.15),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                  blurRadius: 24,
+                  spreadRadius: 4,
+                ),
+              ],
             ),
             child: Icon(
-              Icons.chat_bubble_outline_rounded,
-              size: 36,
-              color: theme.colorScheme.primary.withValues(alpha: 0.5),
+              Icons.auto_awesome_rounded,
+              size: 38,
+              color: theme.colorScheme.primary.withValues(alpha: 0.7),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           Text(
             t.agent.chat.start_chat,
             style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
             t.agent.chat.empty_hint,
             style: theme.textTheme.bodySmall?.copyWith(

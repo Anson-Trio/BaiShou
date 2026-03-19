@@ -91,6 +91,7 @@
     "network_error": "Network Error",
     "timeout": "Request Timeout",
     "copied": "Copied to clipboard",
+    "copy": "Copy",
     "copy_failed": "Copy failed",
     "back": "Back",
     "errors": {
@@ -619,7 +620,9 @@
       "system_prompt_label": "Behavior Rules (System Prompt)",
       "you_label": "You",
       "ai_label": "AI Assistant",
-      "input_hint": "Message..."
+      "regenerate": "Regenerate",
+      "copy": "Copy",
+      "input_hint": "Type a message..."
     },
     "sessions": {
       "history": "Chat History",

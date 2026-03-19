@@ -44,7 +44,6 @@ class EmbeddingService {
 
   /// 自动检测嵌入模型的向量维度
   ///
-  /// 参考 Cherry Studio: 发一个 test text，读返回向量的长度。
   /// 检测结果缓存到 SharedPreferences，避免重复调用。
   Future<int> detectDimension() async {
     if (!isConfigured) return 0;
@@ -335,8 +334,10 @@ class EmbeddingService {
       } catch (e) {
         if (attempt < maxAttempts) {
           final delay = Duration(seconds: attempt); // 1s, 2s
-          debugPrint('$label 失败 (attempt $attempt/$maxAttempts), '
-              '${delay.inSeconds}s 后重试: $e');
+          debugPrint(
+            '$label 失败 (attempt $attempt/$maxAttempts), '
+            '${delay.inSeconds}s 后重试: $e',
+          );
           await Future.delayed(delay);
         } else {
           debugPrint('$label 失败 (已耗尽重试): $e');

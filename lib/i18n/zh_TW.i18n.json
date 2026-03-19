@@ -100,6 +100,7 @@
     "network_error": "網路錯誤",
     "timeout": "請求超時",
     "copied": "已複製到剪貼簿",
+    "copy": "複製",
     "copy_failed": "複製失敗",
     "back": "上一步",
     "errors": {
@@ -628,6 +629,7 @@
       "system_prompt_label": "行為準則 (System Prompt)",
       "you_label": "你",
       "ai_label": "AI 助手",
+      "regenerate": "重新生成",
       "input_hint": "輸入訊息..."
     },
     "sessions": {

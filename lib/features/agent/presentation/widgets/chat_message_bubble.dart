@@ -1,7 +1,7 @@
 // 聊天消息气泡组件
 //
 // 包含：用户消息、AI 回复（Markdown）、工具结果（可折叠卡片）、
-//       流式输出气泡（打字机效果 + 工具执行状态）
+//       流式输出气泡
 
 import 'dart:io';
 import 'package:baishou/agent/models/chat_message.dart';
@@ -9,15 +9,26 @@ import 'package:baishou/features/agent/presentation/notifiers/agent_chat_notifie
 import 'package:baishou/features/settings/domain/services/user_profile_service.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 // ─── 消息气泡 ─────────────────────────────────────────────────
 
 class ChatMessageBubble extends ConsumerWidget {
   final ChatMessage message;
+  final VoidCallback? onEdit;
+  final VoidCallback? onRegenerate;
+  final VoidCallback? onCopy;
 
-  const ChatMessageBubble({super.key, required this.message});
+  const ChatMessageBubble({
+    super.key,
+    required this.message,
+    this.onEdit,
+    this.onRegenerate,
+    this.onCopy,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -32,19 +43,28 @@ class ChatMessageBubble extends ConsumerWidget {
     if (isUser) {
       final userProfile = ref.watch(userProfileProvider);
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        child: _buildUserBubble(theme, userProfile),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: _buildUserBubble(context, theme, userProfile),
       );
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: _buildAiBubble(theme),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: _buildAiBubble(context, theme),
     );
   }
 
+  /// 格式化时间戳
+  String _formatTime(DateTime timestamp) {
+    return DateFormat('HH:mm').format(timestamp);
+  }
+
   /// 用户消息 — 右对齐，primary 底色，右上角方角，配用户头像
-  Widget _buildUserBubble(ThemeData theme, UserProfile userProfile) {
+  Widget _buildUserBubble(
+    BuildContext context,
+    ThemeData theme,
+    UserProfile userProfile,
+  ) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -53,34 +73,50 @@ class ChatMessageBubble extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              // 用户名称
+              // 用户名称 + 时间戳
               Padding(
-                padding: const EdgeInsets.only(right: 4, bottom: 4),
-                child: Text(
-                  userProfile.nickname,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.outline,
-                    fontWeight: FontWeight.w500,
-                  ),
+                padding: const EdgeInsets.only(right: 4, bottom: 6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      userProfile.nickname,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _formatTime(message.timestamp),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.outline.withValues(alpha: 0.6),
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               // 消息气泡
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.primary,
                   borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(18),
+                    topLeft: Radius.circular(20),
                     topRight: Radius.circular(4),
-                    bottomLeft: Radius.circular(18),
-                    bottomRight: Radius.circular(18),
+                    bottomLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(20),
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.2),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+                      color: theme.colorScheme.primary.withValues(alpha: 0.25),
+                      blurRadius: 12,
+                      spreadRadius: 1,
+                      offset: const Offset(0, 3),
                     ),
                   ],
                 ),
@@ -91,6 +127,13 @@ class ChatMessageBubble extends ConsumerWidget {
                     height: 1.5,
                   ),
                 ),
+              ),
+              // 操作按钮行
+              _MessageActionBar(
+                isUser: true,
+                alignment: MainAxisAlignment.end,
+                onEdit: onEdit,
+                onCopy: onCopy ?? () => _copyToClipboard(context),
               ),
             ],
           ),
@@ -132,8 +175,8 @@ class ChatMessageBubble extends ConsumerWidget {
     );
   }
 
-  /// AI 消息 — 左对齐，surfaceContainer 底色，左上角方角，配头像
-  Widget _buildAiBubble(ThemeData theme) {
+  /// AI 消息 — 左对齐，轻阴影（无边框），左上角方角，配头像
+  Widget _buildAiBubble(BuildContext context, ThemeData theme) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -157,34 +200,52 @@ class ChatMessageBubble extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 角色标签
+              // 角色标签 + 时间戳
               Padding(
-                padding: const EdgeInsets.only(left: 4, bottom: 4),
-                child: Text(
-                  t.agent.chat.ai_label,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.outline,
-                    fontWeight: FontWeight.w500,
-                  ),
+                padding: const EdgeInsets.only(left: 4, bottom: 6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      t.agent.chat.ai_label,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _formatTime(message.timestamp),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.outline.withValues(alpha: 0.6),
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              // 消息气泡
+              // 消息气泡 — 轻阴影替代边框
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 constraints: const BoxConstraints(maxWidth: 600),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surfaceContainerHighest,
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(4),
-                    topRight: Radius.circular(18),
-                    bottomLeft: Radius.circular(18),
-                    bottomRight: Radius.circular(18),
+                    topRight: Radius.circular(20),
+                    bottomLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(20),
                   ),
-                  border: Border.all(
-                    color:
-                        theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: theme.colorScheme.shadow.withValues(alpha: 0.06),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: MarkdownBody(
                   data: message.content ?? '',
@@ -197,15 +258,137 @@ class ChatMessageBubble extends ConsumerWidget {
                     ),
                     codeblockDecoration: BoxDecoration(
                       color: theme.colorScheme.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: theme.colorScheme.outlineVariant.withValues(
+                          alpha: 0.3,
+                        ),
+                      ),
                     ),
+                    codeblockPadding: const EdgeInsets.all(14),
                   ),
                 ),
+              ),
+              // 操作按钮行
+              _MessageActionBar(
+                isUser: false,
+                alignment: MainAxisAlignment.start,
+                onRegenerate: onRegenerate,
+                onCopy: onCopy ?? () => _copyToClipboard(context),
               ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  /// 复制消息内容到剪贴板
+  void _copyToClipboard(BuildContext context) {
+    final content = message.content ?? '';
+    if (content.isEmpty) return;
+    Clipboard.setData(ClipboardData(text: content));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(t.common.copied),
+        duration: const Duration(seconds: 1),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+}
+
+// ─── 消息操作按钮行 ─────────────────────────────────────────────
+
+/// 28px 圆角方块，半透明背景
+class _MessageActionBar extends StatelessWidget {
+  final bool isUser;
+  final MainAxisAlignment alignment;
+  final VoidCallback? onEdit;
+  final VoidCallback? onRegenerate;
+  final VoidCallback? onCopy;
+
+  const _MessageActionBar({
+    required this.isUser,
+    required this.alignment,
+    this.onEdit,
+    this.onRegenerate,
+    this.onCopy,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        mainAxisAlignment: alignment,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 编辑（仅用户消息）
+          if (isUser && onEdit != null)
+            _ActionButton(
+              icon: Icons.edit_outlined,
+              tooltip: t.common.edit,
+              onTap: onEdit!,
+              theme: theme,
+            ),
+          // 重新生成（仅 AI 消息）
+          if (!isUser && onRegenerate != null) ...[
+            _ActionButton(
+              icon: Icons.refresh_rounded,
+              tooltip: t.agent.chat.regenerate,
+              onTap: onRegenerate!,
+              theme: theme,
+            ),
+          ],
+          // 复制（所有消息）
+          if (onCopy != null)
+            _ActionButton(
+              icon: Icons.copy_outlined,
+              tooltip: t.common.copy,
+              onTap: onCopy!,
+              theme: theme,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 单个操作按钮
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+  final ThemeData theme;
+
+  const _ActionButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    required this.theme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      waitDuration: const Duration(milliseconds: 500),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            width: 28,
+            height: 28,
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 15, color: theme.colorScheme.outline),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -233,17 +416,19 @@ class ToolResultGroup extends StatelessWidget {
             child: Container(
               decoration: BoxDecoration(
                 color: theme.colorScheme.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: theme.colorScheme.outlineVariant
-                      .withValues(alpha: 0.5),
-                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: theme.colorScheme.shadow.withValues(alpha: 0.04),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Theme(
                 data: theme.copyWith(dividerColor: Colors.transparent),
                 child: ExpansionTile(
-                  tilePadding:
-                      const EdgeInsets.symmetric(horizontal: 14),
+                  tilePadding: const EdgeInsets.symmetric(horizontal: 14),
                   childrenPadding: const EdgeInsets.fromLTRB(0, 0, 0, 4),
                   dense: true,
                   visualDensity: VisualDensity.compact,
@@ -252,8 +437,9 @@ class ToolResultGroup extends StatelessWidget {
                     width: 32,
                     height: 32,
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer
-                          .withValues(alpha: 0.5),
+                      color: theme.colorScheme.primaryContainer.withValues(
+                        alpha: 0.5,
+                      ),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
@@ -262,13 +448,38 @@ class ToolResultGroup extends StatelessWidget {
                       color: theme.colorScheme.primary,
                     ),
                   ),
-                  title: Text(
-                    t.agent.tools.tool_call_results(
-                        count: messages.length),
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: theme.colorScheme.onSurface,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  title: Row(
+                    children: [
+                      Text(
+                        t.agent.tools.tool_call_results(count: messages.length),
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: theme.colorScheme.onSurface,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // 计数 badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary.withValues(
+                            alpha: 0.1,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${messages.length}',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   trailing: Icon(
                     Icons.expand_more_rounded,
@@ -330,7 +541,7 @@ class _ToolResultItem extends StatelessWidget {
         color: isError
             ? theme.colorScheme.errorContainer.withValues(alpha: 0.3)
             : theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Theme(
         data: theme.copyWith(dividerColor: Colors.transparent),
@@ -398,7 +609,7 @@ class StreamingBubble extends StatelessWidget {
     final hasTools = completedTools.isNotEmpty || activeToolName != null;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -407,8 +618,7 @@ class StreamingBubble extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color:
-                  theme.colorScheme.primaryContainer.withValues(alpha: 0.6),
+              color: theme.colorScheme.primaryContainer.withValues(alpha: 0.6),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -424,12 +634,12 @@ class StreamingBubble extends StatelessWidget {
               children: [
                 // 角色标签
                 Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 4),
+                  padding: const EdgeInsets.only(left: 4, bottom: 6),
                   child: Text(
                     t.agent.chat.ai_label,
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: theme.colorScheme.outline,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -445,42 +655,41 @@ class StreamingBubble extends StatelessWidget {
                 if (text.isNotEmpty)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     constraints: const BoxConstraints(maxWidth: 600),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surfaceContainerHighest,
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(4),
-                        topRight: Radius.circular(18),
-                        bottomLeft: Radius.circular(18),
-                        bottomRight: Radius.circular(18),
+                        topRight: Radius.circular(20),
+                        bottomLeft: Radius.circular(20),
+                        bottomRight: Radius.circular(20),
                       ),
-                      border: Border.all(
-                        color: theme.colorScheme.outlineVariant
-                            .withValues(alpha: 0.4),
-                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: theme.colorScheme.shadow.withValues(
+                            alpha: 0.06,
+                          ),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: MarkdownBody(
                       data: text,
-                      styleSheet:
-                          MarkdownStyleSheet.fromTheme(theme).copyWith(
+                      styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
                         p: theme.textTheme.bodyMedium?.copyWith(height: 1.6),
                       ),
                     ),
                   ),
 
-                // 等待中（无工具、无文本）
+                // 等待中（无工具、无文本） — 跳动三点动画
                 if (text.isEmpty && !hasTools)
-                  Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
+                  const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: _BouncingDotsIndicator(),
                   ),
               ],
             ),
@@ -505,16 +714,21 @@ class _ToolExecutionGroup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final totalTools = completedTools.length + (activeToolName != null ? 1 : 0);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.shadow.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -527,8 +741,9 @@ class _ToolExecutionGroup extends StatelessWidget {
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer
-                      .withValues(alpha: 0.5),
+                  color: theme.colorScheme.primaryContainer.withValues(
+                    alpha: 0.5,
+                  ),
                   borderRadius: BorderRadius.circular(7),
                 ),
                 child: Icon(
@@ -546,23 +761,22 @@ class _ToolExecutionGroup extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              if (completedTools.isNotEmpty)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    '${completedTools.length}',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                    ),
+              // 进度计数 badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${completedTools.length}/$totalTools',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
+              ),
             ],
           ),
 
@@ -648,9 +862,10 @@ class _ActiveToolItemState extends State<_ActiveToolItem>
       duration: const Duration(milliseconds: 1200),
       vsync: this,
     )..repeat(reverse: true);
-    _opacityAnim = Tween<double>(begin: 0.4, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _opacityAnim = Tween<double>(
+      begin: 0.4,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -689,6 +904,83 @@ class _ActiveToolItemState extends State<_ActiveToolItem>
           ],
         ),
       ),
+    );
+  }
+}
+
+// ─── 三点跳动加载指示器 ─────────────────────────────────────────
+
+class _BouncingDotsIndicator extends StatefulWidget {
+  const _BouncingDotsIndicator();
+
+  @override
+  State<_BouncingDotsIndicator> createState() => _BouncingDotsIndicatorState();
+}
+
+class _BouncingDotsIndicatorState extends State<_BouncingDotsIndicator>
+    with TickerProviderStateMixin {
+  late List<AnimationController> _controllers;
+  late List<Animation<double>> _animations;
+
+  @override
+  void initState() {
+    super.initState();
+    _controllers = List.generate(3, (i) {
+      return AnimationController(
+        duration: const Duration(milliseconds: 600),
+        vsync: this,
+      );
+    });
+
+    _animations = _controllers.map((controller) {
+      return Tween<double>(
+        begin: 0,
+        end: -6,
+      ).animate(CurvedAnimation(parent: controller, curve: Curves.easeInOut));
+    }).toList();
+
+    // 错开启动每个点的动画
+    for (var i = 0; i < 3; i++) {
+      Future.delayed(Duration(milliseconds: i * 180), () {
+        if (mounted) {
+          _controllers[i].repeat(reverse: true);
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final c in _controllers) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(3, (i) {
+        return AnimatedBuilder(
+          animation: _animations[i],
+          builder: (context, child) {
+            return Transform.translate(
+              offset: Offset(0, _animations[i].value),
+              child: Container(
+                width: 8,
+                height: 8,
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.5),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            );
+          },
+        );
+      }),
     );
   }
 }
