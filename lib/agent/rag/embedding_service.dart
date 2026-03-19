@@ -218,12 +218,20 @@ class EmbeddingService {
     await _apiConfig.setGlobalEmbeddingDimension(0);
   }
 
-  // ── Phase 7: 异步迁移 ──────────────────────────────────────
+  // ── 嵌入模型迁移（备份表方案） ─────────────────────────────
 
-  /// 后台逐 chunk 重新嵌入，返回进度 Stream
+  /// 检查是否有未完成的迁移（启动时调用）
+  Future<bool> hasPendingMigration() => _db.hasPendingMigration();
+
+  /// 安全迁移嵌入模型（备份 → 清空 → 重嵌入 → 校验 → 清理备份）
   ///
-  /// 用于切换嵌入模型后无感迁移旧数据。
-  /// 流程：读取已有 chunks → 逐个用新模型重嵌入 → 覆盖写入。
+  /// 流程：
+  /// 1. 创建 _embedding_migration_backup 保存所有 chunk 元数据
+  /// 2. 原子清空 message_embeddings + 用新维度重建索引
+  /// 3. 逐条从 backup 读取 chunk_text，用新模型嵌入并写入
+  /// 4. 每条完成后标记 migrated = 1
+  /// 5. 全部完成后校验完整性
+  /// 6. 校验通过 → DROP backup
   Stream<MigrationProgress> migrateEmbeddings() async* {
     if (!isConfigured) {
       yield MigrationProgress(total: 0, completed: 0, status: '嵌入模型未配置');
@@ -240,45 +248,97 @@ class EmbeddingService {
 
     final client = AiClientFactory.createClient(provider);
 
-    // 读取所有已嵌入的 chunks
-    final chunks = await _db.getAllEmbeddingChunks();
-    final total = chunks.length;
+    // ── 步骤 1: 创建备份表 ──
+    yield MigrationProgress(total: 0, completed: 0, status: '正在备份元数据...');
+    final total = await _db.createMigrationBackup();
 
     if (total == 0) {
+      await _db.dropMigrationBackup();
       yield MigrationProgress(total: 0, completed: 0, status: '没有需要迁移的数据');
       return;
     }
 
-    yield MigrationProgress(total: total, completed: 0, status: '开始迁移...');
+    // ── 步骤 2: 检测新维度 + 清空 + 重建索引（原子操作） ──
+    yield MigrationProgress(total: total, completed: 0, status: '正在检测新模型维度...');
+    final newDimension = await _detectDimensionWithClient(client, embeddingModelId);
+    if (newDimension <= 0) {
+      yield MigrationProgress(total: total, completed: 0, status: '新模型维度检测失败，迁移中止');
+      return;
+    }
+    await _db.clearAndReinitEmbeddings(newDimension);
+    await _apiConfig.setGlobalEmbeddingDimension(newDimension);
 
+    // ── 步骤 3-4: 逐条重嵌入 ──
+    yield* _doReEmbedFromBackup(client, embeddingModelId, total);
+  }
+
+  /// 继续未完成的迁移（崩溃恢复）
+  Stream<MigrationProgress> continueMigration() async* {
+    if (!isConfigured) {
+      yield MigrationProgress(total: 0, completed: 0, status: '嵌入模型未配置');
+      return;
+    }
+
+    final embeddingModelId = _apiConfig.globalEmbeddingModelId;
+    final embeddingProviderId = _apiConfig.globalEmbeddingProviderId;
+    final provider = _apiConfig.getProvider(embeddingProviderId);
+    if (provider == null) {
+      yield MigrationProgress(total: 0, completed: 0, status: '供应商未找到');
+      return;
+    }
+
+    final client = AiClientFactory.createClient(provider);
+    final remaining = await _db.getUnmigratedCount();
+
+    if (remaining == 0) {
+      // 上次其实已完成，直接清理
+      await _db.dropMigrationBackup();
+      yield MigrationProgress(total: 0, completed: 0, status: '迁移已完成');
+      return;
+    }
+
+    yield* _doReEmbedFromBackup(client, embeddingModelId, remaining);
+  }
+
+  /// 逐条从备份表重嵌入（共用逻辑）
+  Stream<MigrationProgress> _doReEmbedFromBackup(
+    dynamic client,
+    String embeddingModelId,
+    int total,
+  ) async* {
+    yield MigrationProgress(total: total, completed: 0, status: '开始重嵌入...');
+
+    final chunks = await _db.getUnmigratedBackupChunks();
     int completed = 0;
     int failed = 0;
 
     for (final chunk in chunks) {
       try {
-        final embedding = await client.generateEmbedding(
-          input: chunk['chunk_text'] as String,
-          modelId: embeddingModelId,
-        );
+        await _retryEmbed(() async {
+          final embedding = await client.generateEmbedding(
+            input: chunk['chunk_text'] as String,
+            modelId: embeddingModelId,
+          );
 
-        // 用新的嵌入覆盖旧的（INSERT OR REPLACE）
-        await _db.insertEmbedding(
-          id: chunk['embedding_id'] as String,
-          messageId: chunk['message_id'] as String,
-          sessionId: chunk['session_id'] as String,
-          chunkIndex: chunk['chunk_index'] as int,
-          chunkText: chunk['chunk_text'] as String,
-          embedding: embedding,
-          modelId: embeddingModelId,
-        );
+          await _db.insertEmbedding(
+            id: chunk['embedding_id'] as String,
+            messageId: chunk['message_id'] as String,
+            sessionId: chunk['session_id'] as String,
+            chunkIndex: chunk['chunk_index'] as int,
+            chunkText: chunk['chunk_text'] as String,
+            embedding: _normalize(embedding),
+            modelId: embeddingModelId,
+          );
 
+          // 标记这条 chunk 迁移完成
+          await _db.markBackupChunkMigrated(chunk['embedding_id'] as String);
+        }, label: 'migrate chunk ${chunk['embedding_id']}');
         completed++;
       } catch (e) {
         failed++;
         debugPrint('Migration failed for chunk ${chunk['embedding_id']}: $e');
       }
 
-      // 每处理一条就发送进度
       yield MigrationProgress(
         total: total,
         completed: completed,
@@ -287,15 +347,43 @@ class EmbeddingService {
       );
     }
 
-    // 更新维度缓存
-    await detectDimension();
+    // ── 步骤 5: 校验完整性 ──
+    final (allMigrated, noStale) =
+        await _db.verifyMigrationComplete(embeddingModelId);
 
-    yield MigrationProgress(
-      total: total,
-      completed: completed,
-      failed: failed,
-      status: '迁移完成 $completed/$total${failed > 0 ? ' (失败 $failed)' : ''}',
-    );
+    if (allMigrated && noStale) {
+      // ── 步骤 6: 校验通过，清理备份 ──
+      await _db.dropMigrationBackup();
+      yield MigrationProgress(
+        total: total,
+        completed: completed,
+        failed: failed,
+        status: '迁移完成 ✅ $completed/$total',
+      );
+    } else {
+      yield MigrationProgress(
+        total: total,
+        completed: completed,
+        failed: failed,
+        status: '迁移完成但校验未通过 ⚠️'
+            '${!allMigrated ? ' (部分 chunk 未迁移)' : ''}'
+            '${!noStale ? ' (存在旧模型数据)' : ''}',
+      );
+    }
+  }
+
+  /// 用指定 client 检测维度（不缓存）
+  Future<int> _detectDimensionWithClient(dynamic client, String modelId) async {
+    try {
+      final testEmbedding = await client.generateEmbedding(
+        input: 'hi',
+        modelId: modelId,
+      );
+      return testEmbedding.length;
+    } catch (e) {
+      debugPrint('Dimension detection failed: $e');
+      return 0;
+    }
   }
 
   /// 文本分块：按字符长度滑窗切分

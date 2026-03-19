@@ -1,6 +1,5 @@
 import 'dart:io';
-import 'dart:math';
-import 'dart:typed_data';
+
 
 import 'package:baishou/agent/database/agent_tables.dart';
 import 'package:baishou/i18n/strings.g.dart';
@@ -237,81 +236,114 @@ class AgentDatabase extends _$AgentDatabase {
       }).toList();
     } catch (e) {
       debugPrint('searchSimilar vec_distance_cosine failed: $e');
-      // 回退到 Dart 侧计算
-      return _dartCosineSearch(queryEmbedding, effectiveDimension, topK);
+      return [];
     }
   }
 
-  /// Dart 侧余弦相似度搜索（回退方案）
-  Future<List<Map<String, dynamic>>> _dartCosineSearch(
-    List<double> queryEmbedding,
-    int dimension,
-    int topK,
-  ) async {
-    debugPrint('_dartCosineSearch: using Dart-side cosine similarity');
-    final rows = await customSelect(
-      '''SELECT e.*, s.title AS session_title
-         FROM message_embeddings AS e
-         LEFT JOIN agent_sessions AS s ON e.session_id = s.id
-         WHERE e.dimension = ?''',
-      variables: [Variable.withInt(dimension)],
-    ).get();
+  // ── 嵌入模型迁移（备份表方案） ─────────────────────────────
 
-    if (rows.isEmpty) return [];
+  /// 检查是否存在未完成的迁移（启动时调用）
+  Future<bool> hasPendingMigration() async {
+    final result = await customSelect(
+      "SELECT COUNT(*) AS cnt FROM sqlite_master "
+      "WHERE type='table' AND name='_embedding_migration_backup'",
+    ).getSingle();
+    return result.read<int>('cnt') > 0;
+  }
 
-    final scored = <Map<String, dynamic>>[];
-    final queryNorm = _vecNorm(queryEmbedding);
+  /// 创建迁移备份表，复制元数据（不含向量 BLOB）
+  Future<int> createMigrationBackup() async {
+    await customStatement('''
+      CREATE TABLE IF NOT EXISTS _embedding_migration_backup (
+        embedding_id  TEXT NOT NULL,
+        message_id    TEXT NOT NULL,
+        session_id    TEXT NOT NULL,
+        chunk_index   INTEGER NOT NULL,
+        chunk_text    TEXT NOT NULL,
+        old_model_id  TEXT NOT NULL,
+        old_dimension INTEGER NOT NULL,
+        migrated      INTEGER NOT NULL DEFAULT 0,
+        created_at    INTEGER NOT NULL
+      )
+    ''');
+    await customStatement('''
+      INSERT INTO _embedding_migration_backup
+        (embedding_id, message_id, session_id, chunk_index, chunk_text,
+         old_model_id, old_dimension, migrated, created_at)
+      SELECT embedding_id, message_id, session_id, chunk_index, chunk_text,
+             model_id, dimension, 0, created_at
+      FROM message_embeddings
+    ''');
+    final result = await customSelect(
+      'SELECT COUNT(*) AS cnt FROM _embedding_migration_backup',
+    ).getSingle();
+    return result.read<int>('cnt');
+  }
 
-    for (final row in rows) {
-      try {
-        final blob = row.read<Uint8List>('embedding');
-        final stored = _blobToFloats(blob);
-        if (stored.length != queryEmbedding.length) continue;
-
-        final dot = _vecDot(queryEmbedding, stored);
-        final storedNorm = _vecNorm(stored);
-        final cosine = (queryNorm > 0 && storedNorm > 0)
-            ? dot / (queryNorm * storedNorm)
-            : 0.0;
-
-        scored.add({
-          'embedding_id': row.read<String>('embedding_id'),
-          'message_id': row.read<String>('message_id'),
-          'session_id': row.read<String>('session_id'),
-          'chunk_index': row.read<int>('chunk_index'),
-          'chunk_text': row.read<String>('chunk_text'),
-          'dimension': row.read<int>('dimension'),
-          'model_id': row.read<String>('model_id'),
-          'distance': 1.0 - cosine,
-          'session_title':
-              row.readNullable<String>('session_title') ?? t.agent.sessions.unnamed_session,
-        });
-      } catch (e) {
-        // skip corrupt entries
-      }
+  /// 清空向量表 + 用新维度重建索引（原子操作）
+  Future<void> clearAndReinitEmbeddings(int newDimension) async {
+    await customStatement('DELETE FROM message_embeddings');
+    if (newDimension > 0) {
+      await initVectorIndex(newDimension);
     }
-
-    scored.sort((a, b) => (a['distance'] as double).compareTo(b['distance'] as double));
-    return scored.take(topK).toList();
   }
 
-  // 向量工具函数
-  double _vecDot(List<double> a, List<double> b) {
-    double sum = 0;
-    for (int i = 0; i < a.length; i++) sum += a[i] * b[i];
-    return sum;
+  /// 获取未迁移的备份 chunk 列表
+  Future<List<Map<String, dynamic>>> getUnmigratedBackupChunks() async {
+    final results = await customSelect('''
+      SELECT embedding_id, message_id, session_id, chunk_index, chunk_text
+      FROM _embedding_migration_backup
+      WHERE migrated = 0
+      ORDER BY created_at, chunk_index
+    ''').get();
+    return results.map((row) => {
+      'embedding_id': row.read<String>('embedding_id'),
+      'message_id': row.read<String>('message_id'),
+      'session_id': row.read<String>('session_id'),
+      'chunk_index': row.read<int>('chunk_index'),
+      'chunk_text': row.read<String>('chunk_text'),
+    }).toList();
   }
 
-  double _vecNorm(List<double> v) {
-    double sum = 0;
-    for (final x in v) sum += x * x;
-    return sqrt(sum);
+  /// 标记某条 chunk 迁移完成
+  Future<void> markBackupChunkMigrated(String embeddingId) async {
+    await customStatement(
+      'UPDATE _embedding_migration_backup SET migrated = 1 WHERE embedding_id = ?',
+      [embeddingId],
+    );
   }
 
-  List<double> _blobToFloats(Uint8List blob) {
-    final byteData = ByteData.sublistView(blob);
-    final count = blob.length ~/ 4; // float32 = 4 bytes
-    return List.generate(count, (i) => byteData.getFloat32(i * 4, Endian.little));
+  /// 校验迁移完整性
+  /// 返回 (allMigrated, noStaleData)
+  Future<(bool, bool)> verifyMigrationComplete(String newModelId) async {
+    final unmigrated = await customSelect(
+      'SELECT COUNT(*) AS cnt FROM _embedding_migration_backup WHERE migrated = 0',
+    ).getSingle();
+    final stale = await customSelect(
+      'SELECT COUNT(*) AS cnt FROM message_embeddings WHERE model_id != ?',
+      variables: [Variable.withString(newModelId)],
+    ).getSingle();
+    return (
+      unmigrated.read<int>('cnt') == 0,
+      stale.read<int>('cnt') == 0,
+    );
+  }
+
+  /// 删除迁移备份表（校验通过后调用）
+  Future<void> dropMigrationBackup() async {
+    await customStatement('DROP TABLE IF EXISTS _embedding_migration_backup');
+  }
+
+  /// 获取未迁移的 chunk 数量
+  Future<int> getUnmigratedCount() async {
+    try {
+      final result = await customSelect(
+        'SELECT COUNT(*) AS cnt FROM _embedding_migration_backup WHERE migrated = 0',
+      ).getSingle();
+      return result.read<int>('cnt');
+    } catch (_) {
+      return 0;
+    }
   }
 
   /// 删除某条消息的所有嵌入

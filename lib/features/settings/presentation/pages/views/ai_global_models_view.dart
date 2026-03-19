@@ -1,5 +1,6 @@
 import 'package:baishou/core/services/api_config_service.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
+import 'package:baishou/agent/rag/embedding_service.dart';
 import 'package:baishou/features/settings/presentation/widgets/custom_model_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,10 +26,70 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
   @override
   void initState() {
     super.initState();
-    // 渲染完成后加载配置
+    // 渲染完成后加载配置 + 检查挂起迁移
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadProviderConfig();
+      _checkPendingMigration();
     });
+  }
+
+  /// 检查是否有上次未完成的嵌入迁移（崩溃恢复）
+  Future<void> _checkPendingMigration() async {
+    final embeddingService = ref.read(embeddingServiceProvider);
+    final hasPending = await embeddingService.hasPendingMigration();
+    if (!hasPending || !mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('检测到未完成的迁移'),
+        content: const Text(
+          '上次嵌入模型迁移未完成（可能是应用异常退出）。\n\n'
+          '是否继续迁移？备份数据仍然安全。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('稍后再说'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _continuePendingMigration();
+            },
+            child: const Text('继续迁移'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 继续上次未完成的迁移
+  void _continuePendingMigration() {
+    final embeddingService = ref.read(embeddingServiceProvider);
+    final messenger = ScaffoldMessenger.of(context);
+
+    embeddingService.continueMigration().listen(
+      (progress) {
+        if (!mounted) return;
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(progress.status),
+            duration: progress.isDone
+                ? const Duration(seconds: 3)
+                : const Duration(seconds: 30),
+          ),
+        );
+      },
+      onError: (e) {
+        if (!mounted) return;
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          SnackBar(content: Text('迁移出错: $e')),
+        );
+      },
+    );
   }
 
   /// 从 ApiConfigService 加载当前的全局选型配置
@@ -100,20 +161,94 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
       }
     }
 
-    // 解析并保存 Embedding 模型
+    // 解析并保存 Embedding 模型（检测模型是否变化）
     if (_globalEmbeddingModel != null && _globalEmbeddingModel!.isNotEmpty) {
       final parts = _globalEmbeddingModel!.split(':');
       if (parts.length >= 2) {
-        await service.setGlobalEmbeddingModel(
-          parts[0],
-          parts.sublist(1).join(':'),
-        );
+        final newProviderId = parts[0];
+        final newModelId = parts.sublist(1).join(':');
+        final oldModelId = service.globalEmbeddingModelId;
+
+        await service.setGlobalEmbeddingModel(newProviderId, newModelId);
+
+        // 模型变化且旧模型非空 → 询问是否重新嵌入
+        if (oldModelId.isNotEmpty && oldModelId != newModelId) {
+          _promptMigration(service);
+        }
       }
     }
 
     if (mounted) {
       AppToast.showSuccess(context, t.ai_config.global_models_updated);
     }
+  }
+
+  /// 弹出确认框，询问是否重新嵌入全量向量
+  void _promptMigration(ApiConfigService service) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('嵌入模型已更换'),
+        content: const Text(
+          '检测到您更换了嵌入模型。\n\n'
+          '旧的向量数据与新模型维度不兼容，需要重新嵌入所有数据。\n\n'
+          '此操作会：\n'
+          '• 备份现有文本元数据\n'
+          '• 清空旧向量并用新模型重新嵌入\n'
+          '• 完成后自动校验数据完整性\n\n'
+          '过程在后台异步执行，不影响正常使用。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('稍后再说'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _startMigration();
+            },
+            child: const Text('立即重新嵌入'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 启动异步迁移并显示进度
+  void _startMigration() {
+    final embeddingService = ref.read(embeddingServiceProvider);
+    final messenger = ScaffoldMessenger.of(context);
+
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('正在准备重新嵌入...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    embeddingService.migrateEmbeddings().listen(
+      (progress) {
+        if (!mounted) return;
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(progress.status),
+            duration: progress.isDone
+                ? const Duration(seconds: 3)
+                : const Duration(seconds: 30),
+          ),
+        );
+      },
+      onError: (e) {
+        if (!mounted) return;
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          SnackBar(content: Text('迁移出错: $e')),
+        );
+      },
+    );
   }
 
   /// 构建模型选择区块
