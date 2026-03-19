@@ -4,6 +4,7 @@ import 'package:baishou/features/diary/data/repositories/diary_repository_impl.d
 import 'package:baishou/core/theme/app_theme.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:baishou/core/services/data_refresh_notifier.dart';
+import 'package:baishou/features/index/data/shadow_index_database.dart';
 import 'package:baishou/features/summary/data/repositories/summary_repository_impl.dart';
 import 'package:baishou/features/summary/domain/entities/summary.dart';
 import 'package:baishou/features/summary/domain/services/context_builder.dart';
@@ -12,9 +13,9 @@ import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:baishou/features/summary/presentation/providers/summary_filter_provider.dart';
-import 'package:baishou/core/storage/vault_service.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 /// 记忆仪表盘 — 按参考图重构
@@ -80,6 +81,12 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView>
 
   /// 加载全量统计 + 共同回忆
   Future<void> _loadAllData() async {
+    // 等待影子索引库初始化完成后再加载数据
+    final dbState = ref.read(shadowIndexDatabaseProvider);
+    if (dbState is! AsyncData) {
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       // 加载全量统计（不受月份过滤）
@@ -144,10 +151,9 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView>
   @override
   Widget build(BuildContext context) {
     final refreshVersion = ref.watch(dataRefreshProvider);
-    ref.listen(vaultServiceProvider, (previous, next) {
-      final prevVault = previous?.value;
-      final nextVault = next.value;
-      if (nextVault != null && nextVault.name != prevVault?.name) {
+    // 监听影子索引库状态，初始化完成后加载数据
+    ref.listen(shadowIndexDatabaseProvider, (previous, next) {
+      if (next is AsyncData) {
         _loadAllData();
       }
     });
@@ -643,21 +649,25 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView>
                 type: SummaryType.weekly,
                 selectedSummary: _selectedSummary,
                 onSelect: (s) => setState(() => _selectedSummary = s),
+                onDelete: () => setState(() => _selectedSummary = null),
               ),
               _GalleryTab(
                 type: SummaryType.monthly,
                 selectedSummary: _selectedSummary,
                 onSelect: (s) => setState(() => _selectedSummary = s),
+                onDelete: () => setState(() => _selectedSummary = null),
               ),
               _GalleryTab(
                 type: SummaryType.quarterly,
                 selectedSummary: _selectedSummary,
                 onSelect: (s) => setState(() => _selectedSummary = s),
+                onDelete: () => setState(() => _selectedSummary = null),
               ),
               _GalleryTab(
                 type: SummaryType.yearly,
                 selectedSummary: _selectedSummary,
                 onSelect: (s) => setState(() => _selectedSummary = s),
+                onDelete: () => setState(() => _selectedSummary = null),
               ),
             ],
           ),
@@ -710,11 +720,13 @@ class _GalleryTab extends ConsumerWidget {
   final SummaryType type;
   final Summary? selectedSummary;
   final ValueChanged<Summary> onSelect;
+  final VoidCallback? onDelete;
 
   const _GalleryTab({
     required this.type,
     required this.selectedSummary,
     required this.onSelect,
+    this.onDelete,
   });
 
   @override
@@ -772,7 +784,7 @@ class _GalleryTab extends ConsumerWidget {
                   ),
                   Expanded(
                     child: selected != null
-                        ? _buildDetail(context, theme, selected)
+                        ? _buildDetail(context, ref, theme, selected)
                         : const SizedBox(),
                   ),
                 ],
@@ -803,7 +815,7 @@ class _GalleryTab extends ConsumerWidget {
   }
 
   Widget _buildDetail(
-      BuildContext context, ThemeData theme, Summary summary) {
+      BuildContext context, WidgetRef ref, ThemeData theme, Summary summary) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -836,6 +848,19 @@ class _GalleryTab extends ConsumerWidget {
                   ),
                 ),
               ),
+              IconButton(
+                icon: const Icon(Icons.edit_note_rounded),
+                tooltip: t.common.edit,
+                onPressed: () {
+                  context.push('/diary/edit?summaryId=${summary.id}');
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline_rounded),
+                tooltip: t.common.delete,
+                color: Colors.red.shade400,
+                onPressed: () => _confirmDelete(context, ref, summary),
+              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -846,7 +871,41 @@ class _GalleryTab extends ConsumerWidget {
               h1: theme.textTheme.titleLarge,
               h2: theme.textTheme.titleMedium,
               h3: theme.textTheme.titleSmall,
+              horizontalRuleDecoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(
+                    color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+                    width: 1,
+                  ),
+                ),
+              ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext context, WidgetRef ref, Summary summary) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(t.common.delete),
+        content: Text(t.summary.delete_confirm(title: _formatTitle(summary))),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(t.common.cancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref.read(summaryRepositoryProvider).deleteSummary(summary.id);
+              ref.read(dataRefreshProvider.notifier).refresh();
+              onDelete?.call();
+            },
+            child: Text(t.common.delete),
           ),
         ],
       ),

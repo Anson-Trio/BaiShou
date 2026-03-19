@@ -1,3 +1,4 @@
+import 'package:baishou/core/providers/shared_preferences_provider.dart';
 import 'package:baishou/features/agent/presentation/pages/agent_main_page.dart';
 import 'package:baishou/features/diary/presentation/pages/diary_editor_page.dart';
 import 'package:baishou/features/diary/presentation/pages/diary_list_page.dart';
@@ -34,9 +35,22 @@ GoRouter goRouter(Ref ref) {
   // Watch onboarding state
   final onboardingCompleted = ref.watch(onboardingCompletedProvider);
 
+  // Determine initial location based on saved sidebar order
+  String initialLoc = '/';
+  final prefs = ref.watch(sharedPreferencesProvider);
+  final savedOrder = prefs.getStringList('desktop_sidebar_nav_order');
+  if (savedOrder != null && savedOrder.isNotEmpty) {
+    final firstBranch = int.tryParse(savedOrder.first) ?? 0;
+    if (firstBranch == 1) {
+      initialLoc = '/summary';
+    } else if (firstBranch == 2) {
+      initialLoc = '/sync';
+    }
+  }
+
   return GoRouter(
     navigatorKey: rootNavigatorKey,
-    initialLocation: '/',
+    initialLocation: initialLoc,
     debugLogDiagnostics: true,
     redirect: (context, state) {
       final isGoingToOnboarding = state.matchedLocation == '/onboarding';
@@ -46,7 +60,7 @@ GoRouter goRouter(Ref ref) {
       }
 
       if (onboardingCompleted && isGoingToOnboarding) {
-        return '/';
+        return initialLoc;
       }
 
       return null;

@@ -10,6 +10,7 @@ import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:baishou/features/index/data/shadow_index_database.dart';
 
 class MissingSummaryList extends ConsumerStatefulWidget {
   const MissingSummaryList({super.key});
@@ -19,24 +20,31 @@ class MissingSummaryList extends ConsumerStatefulWidget {
 }
 
 class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
-  // 移除本地状态: AI生成状态
-  // final Map<String, String> _generationStatus = {};
+  int _concurrencyLimit = 3;
+  bool _isBatchProcessing = false;
+  bool _cancelRequested = false;
 
   @override
   Widget build(BuildContext context) {
-    // 监听全局状态 (不再依赖 ref.watch)
-    return ValueListenableBuilder<Map<String, String>>(
-      valueListenable: GenerationStateService().statusNotifier,
-      builder: (context, generationStatus, _) {
-        return FutureBuilder<List<MissingSummary>>(
-          future: ref
-              .read(missingSummaryDetectorProvider)
-              .getAllMissing(LocaleSettings.currentLocale),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) return const SizedBox.shrink();
-            final missing = snapshot.data!;
-            if (missing.isEmpty) return const SizedBox.shrink();
+    // 检查影子索引库是否初始化完成，未就绪时不查询
+    final dbState = ref.watch(shadowIndexDatabaseProvider);
+    if (dbState is! AsyncData) return const SizedBox.shrink();
 
+    // 监听 dataRefreshProvider 以在数据变更后触发 rebuild
+    ref.watch(dataRefreshProvider);
+
+    // FutureBuilder 放在最外层，实时查询数据库
+    return FutureBuilder<List<MissingSummary>>(
+      future: _safeGetAllMissing(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const SizedBox.shrink();
+        final missing = snapshot.data!;
+        if (missing.isEmpty) return const SizedBox.shrink();
+
+        // ValueListenableBuilder 只负责渲染生成进度，不触发重查
+        return ValueListenableBuilder<Map<String, String>>(
+          valueListenable: GenerationStateService().statusNotifier,
+          builder: (context, generationStatus, _) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -57,20 +65,81 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
                     const SizedBox(width: 16),
                     // 批量生成按钮
                     FilledButton.tonal(
-                      onPressed: () => _batchGenerate(missing),
+                      onPressed: _isBatchProcessing
+                          ? () => setState(() => _cancelRequested = true)
+                          : () => _batchGenerate(missing),
                       style: FilledButton.styleFrom(
                         visualDensity: VisualDensity.compact,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        backgroundColor: AppTheme.primary.withValues(
-                          alpha: 0.1,
-                        ),
-                        foregroundColor: AppTheme.primary,
+                        backgroundColor: _isBatchProcessing
+                            ? Colors.red.withValues(alpha: 0.1)
+                            : AppTheme.primary.withValues(alpha: 0.1),
+                        foregroundColor: _isBatchProcessing
+                            ? Colors.red
+                            : AppTheme.primary,
                       ),
-                      child: Text(
-                        t.summary.generate_all,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_isBatchProcessing) ...[
+                            const SizedBox(
+                              width: 12,
+                              height: 12,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.red,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                          ],
+                          Text(
+                            _isBatchProcessing
+                                ? (_cancelRequested
+                                    ? t.summary.stopping
+                                    : t.summary.stop_generating)
+                                : t.summary.generate_all,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // 并发设置
+                    PopupMenuButton<int>(
+                      initialValue: _concurrencyLimit,
+                      tooltip: t.summary.concurrency_limit,
+                      onSelected: (val) {
+                        setState(() => _concurrencyLimit = val);
+                      },
+                      itemBuilder: (context) => [1, 2, 3, 4, 5].map((e) => PopupMenuItem(
+                        value: e,
+                        child: Text(t.summary.concurrency_count(count: e)),
+                      )).toList(),
+                      position: PopupMenuPosition.under,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.speed_rounded, size: 14, color: AppTheme.primary),
+                            const SizedBox(width: 4),
+                            Text(
+                              t.summary.concurrency_count(count: _concurrencyLimit),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -255,8 +324,8 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
             ),
           ],
         );
-          },
-        );
+      },
+    );
       },
     );
   }
@@ -322,13 +391,54 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
   }
 
   Future<void> _batchGenerate(List<MissingSummary> items) async {
+    if (_isBatchProcessing) return;
     if (!_checkModelConfigured()) return;
-    for (final item in items) {
-      _generate(item);
+    
+    if (mounted) {
+      setState(() {
+        _isBatchProcessing = true;
+        _cancelRequested = false;
+      });
+    }
+    
+    final queue = List<MissingSummary>.from(items);
+    final List<Future<void>> workers = [];
+    
+    Future<void> worker() async {
+      while (queue.isNotEmpty && !_cancelRequested) {
+        final item = queue.removeAt(0);
+        await _generate(item, cancelCheck: () => _cancelRequested, isBatch: true);
+      }
+    }
+    
+    for (int i = 0; i < _concurrencyLimit; i++) {
+       workers.add(worker());
+    }
+    
+    await Future.wait(workers);
+    
+    // 批量全部完成后，统一刷新一次
+    if (mounted) {
+      ref.read(dataRefreshProvider.notifier).refresh();
+      setState(() {
+        _isBatchProcessing = false;
+        _cancelRequested = false;
+      });
     }
   }
 
-  Future<void> _generate(MissingSummary item) async {
+  /// 安全查询缺失列表，数据库未就绪时返回空列表而不崩溃
+  Future<List<MissingSummary>> _safeGetAllMissing() async {
+    try {
+      return await ref
+          .read(missingSummaryDetectorProvider)
+          .getAllMissing(LocaleSettings.currentLocale);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> _generate(MissingSummary item, {bool Function()? cancelCheck, bool isBatch = false}) async {
     if (!_checkModelConfigured()) return;
     final key = item.label;
     final service = GenerationStateService();
@@ -358,6 +468,10 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
       String finalContent = '';
 
       await for (final status in stream) {
+        if (cancelCheck?.call() == true) {
+          service.setStatus(key, t.summary.tap_to_retry);
+          break;
+        }
         // 使用明确的前缀判断
         if (status.startsWith('STATUS:')) {
           service.setStatus(key, status.substring(7)); // 移除 'STATUS:'
@@ -365,6 +479,10 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
           // 没有前缀的被视为最终内容
           finalContent = status;
         }
+      }
+
+      if (cancelCheck?.call() == true) {
+        return; // 被手动取消，终止入库
       }
 
       if (finalContent.isNotEmpty) {
@@ -377,8 +495,8 @@ class _MissingSummaryListState extends ConsumerState<MissingSummaryList> {
         );
 
         service.removeStatus(key);
-        // 触发全局刷新，更新付表板数量统计
-        if (mounted) {
+        // 单条生成时立即刷新；批量生成时由 _batchGenerate 统一刷新
+        if (!isBatch && mounted) {
           ref.read(dataRefreshProvider.notifier).refresh();
         }
       } else {
