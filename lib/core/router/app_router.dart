@@ -1,5 +1,4 @@
 import 'package:baishou/features/agent/presentation/pages/agent_main_page.dart';
-import 'package:baishou/features/agent/presentation/pages/agent_sessions_page.dart';
 import 'package:baishou/features/diary/presentation/pages/diary_editor_page.dart';
 import 'package:baishou/features/diary/presentation/pages/diary_list_page.dart';
 import 'package:baishou/features/home/presentation/pages/main_scaffold.dart';
@@ -24,6 +23,7 @@ final diaryNavKey = GlobalKey<NavigatorState>(debugLabel: 'diary');
 final summaryNavKey = GlobalKey<NavigatorState>(debugLabel: 'summary');
 final syncNavKey = GlobalKey<NavigatorState>(debugLabel: 'sync');
 final settingsNavKey = GlobalKey<NavigatorState>(debugLabel: 'settings');
+final agentNavKey = GlobalKey<NavigatorState>(debugLabel: 'agent');
 
 /// 全局路由配置
 /// 使用 GoRouter 处理页面导航、重定向（如开启引导页）以及子路由嵌套。
@@ -98,6 +98,16 @@ GoRouter goRouter(Ref ref) {
               ),
             ],
           ),
+          // Branch 4: Agent
+          StatefulShellBranch(
+            navigatorKey: agentNavKey,
+            routes: [
+              GoRoute(
+                path: '/agent',
+                builder: (context, state) => const AgentMainPage(),
+              ),
+            ],
+          ),
         ],
       ),
       GoRoute(
@@ -168,16 +178,6 @@ GoRouter goRouter(Ref ref) {
             appendOnLoad: shouldAppend,
           );
         },
-      ),
-      GoRoute(
-        parentNavigatorKey: rootNavigatorKey,
-        path: '/agent/chat',
-        builder: (context, state) => const AgentMainPage(),
-      ),
-      GoRoute(
-        parentNavigatorKey: rootNavigatorKey,
-        path: '/agent/sessions',
-        builder: (context, state) => const AgentSessionsPage(),
       ),
     ],
   );

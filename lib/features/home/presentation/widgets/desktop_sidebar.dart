@@ -99,12 +99,6 @@ class DesktopSidebar extends ConsumerWidget {
                   isSelected: navigationShell.currentIndex == 2,
                   onTap: () => onBranchChange(2),
                 ),
-                _NavMenuItem(
-                  icon: Icons.auto_awesome_rounded,
-                  label: 'Agent',
-                  isSelected: false,
-                  onTap: () => context.push('/agent/chat'),
-                ),
                 const SizedBox(height: 16),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16),

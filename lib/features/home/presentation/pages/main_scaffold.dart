@@ -10,7 +10,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 /// 主级架构视图
-/// 负责分发移动端（底部导航）与桌面端（侧边栏）布局，切换不同的功能分支。
+///
+/// 桌面端：顶部标签栏（记忆 / Agent）+ 各标签独立布局
+/// 移动端：底部导航栏（日记 / 总结 / Agent / 设置）
 class MainScaffold extends ConsumerStatefulWidget {
   final StatefulNavigationShell navigationShell;
 
@@ -28,13 +30,19 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     );
   }
 
-  /// 将 Shell Branch 索引映射为移动端底栏索引
-  /// Branch 0 → Nav 0 (时间轴), Branch 1 → Nav 1 (总结), Branch 3 → Nav 2 (设置)
+  /// 当前顶部标签索引：0=记忆（Branch 0,1,2），1=Agent（Branch 4）
+  int get _topTabIndex {
+    return widget.navigationShell.currentIndex == 4 ? 1 : 0;
+  }
+
+  /// 移动端底栏索引映射
+  /// Branch 0→0(日记), 1→1(总结), 4→2(Agent), 3→3(设置)
   int _getMobileNavIndex() {
     final branchIndex = widget.navigationShell.currentIndex;
-    if (branchIndex == 3) return 2; // 设置
+    if (branchIndex == 4) return 2; // Agent
+    if (branchIndex == 3) return 3; // 设置
     if (branchIndex <= 1) return branchIndex;
-    return 0; // 默认回到时间轴（branch 2 是桌面端专用的同步页）
+    return 0;
   }
 
   DateTime? _lastBackPress;
@@ -43,137 +51,284 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // 响应式与设备类型判断
-        // 逻辑：Windows/Linux/macOS 始终显示桌面版；
-        // Android/iOS 根据屏幕宽度判断（手机 vs Pad）。
         final bool isDesktopOS =
             Platform.isWindows || Platform.isLinux || Platform.isMacOS;
         final bool isLargeScreen = constraints.maxWidth >= 700;
         final bool isDesktop = isDesktopOS || isLargeScreen;
 
-        Widget content = widget.navigationShell;
-
-        // 仅在移动端或非桌面 OS 且小屏时应用返回逻辑
-        if (!isDesktop) {
-          final currentIndex = widget.navigationShell.currentIndex;
-          final GlobalKey<NavigatorState>? activeKey = switch (currentIndex) {
-            0 => diaryNavKey,
-            1 => summaryNavKey,
-            2 => syncNavKey,
-            3 => settingsNavKey,
-            _ => null,
-          };
-
-          final navState = activeKey?.currentState;
-          final bool canPopNested = navState?.canPop() ?? false;
-
-          // 核心逻辑：
-          // 1. 如果有内嵌页面，允许内部弹出 (canPop: true)
-          // 2. 否则，如果用户是在首页（时间轴），拦截返回 (canPop: false)。
-          // 3. 否则如果在其他 Tab，依然拦截返回并在微任务中切回首页。
-          final bool shouldPopRoute = canPopNested;
-
-          content = PopScope(
-            canPop: shouldPopRoute,
-            onPopInvokedWithResult: (didPop, result) {
-              if (didPop) return;
-
-              // 如果当前不在首个标签页（时间轴），则切回到时间轴
-              if (currentIndex != 0) {
-                Future.microtask(() => _goBranch(0));
-                return;
-              }
-
-              // 在首页时，双击退出逻辑
-              final now = DateTime.now();
-              if (_lastBackPress == null ||
-                  now.difference(_lastBackPress!) >
-                      const Duration(seconds: 2)) {
-                setState(() {
-                  _lastBackPress = now;
-                });
-                AppToast.show(context, t.common.exit_hint);
-                return;
-              }
-
-              // 2秒内连续按返回，则退出应用
-              // 注意：直接使用 SystemNavigator.pop() 可能会抛弃部分上下文，
-              // 但对于根部退出来说是目前最可靠的方法。
-              SystemNavigator.pop();
-            },
-            child: widget.navigationShell,
-          );
-        }
-
         if (isDesktop) {
-          return Scaffold(
-            backgroundColor: Theme.of(context).colorScheme.surface,
-            body: Row(
-              children: [
-                // 左侧导航栏 (桌面端)
-                DesktopSidebar(
-                  navigationShell: widget.navigationShell,
-                  onBranchChange: _goBranch,
-                ),
-                // 主内容区域
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface,
-                      // 在桌面端给主区域一个微妙的阴影或分界
-                      boxShadow: [
-                        if (Theme.of(context).brightness == Brightness.light)
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.02),
-                            blurRadius: 10,
-                            offset: const Offset(-5, 0),
-                          ),
-                      ],
-                    ),
-                    child: widget.navigationShell,
-                  ),
-                ),
-              ],
-            ),
-          );
+          return _buildDesktopLayout(context);
         }
 
-        // 移动端布局
-        return Scaffold(
-          body: Container(
-            color: Theme.of(context).colorScheme.surface,
-            child: content,
+        return _buildMobileLayout(context);
+      },
+    );
+  }
+
+  // ─── 桌面端布局 ──────────────────────────────────────────────
+
+  Widget _buildDesktopLayout(BuildContext context) {
+    final theme = Theme.of(context);
+    final isAgent = widget.navigationShell.currentIndex == 4;
+
+    return Scaffold(
+      backgroundColor: theme.colorScheme.surface,
+      body: Column(
+        children: [
+          // ─── 顶部标签栏 ───
+          _buildTopTabBar(theme),
+
+          // ─── 内容区 ───
+          Expanded(
+            child: isAgent
+                // Agent 标签：AgentMainPage 自带侧边栏，直接渲染
+                ? widget.navigationShell
+                // 记忆标签：全局侧边栏 + 内容
+                : Row(
+                    children: [
+                      DesktopSidebar(
+                        navigationShell: widget.navigationShell,
+                        onBranchChange: _goBranch,
+                      ),
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface,
+                            boxShadow: [
+                              if (theme.brightness == Brightness.light)
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.02),
+                                  blurRadius: 10,
+                                  offset: const Offset(-5, 0),
+                                ),
+                            ],
+                          ),
+                          child: widget.navigationShell,
+                        ),
+                      ),
+                    ],
+                  ),
           ),
-          bottomNavigationBar: NavigationBar(
-            selectedIndex: _getMobileNavIndex(),
-            onDestinationSelected: (index) {
-              // 移动端映射：0=时间轴, 1=总结, 2=设置(branch 3)
-              if (index == 2) {
-                _goBranch(3); // 设置页面位于 branch 3
-              } else {
-                _goBranch(index);
-              }
-            },
-            destinations: [
-              NavigationDestination(
-                icon: const Icon(Icons.timeline_outlined),
-                selectedIcon: const Icon(Icons.timeline),
-                label: t.diary.title,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopTabBar(ThemeData theme) {
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        border: Border(
+          bottom: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 16),
+          // App icon
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: Image.asset(
+              'assets/icon/icon.png',
+              width: 24,
+              height: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+
+          // 标签按钮
+          _TopTab(
+            icon: Icons.auto_stories_rounded,
+            label: t.diary.title,
+            isSelected: _topTabIndex == 0,
+            onTap: () => _goBranch(0), // 切到 日记(Branch 0)
+          ),
+          _TopTab(
+            icon: Icons.auto_awesome_rounded,
+            label: 'Agent',
+            isSelected: _topTabIndex == 1,
+            onTap: () => _goBranch(4), // 切到 Agent(Branch 4)
+          ),
+
+          const Spacer(),
+
+          // 设置按钮
+          IconButton(
+            icon: Icon(
+              Icons.settings_outlined,
+              size: 20,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            onPressed: () => context.push('/settings'),
+            tooltip: t.settings.title,
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+    );
+  }
+
+  // ─── 移动端布局 ──────────────────────────────────────────────
+
+  Widget _buildMobileLayout(BuildContext context) {
+    final currentIndex = widget.navigationShell.currentIndex;
+
+    final GlobalKey<NavigatorState>? activeKey = switch (currentIndex) {
+      0 => diaryNavKey,
+      1 => summaryNavKey,
+      2 => syncNavKey,
+      3 => settingsNavKey,
+      4 => agentNavKey,
+      _ => null,
+    };
+
+    final navState = activeKey?.currentState;
+    final bool canPopNested = navState?.canPop() ?? false;
+    final bool shouldPopRoute = canPopNested;
+
+    Widget content = PopScope(
+      canPop: shouldPopRoute,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+
+        if (currentIndex != 0) {
+          Future.microtask(() => _goBranch(0));
+          return;
+        }
+
+        final now = DateTime.now();
+        if (_lastBackPress == null ||
+            now.difference(_lastBackPress!) > const Duration(seconds: 2)) {
+          setState(() {
+            _lastBackPress = now;
+          });
+          AppToast.show(context, t.common.exit_hint);
+          return;
+        }
+
+        SystemNavigator.pop();
+      },
+      child: widget.navigationShell,
+    );
+
+    return Scaffold(
+      body: Container(
+        color: Theme.of(context).colorScheme.surface,
+        child: content,
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _getMobileNavIndex(),
+        onDestinationSelected: (index) {
+          // 映射: 0=日记, 1=总结, 2=Agent(branch 4), 3=设置(branch 3)
+          switch (index) {
+            case 0:
+              _goBranch(0);
+            case 1:
+              _goBranch(1);
+            case 2:
+              _goBranch(4); // Agent
+            case 3:
+              _goBranch(3); // 设置
+          }
+        },
+        destinations: [
+          NavigationDestination(
+            icon: const Icon(Icons.timeline_outlined),
+            selectedIcon: const Icon(Icons.timeline),
+            label: t.diary.title,
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.auto_stories_outlined),
+            selectedIcon: const Icon(Icons.auto_stories),
+            label: t.summary.dashboard_title,
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.auto_awesome_outlined),
+            selectedIcon: const Icon(Icons.auto_awesome_rounded),
+            label: 'Agent',
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.settings_outlined),
+            selectedIcon: const Icon(Icons.settings),
+            label: t.settings.title,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── 顶部标签按钮 ──────────────────────────────────────────────
+
+class _TopTab extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _TopTab({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          margin: const EdgeInsets.only(right: 4),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? theme.colorScheme.surface
+                : Colors.transparent,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(8),
+              topRight: Radius.circular(8),
+            ),
+            border: isSelected
+                ? Border(
+                    bottom: BorderSide(
+                      color: theme.colorScheme.primary,
+                      width: 2,
+                    ),
+                  )
+                : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: isSelected
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
               ),
-              NavigationDestination(
-                icon: const Icon(Icons.auto_stories_outlined),
-                selectedIcon: const Icon(Icons.auto_stories),
-                label: t.summary.dashboard_title,
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.settings_outlined),
-                selectedIcon: const Icon(Icons.settings),
-                label: t.settings.title,
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  color: isSelected
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

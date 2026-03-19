@@ -84,7 +84,7 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
           IconButton(
             icon: const Icon(Icons.add),
             tooltip: t.agent.sessions.new_chat,
-            onPressed: () => context.push('/agent/chat'),
+            onPressed: () => context.push('/agent'),
           ),
         ],
       ),
@@ -174,7 +174,7 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
           ),
           const SizedBox(height: 24),
           FilledButton.icon(
-            onPressed: () => context.push('/agent/chat'),
+            onPressed: () => context.push('/agent'),
             icon: const Icon(Icons.chat_rounded),
             label: Text(t.agent.sessions.continue_chat),
           ),
@@ -202,7 +202,7 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
           ),
           const SizedBox(height: 24),
           FilledButton.icon(
-            onPressed: () => context.push('/agent/chat'),
+            onPressed: () => context.push('/agent'),
             icon: const Icon(Icons.add),
             label: Text(t.agent.sessions.start_new),
           ),
@@ -309,7 +309,7 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
                 color: theme.colorScheme.outline,
               ),
               onTap: () {
-                context.push('/agent/chat?sessionId=${session.id}');
+                context.push('/agent?sessionId=${session.id}');
               },
             ),
           );
