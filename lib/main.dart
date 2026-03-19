@@ -35,6 +35,7 @@ void main() async {
       minimumSize: const Size(1200, 800),
       center: true,
       title: t.common.app_tagline,
+      titleBarStyle: TitleBarStyle.hidden,
     );
     windowManager.waitUntilReadyToShow(windowOptions, () async {
       await windowManager.show();
