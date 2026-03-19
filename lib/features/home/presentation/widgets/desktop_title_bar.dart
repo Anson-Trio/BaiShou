@@ -61,7 +61,12 @@ class _DesktopTitleBarState extends State<DesktopTitleBar>
   void _syncTabFromRoute() {
     final location =
         widget.router.routeInformationProvider.value.uri.path;
-    setState(() => _currentLocation = location);
+
+    // 延迟到 build 之后再更新状态，避免在 build 阶段调用 setState
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() => _currentLocation = location);
+    });
 
     // 只在主标签路由间同步，覆盖层路由（settings/diary/edit）不改标签
     final isMainRoute = location == '/' ||
@@ -74,7 +79,9 @@ class _DesktopTitleBarState extends State<DesktopTitleBar>
     final newIndex = location.startsWith('/agent') ? 1 : 0;
     if (_tabController.index != newIndex &&
         !_tabController.indexIsChanging) {
-      _tabController.animateTo(newIndex);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _tabController.animateTo(newIndex);
+      });
     }
   }
 
