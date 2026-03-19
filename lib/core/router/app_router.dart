@@ -1,5 +1,5 @@
 import 'package:baishou/core/providers/shared_preferences_provider.dart';
-import 'package:baishou/features/agent/presentation/pages/agent_main_page.dart';
+import 'package:baishou/agent/presentation/pages/agent_main_page.dart';
 import 'package:baishou/features/diary/presentation/pages/diary_editor_page.dart';
 import 'package:baishou/features/diary/presentation/pages/diary_list_page.dart';
 import 'package:baishou/features/home/presentation/pages/main_scaffold.dart';

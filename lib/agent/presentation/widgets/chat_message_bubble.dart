@@ -5,7 +5,7 @@
 
 import 'dart:io';
 import 'package:baishou/agent/models/chat_message.dart';
-import 'package:baishou/features/agent/presentation/notifiers/agent_chat_notifier.dart';
+import 'package:baishou/agent/presentation/notifiers/agent_chat_notifier.dart';
 import 'package:baishou/features/settings/domain/services/user_profile_service.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';

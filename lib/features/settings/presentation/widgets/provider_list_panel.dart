@@ -24,8 +24,9 @@ class ProviderListPanel extends StatelessWidget {
   Widget _buildProviderListItem(
     BuildContext context,
     AiProviderModel p,
-    bool isMobile,
-  ) {
+    bool isMobile, {
+    int? reorderIndex,
+  }) {
     // 移动端仅作为入口列表，不需要高亮选中态
     final isSelected = !isMobile && selectedProviderId == p.id;
     final colorScheme = Theme.of(context).colorScheme;
@@ -102,6 +103,15 @@ class ProviderListPanel extends StatelessWidget {
                   ),
                 ),
               ),
+              // 拖拽手柄（仅在可排序列表中显示）
+              if (reorderIndex != null)
+                ReorderableDragStartListener(
+                  index: reorderIndex,
+                  child: const Padding(
+                    padding: EdgeInsets.only(left: 8),
+                    child: Icon(Icons.drag_indicator, size: 18, color: Colors.grey),
+                  ),
+                ),
             ],
           ),
         ),
@@ -117,6 +127,7 @@ class ProviderListPanel extends StatelessWidget {
 
     if (onReorder != null) {
       return ReorderableListView.builder(
+        buildDefaultDragHandles: false,
         padding: EdgeInsets.symmetric(vertical: isMobile ? 8 : 16),
         itemCount: providers.length,
         onReorder: onReorder!,
@@ -130,7 +141,10 @@ class ProviderListPanel extends StatelessWidget {
         itemBuilder: (context, index) {
           return KeyedSubtree(
             key: ValueKey(providers[index].id),
-            child: _buildProviderListItem(context, providers[index], isMobile),
+            child: _buildProviderListItem(
+              context, providers[index], isMobile,
+              reorderIndex: index,
+            ),
           );
         },
       );
