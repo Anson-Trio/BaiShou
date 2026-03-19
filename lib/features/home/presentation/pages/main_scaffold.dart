@@ -67,9 +67,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       body: isAgent
-          // Agent 标签：AgentMainPage 自带侧边栏，直接渲染
           ? widget.navigationShell
-          // 记忆标签：全局侧边栏 + 内容
           : Row(
               children: [
                 DesktopSidebar(

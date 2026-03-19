@@ -215,7 +215,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
     return Container(
       width: 280,
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
+        color: theme.colorScheme.surface,
         border: Border(
           right: BorderSide(
             color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
