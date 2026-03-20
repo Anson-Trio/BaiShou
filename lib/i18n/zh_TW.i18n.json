@@ -263,7 +263,18 @@
     "agent_tools_category_diary": "日記工具",
     "agent_tools_category_summary": "總結工具",
     "agent_tools_category_memory": "記憶工具",
-    "agent_tools_category_general": "通用工具"
+    "agent_tools_category_general": "通用工具",
+    "scanning_new_dir": "正在掃描新目錄的日記...",
+    "dir_switched": "已切換至新目錄，共找到 $count 篇日記",
+    "dir_scan_failed": "掃描新目錄失敗：$error",
+    "summary_settings_title": "回憶生成設定",
+    "summary_settings_tooltip": "總結設定",
+    "summary_ai_prompt_title": "AI 提示詞",
+    "summary_ai_prompt_desc": "定義 AI 在生成總結時的角色身分、輸出格式和行為邊界。",
+    "summary_ai_prompt_hint": "寫下該 AI 在提取並生成總結時的準則...",
+    "summary_instructions_desc": "該設定將作為系統提示詞被運用於自動生成的週、月、季及年度總結中。預設採用中文輸出。",
+    "saved": "已儲存",
+    "restore_default": "恢復預設"
   },
   "data_sync": {
     "title": "資料同步",
@@ -530,7 +541,11 @@
     "missing_label_weekly": "$year年第$week週",
     "missing_label_monthly": "$year年$month月",
     "missing_label_quarterly": "$year年Q$q",
-    "missing_label_yearly": "$year年度"
+    "missing_label_yearly": "$year年度",
+    "card_week_title": "第 $week 週",
+    "card_date_range": "$start - $end",
+    "card_month_title": "$month月",
+    "card_year_suffix": "$year年"
   },
   "ai": {
     "error_response_format": "回應格式錯誤：$e",
@@ -648,7 +663,11 @@
       "you_label": "你",
       "ai_label": "AI 助手",
       "regenerate": "重新生成",
-      "input_hint": "輸入訊息..."
+      "input_hint": "輸入訊息...",
+      "err_no_model": "請先在設定中配置 AI 模型",
+      "cost_detail_title": "費用估算詳情",
+      "cost_total": "消耗總計",
+      "cost_disclaimer": "提示：此費用計算資料來自本機 pricing 規則（或 models.dev），存在更新不及時或計費方式不同的情況，僅供參考。"
     },
     "sessions": {
       "history": "對話歷史",
@@ -723,7 +742,18 @@
       "add_memory_title": "新增記憶",
       "add_memory_hint": "輸入要記住的內容...",
       "add_memory_save": "儲存",
-      "add_memory_success": "記憶已儲存並嵌入"
+      "add_memory_success": "記憶已儲存並嵌入",
+      "retrieval_params": "檢索參數調節",
+      "similarity_threshold": "相似度閾值",
+      "migration_pending_title": "偵測到未完成的遷移",
+      "migration_pending_content": "上次嵌入模型遷移未完成（可能是應用異常退出）。\n\n是否繼續遷移？備份資料仍然安全。",
+      "migration_later": "稍後再說",
+      "migration_continue": "繼續遷移",
+      "migration_error": "遷移出錯：$error",
+      "migration_model_changed_title": "嵌入模型已更換",
+      "migration_model_changed_content": "偵測到您更換了嵌入模型。\n\n舊的向量資料與新模型維度不相容，需要重新嵌入所有資料。\n\n此操作會：\n• 備份現有文本元資料\n• 清空舊向量並用新模型重新嵌入\n• 完成後自動校驗資料完整性\n\n過程在後台非同步執行，不影響正常使用。",
+      "migration_start_now": "立即重新嵌入",
+      "migration_preparing": "正在準備重新嵌入..."
     },
     "provider": {
       "add_title": "新增 AI 供應商",

@@ -1,3 +1,4 @@
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:baishou/core/providers/shared_preferences_provider.dart';
 import 'package:baishou/agent/presentation/pages/agent_main_page.dart';
 import 'package:baishou/features/diary/presentation/pages/diary_editor_page.dart';
@@ -12,7 +13,8 @@ import 'package:baishou/features/settings/presentation/pages/views/ai_model_serv
 import 'package:baishou/features/settings/presentation/pages/views/general_settings_view.dart';
 import 'package:baishou/features/settings/presentation/pages/lan_transfer_page.dart';
 import 'package:baishou/features/summary/presentation/pages/summary_page.dart';
-import 'package:baishou/i18n/strings.g.dart';
+import 'package:baishou/features/settings/presentation/pages/views/summary_settings_view.dart';
+import 'package:baishou/features/settings/presentation/pages/views/rag_memory_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -154,6 +156,22 @@ GoRouter goRouter(Ref ref) {
         builder: (context, state) => Scaffold(
           appBar: AppBar(title: Text(t.settings.ai_global_models)),
           body: const AiGlobalModelsView(),
+        ),
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: '/settings/summary',
+        builder: (context, state) => Scaffold(
+          appBar: AppBar(title: Text(t.settings.summary_settings_title)),
+          body: const SummarySettingsView(),
+        ),
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: '/settings/rag',
+        builder: (context, state) => Scaffold(
+          appBar: AppBar(title: Text(t.agent.rag.title)),
+          body: const RagMemoryView(),
         ),
       ),
       GoRoute(

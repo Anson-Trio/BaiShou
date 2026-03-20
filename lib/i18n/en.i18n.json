@@ -254,7 +254,18 @@
     "agent_tools_category_diary": "Diary Tools",
     "agent_tools_category_summary": "Summary Tools",
     "agent_tools_category_memory": "Memory Tools",
-    "agent_tools_category_general": "General Tools"
+    "agent_tools_category_general": "General Tools",
+    "scanning_new_dir": "Scanning diaries in new directory...",
+    "dir_switched": "Switched to new directory, found $count diaries",
+    "dir_scan_failed": "Failed to scan new directory: $error",
+    "summary_settings_title": "Memory Generation Settings",
+    "summary_settings_tooltip": "Summary Settings",
+    "summary_ai_prompt_title": "AI Prompt",
+    "summary_ai_prompt_desc": "Define the AI's role, output format and behavior boundaries when generating summaries.",
+    "summary_ai_prompt_hint": "Write guidelines for AI when extracting and generating summaries...",
+    "summary_instructions_desc": "This setting will be used as the system prompt for auto-generated weekly, monthly, quarterly and yearly summaries. Default output is in Chinese.",
+    "saved": "Saved",
+    "restore_default": "Restore Default"
   },
   "data_sync": {
     "title": "Data Sync",
@@ -521,7 +532,11 @@
     "missing_label_weekly": "Week $week, $year",
     "missing_label_monthly": "$month/$year",
     "missing_label_quarterly": "$year Q$q",
-    "missing_label_yearly": "Year $year"
+    "missing_label_yearly": "Year $year",
+    "card_week_title": "Week $week",
+    "card_date_range": "$start - $end",
+    "card_month_title": "$month",
+    "card_year_suffix": "$year"
   },
   "ai": {
     "error_response_format": "Response format error: $e",
@@ -640,7 +655,11 @@
       "ai_label": "AI Assistant",
       "regenerate": "Regenerate",
       "copy": "Copy",
-      "input_hint": "Type a message..."
+      "input_hint": "Type a message...",
+      "err_no_model": "Please configure an AI model in Settings first",
+      "cost_detail_title": "Cost Estimation Details",
+      "cost_total": "Total Cost",
+      "cost_disclaimer": "Note: Cost calculations are based on local pricing rules (or models.dev), and may differ from actual billing. For reference only."
     },
     "sessions": {
       "history": "Chat History",
@@ -715,7 +734,18 @@
       "add_memory_title": "Add Memory",
       "add_memory_hint": "Enter content to remember...",
       "add_memory_save": "Save",
-      "add_memory_success": "Memory saved and embedded"
+      "add_memory_success": "Memory saved and embedded",
+      "retrieval_params": "Retrieval Parameters",
+      "similarity_threshold": "Similarity Threshold",
+      "migration_pending_title": "Incomplete Migration Detected",
+      "migration_pending_content": "The previous embedding migration was not completed (possibly due to app crash).\n\nContinue migration? Backup data is still safe.",
+      "migration_later": "Later",
+      "migration_continue": "Continue Migration",
+      "migration_error": "Migration error: $error",
+      "migration_model_changed_title": "Embedding Model Changed",
+      "migration_model_changed_content": "Embedding model change detected.\n\nOld vector data is incompatible with the new model dimensions, all data needs to be re-embedded.\n\nThis will:\n• Backup existing text metadata\n• Clear old vectors and re-embed with new model\n• Auto-verify data integrity after completion\n\nProcess runs asynchronously in the background.",
+      "migration_start_now": "Re-embed Now",
+      "migration_preparing": "Preparing to re-embed..."
     },
     "provider": {
       "add_title": "Add AI Provider",

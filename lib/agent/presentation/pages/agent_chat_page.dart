@@ -129,7 +129,65 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
             color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
           ),
         ),
-        actions: const [],
+        actions: [
+          if (chatState.totalCostMicros > 0 || chatState.totalInputTokens > 0)
+            Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: Center(
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(6),
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: Text(t.agent.chat.cost_detail_title),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('${t.agent.chat.cost_total}: \$${(chatState.totalCostMicros / 1000000).toStringAsFixed(6)}'),
+                            const SizedBox(height: 8),
+                            Text('Input Tokens: ${chatState.totalInputTokens}'),
+                            const SizedBox(height: 4),
+                            Text('Output Tokens: ${chatState.totalOutputTokens}'),
+                            const SizedBox(height: 16),
+                            Text(
+                              t.agent.chat.cost_disclaimer,
+                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: Text(t.common.confirm),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Text(
+                      '\$${(chatState.totalCostMicros / 1000000).toStringAsFixed(4)}',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'RobotoMono',
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -170,10 +228,13 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
                       return ChatMessageBubble(
                         message: message,
                         onEdit: message.role == MessageRole.user
-                            ? () => _showEditDialog(context, ref, message, chatState.messages.indexOf(message))
+                            ? () => _showEditDialog(context, ref, message)
+                            : null,
+                        onResend: message.role == MessageRole.user
+                            ? () => ref.read(agentChatProvider.notifier).resendUserMessage(message.id)
                             : null,
                         onRegenerate: message.role == MessageRole.assistant
-                            ? () => ref.read(agentChatProvider.notifier).retryLast()
+                            ? () => ref.read(agentChatProvider.notifier).regenerateResponse(message.id)
                             : null,
                       );
                     },
@@ -218,7 +279,13 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
                       onPressed: chatState.isLoading
                           ? null
                           : () {
-                              ref.read(agentChatProvider.notifier).retryLast();
+                              final lastUserMsg = chatState.messages.lastWhere(
+                                (m) => m.role == MessageRole.user,
+                                orElse: () => ChatMessage.user(''),
+                              );
+                              if (lastUserMsg.id.isNotEmpty && lastUserMsg.content?.isNotEmpty == true) {
+                                ref.read(agentChatProvider.notifier).resendUserMessage(lastUserMsg.id);
+                              }
                             },
                       icon: const Icon(Icons.refresh_rounded, size: 16),
                       label: Text(t.agent.chat.retry),
@@ -254,7 +321,7 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
     );
   }
   /// 编辑消息弹窗
-  Future<void> _showEditDialog(BuildContext context, WidgetRef ref, ChatMessage message, int messageIndex) async {
+  Future<void> _showEditDialog(BuildContext context, WidgetRef ref, ChatMessage message) async {
     final controller = TextEditingController(text: message.content ?? '');
     final theme = Theme.of(context);
     final result = await showDialog<String>(
@@ -287,7 +354,7 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
       ),
     );
     if (result != null && result.trim().isNotEmpty && result != message.content) {
-      ref.read(agentChatProvider.notifier).editAndResend(messageIndex, result);
+      ref.read(agentChatProvider.notifier).editAndResend(message.id, result);
     }
   }
 

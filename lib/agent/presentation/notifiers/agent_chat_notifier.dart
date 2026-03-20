@@ -3,6 +3,7 @@
 /// 管理当前对话的消息列表、流式输出、工具执行状态
 
 import 'dart:async';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:baishou/agent/clients/ai_client.dart';
 import 'package:baishou/agent/models/chat_message.dart';
 import 'package:baishou/agent/models/stream_event.dart';
@@ -40,6 +41,12 @@ class AgentChatState {
   final String? error;
   /// 当前轮已完成的工具执行记录（含耗时）
   final List<ToolExecution> completedTools;
+  /// 当前会话累计费用（微美元，1 USD = 1,000,000 micros）
+  final int totalCostMicros;
+  /// 当前会话累计输入 token
+  final int totalInputTokens;
+  /// 当前会话累计输出 token
+  final int totalOutputTokens;
 
   const AgentChatState({
     this.sessionId,
@@ -49,6 +56,9 @@ class AgentChatState {
     this.activeToolName,
     this.error,
     this.completedTools = const [],
+    this.totalCostMicros = 0,
+    this.totalInputTokens = 0,
+    this.totalOutputTokens = 0,
   });
 
   AgentChatState copyWith({
@@ -59,6 +69,9 @@ class AgentChatState {
     String? Function()? activeToolName,
     String? Function()? error,
     List<ToolExecution>? completedTools,
+    int? totalCostMicros,
+    int? totalInputTokens,
+    int? totalOutputTokens,
   }) {
     return AgentChatState(
       sessionId: sessionId ?? this.sessionId,
@@ -69,15 +82,15 @@ class AgentChatState {
           activeToolName != null ? activeToolName() : this.activeToolName,
       error: error != null ? error() : this.error,
       completedTools: completedTools ?? this.completedTools,
+      totalCostMicros: totalCostMicros ?? this.totalCostMicros,
+      totalInputTokens: totalInputTokens ?? this.totalInputTokens,
+      totalOutputTokens: totalOutputTokens ?? this.totalOutputTokens,
     );
   }
 }
 
 @riverpod
 class AgentChatNotifier extends _$AgentChatNotifier {
-  /// 最近一次发送的用户文本（用于重试）
-  String? _lastSendText;
-
   /// 当前运行 ID（用于中止当前会话的生成）
   int _currentRunId = 0;
 
@@ -89,21 +102,69 @@ class AgentChatNotifier extends _$AgentChatNotifier {
     return const AgentChatState();
   }
 
-  /// 重试最后一次发送
-  Future<void> retryLast() async {
-    if (_lastSendText == null || _lastSendText!.isEmpty) return;
-    // 移除失败产生的最后一条 assistant 消息（如果有）
-    final msgs = List<ChatMessage>.from(state.messages);
-    while (msgs.isNotEmpty && msgs.last.role != MessageRole.user) {
-      msgs.removeLast();
+  /// 重发用户消息（基于现有对话中的 user 消息并清空其后的无效模型响应）
+  Future<void> resendUserMessage(String userMessageId) async {
+    final sessionId = state.sessionId;
+    if (sessionId == null || state.isLoading) return;
+
+    final manager = ref.read(sessionManagerProvider);
+
+    // 1. 获取关联的助手/工具消息并将其删除
+    final msgsToDelete = state.messages
+        .where((m) => m.askId == userMessageId)
+        .map((m) => m.id)
+        .toList();
+    if (msgsToDelete.isNotEmpty) {
+      await manager.deleteMessagesByIds(msgsToDelete);
+      state = state.copyWith(
+        messages: state.messages.where((m) => m.askId != userMessageId).toList(),
+      );
+      _sessionStateCache[sessionId] = state;
     }
-    state = state.copyWith(
-      messages: msgs,
-      error: () => null,
+
+    // 获取最新的 API Config 和 Provider
+    final apiConfig = ref.read(apiConfigServiceProvider);
+    final providerId = apiConfig.globalDialogueProviderId;
+    final modelId = apiConfig.globalDialogueModelId;
+    final provider = apiConfig.getProvider(providerId);
+
+    if (provider == null || modelId.isEmpty) {
+      state = state.copyWith(error: () => t.agent.chat.err_no_model);
+      return;
+    }
+
+    final vaultInfo = await ref.read(vaultServiceProvider.future);
+    final vaultName = vaultInfo?.name ?? 'Personal';
+    final storageService = ref.read(storagePathServiceProvider);
+    final vaultDir = await storageService.getVaultDirectory(vaultName);
+    
+    _currentRunId++;
+    final runId = _currentRunId;
+    
+    state = state.copyWith(error: () => null, isLoading: true);
+    _sessionStateCache[sessionId] = state;
+
+    final userMsg = state.messages.firstWhere((m) => m.id == userMessageId, orElse: () => ChatMessage.user(''));
+
+    await _runAgentLoop(
+      sessionId: sessionId,
+      runId: runId,
+      askId: userMessageId,
+      vaultName: vaultName,
+      vaultPath: vaultDir.path,
+      providerId: providerId,
+      modelId: modelId,
+      provider: provider,
+      isNewSession: false,
+      userMessageContent: userMsg.content ?? '',
     );
-    await sendMessage(
-      text: _lastSendText!,
-    );
+  }
+
+  /// 重新生成 AI 回复（查找到对应最初提问的用户消息并重发）
+  Future<void> regenerateResponse(String assistantMessageId) async {
+    final msg = state.messages.firstWhere((m) => m.id == assistantMessageId, orElse: () => ChatMessage.assistant());
+    if (msg.askId == null) return;
+    await resendUserMessage(msg.askId!);
   }
 
   /// 加载已有会话
@@ -126,6 +187,7 @@ class AgentChatNotifier extends _$AgentChatNotifier {
     // 缓存中没有，从数据库加载
     final manager = ref.read(sessionManagerProvider);
     final messages = await manager.getMessages(sessionId);
+    final session = await manager.getSession(sessionId);
     state = state.copyWith(
       sessionId: sessionId,
       messages: messages,
@@ -134,6 +196,9 @@ class AgentChatNotifier extends _$AgentChatNotifier {
       activeToolName: () => null,
       error: () => null,
       completedTools: const [],
+      totalCostMicros: session?.totalCostMicros ?? 0,
+      totalInputTokens: session?.totalInputTokens ?? 0,
+      totalOutputTokens: session?.totalOutputTokens ?? 0,
     );
   }
 
@@ -158,9 +223,6 @@ class AgentChatNotifier extends _$AgentChatNotifier {
     String? guidelines,
   }) async {
     if (text.trim().isEmpty || state.isLoading) return;
-
-    // 缓存发送文本用于重试
-    _lastSendText = text.trim();
 
     // 生成本次运行的唯一 ID（用于会话隔离检查）
     _currentRunId++;
@@ -192,7 +254,7 @@ class AgentChatNotifier extends _$AgentChatNotifier {
 
     if (provider == null || modelId.isEmpty) {
       state = state.copyWith(
-        error: () => '请先在设置中配置 AI 模型',
+        error: () => t.agent.chat.err_no_model,
         isLoading: false,
       );
       return;
@@ -254,6 +316,40 @@ class AgentChatNotifier extends _$AgentChatNotifier {
     // 持久化用户消息
     await manager.addMessage(sessionId, userMsg);
 
+    await _runAgentLoop(
+      sessionId: sessionId,
+      runId: runId,
+      askId: userMsg.id,
+      vaultName: vaultName,
+      vaultPath: vaultPath,
+      providerId: providerId,
+      modelId: modelId,
+      provider: provider,
+      isNewSession: isNewSession,
+      userMessageContent: userMsg.content ?? '',
+      persona: persona,
+      guidelines: guidelines,
+    );
+  }
+
+  /// 抽取出的公共 Agent 运行循环
+  Future<void> _runAgentLoop({
+    required String sessionId,
+    required int runId,
+    required String askId,
+    required String vaultName,
+    required String vaultPath,
+    required String providerId,
+    required String modelId,
+    required dynamic provider,
+    required bool isNewSession,
+    required String userMessageContent,
+    String? persona,
+    String? guidelines,
+  }) async {
+    final manager = ref.read(sessionManagerProvider);
+    final apiConfig = ref.read(apiConfigServiceProvider);
+
     // 构建工具注册表
     final tools = _buildToolRegistry();
 
@@ -276,11 +372,14 @@ class AgentChatNotifier extends _$AgentChatNotifier {
       ),
     );
 
+    // 获取最新 state 里的 messages
+    final currentStateForWindow = _getSessionState(sessionId);
+
     // 运行 Agent Loop
     //  → 滑动窗口：只取最近 N 条消息作为上下文
     final windowSize = apiConfig.agentContextWindowSize;
     final contextMessages = ContextWindow.fromMemory(
-      messages: state.messages
+      messages: currentStateForWindow.messages
           .where((m) => m.role != MessageRole.system)
           .toList(),
       config: ContextWindowConfig(recentCount: windowSize),
@@ -294,11 +393,16 @@ class AgentChatNotifier extends _$AgentChatNotifier {
         context: ToolContext(
           sessionId: sessionId,
           vaultPath: vaultPath,
+          userConfig: {
+            'rag_top_k': apiConfig.ragTopK,
+            'rag_similarity_threshold': apiConfig.ragSimilarityThreshold,
+          },
           embeddingService: EmbeddingService(
             ref.read(apiConfigServiceProvider),
             ref.read(agentDatabaseProvider),
           ),
         ),
+        askId: askId,
       )) {
         // 中止检查：仅在 clearChat 时中止（不因切换会话中止）
         if (_currentRunId != runId) return;
@@ -355,8 +459,12 @@ class AgentChatNotifier extends _$AgentChatNotifier {
               );
             }
 
-            // 更新会话状态
+            // 累加 token 用量
             final latestState = _getSessionState(sessionId);
+            final newInputTokens = latestState.totalInputTokens + (usage?.inputTokens ?? 0);
+            final newOutputTokens = latestState.totalOutputTokens + (usage?.outputTokens ?? 0);
+
+            // 更新会话状态（费用在 _saveUsage 异步计算后更新）
             _updateSessionCache(
               sessionId,
               latestState.copyWith(
@@ -365,6 +473,8 @@ class AgentChatNotifier extends _$AgentChatNotifier {
                 isLoading: false,
                 activeToolName: () => null,
                 completedTools: const [],
+                totalInputTokens: newInputTokens,
+                totalOutputTokens: newOutputTokens,
               ),
             );
 
@@ -373,7 +483,7 @@ class AgentChatNotifier extends _$AgentChatNotifier {
               _generateTitle(
                 client: client,
                 modelId: modelId,
-                userMessage: userMsg.content ?? '',
+                userMessage: userMessageContent,
                 assistantReply: text,
                 sessionId: sessionId,
                 manager: manager,
@@ -382,7 +492,7 @@ class AgentChatNotifier extends _$AgentChatNotifier {
 
             // 异步保存 token 用量和费用（不阻塞 UI）
             if (usage != null) {
-              _saveUsage(
+              _saveUsageAndUpdateCost(
                 providerId: providerId,
                 modelId: modelId,
                 usage: usage,
@@ -472,8 +582,8 @@ class AgentChatNotifier extends _$AgentChatNotifier {
     }
   }
 
-  /// 异步保存 token 用量和费用
-  Future<void> _saveUsage({
+  /// 异步保存 token 用量和费用，并更新 state 中的费用累计
+  Future<void> _saveUsageAndUpdateCost({
     required String providerId,
     required String modelId,
     required TokenUsage usage,
@@ -496,6 +606,17 @@ class AgentChatNotifier extends _$AgentChatNotifier {
         costMicros: costMicros,
       );
 
+      // 更新 state 中的费用累计
+      if (costMicros > 0) {
+        final currentState = _getSessionState(sessionId);
+        _updateSessionCache(
+          sessionId,
+          currentState.copyWith(
+            totalCostMicros: currentState.totalCostMicros + costMicros,
+          ),
+        );
+      }
+
       debugPrint(
         'Usage saved: ${usage.inputTokens} in / ${usage.outputTokens} out'
         ' = \$${costUsd?.toStringAsFixed(6) ?? "unknown"}',
@@ -507,18 +628,26 @@ class AgentChatNotifier extends _$AgentChatNotifier {
 
   /// 编辑用户消息并重新发送
   ///
-  /// 截断 [messageIndex] 及之后的所有消息，用 [newText] 替代原始用户消息重新发送。
-  Future<void> editAndResend(int messageIndex, String newText) async {
+  /// 截断到目标用户消息及之后的所有消息，然后将其作为最新输入重发。
+  Future<void> editAndResend(String messageId, String newText) async {
     if (newText.trim().isEmpty) return;
+    
+    final sessionId = state.sessionId;
+    if (sessionId == null || state.isLoading) return;
 
-    // 截断消息列表到指定位置（不包含该位置）
-    final truncated = state.messages.sublist(0, messageIndex);
-    state = state.copyWith(
-      messages: truncated,
-      error: () => null,
-    );
-
-    // 使用新文本发送消息
+    final manager = ref.read(sessionManagerProvider);
+    
+    // 截断该消息及之后的所有消息（包含自身）
+    await manager.deleteMessagesFromAndAfter(sessionId, messageId);
+    
+    final msgIndex = state.messages.indexWhere((m) => m.id == messageId);
+    if (msgIndex != -1) {
+      final truncated = state.messages.sublist(0, msgIndex);
+      state = state.copyWith(messages: truncated, error: () => null);
+      _sessionStateCache[sessionId] = state;
+    }
+    
+    // 用新文本作为普通发送
     await sendMessage(text: newText);
   }
 

@@ -249,6 +249,7 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
                       spacing: 12,
                       runSpacing: 12,
                       children: [
+                        _buildColorOption(const Color(0xFF5BA8F5)), // 浅蓝
                         _buildColorOption(const Color(0xFF137FEC)), // Blue
                         _buildColorOption(Colors.purple),
                         _buildColorOption(Colors.teal),
@@ -445,7 +446,7 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
                           children: [
                             const CircularProgressIndicator(),
                             const SizedBox(width: 16),
-                            const Text('正在扫描新目录的日记...'),
+                            Text(t.settings.scanning_new_dir),
                           ],
                         ),
                       ),
@@ -469,13 +470,13 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
                           ref.read(vaultIndexProvider).value?.length ?? 0;
                       AppToast.showSuccess(
                         context,
-                        '已切换至新目录，共找到 $count 篇日记',
+                        t.settings.dir_switched(count: count),
                         duration: const Duration(seconds: 4),
                       );
                     } catch (e) {
                       if (mounted) {
                         Navigator.of(context, rootNavigator: true).pop();
-                        AppToast.showError(context, '扫描新目录失败：$e');
+                        AppToast.showError(context, t.settings.dir_scan_failed(error: e.toString()));
                       }
                     }
                   },

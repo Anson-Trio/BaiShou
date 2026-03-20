@@ -397,6 +397,117 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
 
           const SizedBox(height: 12),
 
+          // RAG 检索参数调节
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.tune_rounded, size: 16, color: colorScheme.primary),
+                      const SizedBox(width: 6),
+                      Text(
+                        t.agent.rag.retrieval_params,
+                        style: textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // TopK 滑块
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 100,
+                        child: Text(
+                          'Top K',
+                          style: textTheme.labelMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Slider(
+                          value: ref.read(apiConfigServiceProvider).ragTopK.toDouble(),
+                          min: 1,
+                          max: 50,
+                          divisions: 49,
+                          label: ref.read(apiConfigServiceProvider).ragTopK.toString(),
+                          onChanged: (v) async {
+                            await ref.read(apiConfigServiceProvider).setRagTopK(v.round());
+                            setState(() {});
+                          },
+                        ),
+                      ),
+                      SizedBox(
+                        width: 32,
+                        child: Text(
+                          ref.read(apiConfigServiceProvider).ragTopK.toString(),
+                          style: textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.primary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
+                  // 相似度阈值滑块
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 100,
+                        child: Text(
+                          t.agent.rag.similarity_threshold,
+                          style: textTheme.labelMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Slider(
+                          value: ref.read(apiConfigServiceProvider).ragSimilarityThreshold,
+                          min: 0.0,
+                          max: 1.0,
+                          divisions: 20,
+                          label: ref.read(apiConfigServiceProvider).ragSimilarityThreshold.toStringAsFixed(2),
+                          onChanged: (v) async {
+                            await ref.read(apiConfigServiceProvider).setRagSimilarityThreshold(v);
+                            setState(() {});
+                          },
+                        ),
+                      ),
+                      SizedBox(
+                        width: 32,
+                        child: Text(
+                          ref.read(apiConfigServiceProvider).ragSimilarityThreshold.toStringAsFixed(2),
+                          style: textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.primary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
           // 操作按钮行
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -675,17 +786,16 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
           ),
           color: colorScheme.surfaceContainerLow,
           child: ListTile(
-            dense: true,
             contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             leading: Icon(
               Icons.data_object_rounded,
               size: 18,
               color: colorScheme.primary.withValues(alpha: 0.6),
             ),
             title: Text(
-              text.length > 80 ? '${text.substring(0, 80)}...' : text,
-              maxLines: 2,
+              text.length > 200 ? '${text.substring(0, 200)}...' : text,
+              maxLines: 4,
               overflow: TextOverflow.ellipsis,
               style: textTheme.bodySmall?.copyWith(
                 height: 1.4,

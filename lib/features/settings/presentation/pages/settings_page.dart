@@ -6,6 +6,7 @@ import 'package:baishou/features/settings/presentation/pages/views/rag_memory_vi
 import 'package:baishou/features/settings/presentation/pages/data_sync_page.dart';
 import 'package:baishou/features/settings/presentation/pages/lan_transfer_page.dart';
 import 'package:baishou/features/settings/presentation/pages/views/general_settings_view.dart';
+import 'package:baishou/features/settings/presentation/pages/views/summary_settings_view.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -84,6 +85,8 @@ class _SettingsPageState extends State<SettingsPage> {
       case 5:
         return const LanTransferPage(key: ValueKey('tab_lan'));
       case 6:
+        return const SummarySettingsView(key: ValueKey('tab_summary'));
+      case 7:
         return const RagMemoryView(key: ValueKey('tab_rag'));
       default:
         return const SizedBox();
@@ -134,6 +137,18 @@ class _SettingsPageState extends State<SettingsPage> {
             title: Text(t.settings.lan_transfer),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/settings/lan-transfer'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.auto_awesome_outlined),
+            title: Text(t.settings.summary_settings_title),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/settings/summary'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.psychology_outlined),
+            title: Text(t.agent.rag.title),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/settings/rag'),
           ),
         ],
       ),
@@ -213,9 +228,14 @@ class _SettingsPageState extends State<SettingsPage> {
                           5,
                         ),
                         _buildSidebarTab(
+                          t.settings.summary_settings_title,
+                          Icons.auto_awesome_outlined,
+                          6,
+                        ),
+                        _buildSidebarTab(
                           t.agent.rag.title,
                           Icons.psychology_outlined,
-                          6,
+                          7,
                         ),
                       ],
                     ),

@@ -254,7 +254,18 @@
     "agent_tools_category_diary": "日記ツール",
     "agent_tools_category_summary": "要約ツール",
     "agent_tools_category_memory": "記憶ツール",
-    "agent_tools_category_general": "汎用ツール"
+    "agent_tools_category_general": "汎用ツール",
+    "scanning_new_dir": "新しいディレクトリの日記をスキャン中...",
+    "dir_switched": "新しいディレクトリに切り替えました。$count 件の日記が見つかりました",
+    "dir_scan_failed": "新しいディレクトリのスキャンに失敗しました：$error",
+    "summary_settings_title": "思い出生成設定",
+    "summary_settings_tooltip": "サマリー設定",
+    "summary_ai_prompt_title": "AI プロンプト",
+    "summary_ai_prompt_desc": "サマリー生成時のAIの役割、出力形式、行動境界を定義します。",
+    "summary_ai_prompt_hint": "AIがサマリーを抽出・生成する際のガイドラインを記入...",
+    "summary_instructions_desc": "この設定は自動生成される週次・月次・四半期・年次サマリーのシステムプロンプトとして使用されます。デフォルトは中国語出力です。",
+    "saved": "保存しました",
+    "restore_default": "デフォルトに戻す"
   },
   "data_sync": {
     "title": "データ同期",
@@ -521,7 +532,11 @@
     "missing_label_weekly": "$year年 第$week週",
     "missing_label_monthly": "$year年$month月",
     "missing_label_quarterly": "$year年Q$q",
-    "missing_label_yearly": "$year年度"
+    "missing_label_yearly": "$year年度",
+    "card_week_title": "第 $week 週",
+    "card_date_range": "$start - $end",
+    "card_month_title": "$month月",
+    "card_year_suffix": "$year年"
   },
   "ai": {
     "error_response_format": "レスポンス形式エラー: $e",
@@ -639,7 +654,11 @@
       "you_label": "あなた",
       "ai_label": "AIアシスタント",
       "regenerate": "再生成",
-      "input_hint": "メッセージを入力..."
+      "input_hint": "メッセージを入力...",
+      "err_no_model": "設定でAIモデルを先に設定してください",
+      "cost_detail_title": "費用見積詳細",
+      "cost_total": "合計消費",
+      "cost_disclaimer": "注意：費用計算はローカルの価格ルール（または models.dev）に基づいており、実際の課金と異なる場合があります。参考値としてご利用ください。"
     },
     "sessions": {
       "history": "対話履歴",
@@ -714,7 +733,18 @@
       "add_memory_title": "記憶を追加",
       "add_memory_hint": "覚えておきたい内容を入力...",
       "add_memory_save": "保存",
-      "add_memory_success": "記憶を保存・埋め込みました"
+      "add_memory_success": "記憶を保存・埋め込みました",
+      "retrieval_params": "検索パラメータ調整",
+      "similarity_threshold": "類似度のしきい値",
+      "migration_pending_title": "未完了の移行を検出",
+      "migration_pending_content": "前回の埋め込みモデル移行が完了していません（アプリの異常終了の可能性）。\n\n移行を続行しますか？バックアップデータは安全です。",
+      "migration_later": "後で",
+      "migration_continue": "移行を続行",
+      "migration_error": "移行エラー: $error",
+      "migration_model_changed_title": "埋め込みモデルが変更されました",
+      "migration_model_changed_content": "埋め込みモデルの変更を検出しました。\n\n古いベクトルは新モデルの次元と互換性がないため、全データの再埋め込みが必要です。\n\n以下を実行します：\n• 既存テキストメタデータのバックアップ\n• 古いベクトルを消去し新モデルで再埋め込み\n• 完了後にデータ整合性を自動検証\n\nバックグラウンドで非同期実行されます。",
+      "migration_start_now": "今すぐ再埋め込み",
+      "migration_preparing": "再埋め込みの準備中..."
     },
     "provider": {
       "add_title": "AIプロバイダーを追加",

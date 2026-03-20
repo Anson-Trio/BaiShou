@@ -190,19 +190,36 @@ class _SummaryDashboardViewState extends ConsumerState<SummaryDashboardView>
               ),
             ),
           ),
-          child: TabBar(
-            controller: _mainTabController,
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
-            indicatorSize: TabBarIndicatorSize.tab,
-            labelColor: AppTheme.primary,
-            unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
-            labelStyle: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-            tabs: [
-              Tab(text: t.summary.panel_tab),
-              Tab(text: t.summary.memory_gallery),
+          child: Row(
+            children: [
+              Expanded(
+                child: TabBar(
+                  controller: _mainTabController,
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  labelColor: AppTheme.primary,
+                  unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
+                  labelStyle: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  tabs: [
+                    Tab(text: t.summary.panel_tab),
+                    Tab(text: t.summary.memory_gallery),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: IconButton(
+                  icon: const Icon(Icons.tune_rounded, size: 20),
+                  tooltip: t.settings.summary_settings_tooltip,
+                  onPressed: () => context.push('/settings/summary'),
+                  style: IconButton.styleFrom(
+                    foregroundColor: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -962,18 +979,20 @@ class _GalleryListItem extends StatelessWidget {
     switch (summary.type) {
       case SummaryType.weekly:
         final weekNum = _weekNumber(summary.startDate);
-        title = '第 $weekNum 周';
-        dateStr =
-            '${DateFormat('M月d日').format(summary.startDate)} - ${DateFormat('M月d日').format(summary.endDate)}';
+        title = t.summary.card_week_title(week: weekNum.toString());
+        dateStr = t.summary.card_date_range(
+          start: DateFormat('M/d').format(summary.startDate),
+          end: DateFormat('M/d').format(summary.endDate),
+        );
       case SummaryType.monthly:
-        title = '${summary.startDate.month}月';
-        dateStr = '${summary.startDate.year}年';
+        title = t.summary.card_month_title(month: summary.startDate.month.toString());
+        dateStr = t.summary.card_year_suffix(year: summary.startDate.year.toString());
       case SummaryType.quarterly:
         final q = (summary.startDate.month / 3).ceil();
-        title = 'Q$q';
-        dateStr = '${summary.startDate.year}年';
+        title = '${t.common.quarter_prefix}$q';
+        dateStr = t.summary.card_year_suffix(year: summary.startDate.year.toString());
       case SummaryType.yearly:
-        title = '${summary.startDate.year}年';
+        title = t.summary.card_year_suffix(year: summary.startDate.year.toString());
         dateStr = '';
     }
 

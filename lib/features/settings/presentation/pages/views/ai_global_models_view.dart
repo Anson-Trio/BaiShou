@@ -21,7 +21,6 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
   String? _globalNamingModel;
   String? _globalSummaryModel;
   String? _globalEmbeddingModel;
-  String _monthlySummarySource = 'weeklies'; // 月度总结数据源
 
   @override
   void initState() {
@@ -42,22 +41,21 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('检测到未完成的迁移'),
-        content: const Text(
-          '上次嵌入模型迁移未完成（可能是应用异常退出）。\n\n'
-          '是否继续迁移？备份数据仍然安全。',
+        title: Text(t.agent.rag.migration_pending_title),
+        content: Text(
+          t.agent.rag.migration_pending_content,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('稍后再说'),
+            child: Text(t.agent.rag.migration_later),
           ),
           FilledButton(
             onPressed: () {
               Navigator.of(ctx).pop();
               _continuePendingMigration();
             },
-            child: const Text('继续迁移'),
+            child: Text(t.agent.rag.migration_continue),
           ),
         ],
       ),
@@ -86,7 +84,7 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
         if (!mounted) return;
         messenger.hideCurrentSnackBar();
         messenger.showSnackBar(
-          SnackBar(content: Text('迁移出错: $e')),
+          SnackBar(content: Text(t.agent.rag.migration_error(error: e.toString()))),
         );
       },
     );
@@ -114,7 +112,7 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
         service.globalEmbeddingProviderId,
         service.globalEmbeddingModelId,
       );
-      _monthlySummarySource = service.monthlySummarySource;
+
     });
   }
 
@@ -189,27 +187,21 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('嵌入模型已更换'),
-        content: const Text(
-          '检测到您更换了嵌入模型。\n\n'
-          '旧的向量数据与新模型维度不兼容，需要重新嵌入所有数据。\n\n'
-          '此操作会：\n'
-          '• 备份现有文本元数据\n'
-          '• 清空旧向量并用新模型重新嵌入\n'
-          '• 完成后自动校验数据完整性\n\n'
-          '过程在后台异步执行，不影响正常使用。',
+        title: Text(t.agent.rag.migration_model_changed_title),
+        content: Text(
+          t.agent.rag.migration_model_changed_content,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('稍后再说'),
+            child: Text(t.agent.rag.migration_later),
           ),
           FilledButton(
             onPressed: () {
               Navigator.of(ctx).pop();
               _startMigration();
             },
-            child: const Text('立即重新嵌入'),
+            child: Text(t.agent.rag.migration_start_now),
           ),
         ],
       ),
@@ -222,8 +214,8 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
     final messenger = ScaffoldMessenger.of(context);
 
     messenger.showSnackBar(
-      const SnackBar(
-        content: Text('正在准备重新嵌入...'),
+      SnackBar(
+        content: Text(t.agent.rag.migration_preparing),
         duration: Duration(seconds: 2),
       ),
     );
@@ -245,7 +237,7 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
         if (!mounted) return;
         messenger.hideCurrentSnackBar();
         messenger.showSnackBar(
-          SnackBar(content: Text('迁移出错: $e')),
+          SnackBar(content: Text(t.agent.rag.migration_error(error: e.toString()))),
         );
       },
     );
@@ -318,7 +310,6 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
     final service = ref.watch(apiConfigServiceProvider);
     final nonEmbeddingModels = service.getAllNonEmbeddingModels();
     final embeddingModels = service.getAllEmbeddingModels();
-    final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
       color: Theme.of(context).colorScheme.surface,
@@ -357,72 +348,6 @@ class _AiGlobalModelsViewState extends ConsumerState<AiGlobalModelsView> {
               onChanged: (val) {
                 setState(() => _globalSummaryModel = val);
               },
-            ),
-
-            const SizedBox(height: 16),
-
-            // 月度总结数据源选项
-            Container(
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest.withOpacity(0.4),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: colorScheme.outlineVariant.withOpacity(0.35),
-                ),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.source_outlined, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        t.settings.monthly_summary_data_source,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    t.settings.monthly_summary_data_source_desc,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SegmentedButton<String>(
-                    segments: [
-                      ButtonSegment(
-                        value: 'weeklies',
-                        label: Text(t.settings.read_only_weeklies),
-                        icon: const Icon(
-                          Icons.calendar_view_week_rounded,
-                          size: 16,
-                        ),
-                      ),
-                      ButtonSegment(
-                        value: 'diaries',
-                        label: Text(t.settings.read_all_diaries),
-                        icon: const Icon(Icons.article_outlined, size: 16),
-                      ),
-                    ],
-                    selected: {_monthlySummarySource},
-                    onSelectionChanged: (sel) async {
-                      final chosen = sel.first;
-                      setState(() => _monthlySummarySource = chosen);
-                      await ref
-                          .read(apiConfigServiceProvider)
-                          .setMonthlySummarySource(chosen);
-                    },
-                    style: ButtonStyle(visualDensity: VisualDensity.compact),
-                  ),
-                ],
-              ),
             ),
 
             const SizedBox(height: 32),
