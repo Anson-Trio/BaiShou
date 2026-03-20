@@ -88,97 +88,16 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // 模式切换
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: SizedBox(
-              width: double.infinity,
-              child: SegmentedButton<bool>(
-                segments: [
-                  ButtonSegment(
-                    value: true,
-                    label: Text(t.agent.sessions.companion_tab),
-                    icon: const Icon(Icons.favorite_rounded, size: 16),
-                  ),
-                  ButtonSegment(
-                    value: false,
-                    label: Text(t.agent.sessions.session_tab),
-                    icon: const Icon(Icons.chat_rounded, size: 16),
-                  ),
-                ],
-                selected: {ref.watch(agentCompanionModeProvider)},
-                onSelectionChanged: (selected) async {
-                  await ref.read(agentCompanionModeProvider.notifier).set(selected.first);
-                  setState(() {});
-                },
-                style: ButtonStyle(
-                  visualDensity: VisualDensity.compact,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-              ),
-            ),
-          ),
-
-          // 内容区域
-          Expanded(
-            child: _buildModeContent(theme),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 根据当前模式构建内容区域
-  Widget _buildModeContent(ThemeData theme) {
-    final isCompanion = ref.watch(agentCompanionModeProvider);
-
-    if (isCompanion) {
-      return _buildCompanionMode(theme);
-    }
-
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_sessions == null || _sessions!.isEmpty) {
-      return _buildEmptyState(theme);
-    }
-    return _buildSessionList(theme);
-  }
-
-  /// 深度陪伴模式：无会话列表，直接进入对话
-  Widget _buildCompanionMode(ThemeData theme) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.favorite_rounded,
-            size: 64,
-            color: theme.colorScheme.tertiary.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            t.agent.sessions.companion_title,
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            t.agent.sessions.companion_desc,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.outline,
-            ),
-          ),
-          const SizedBox(height: 24),
-          FilledButton.icon(
-            onPressed: () => context.push('/agent'),
-            icon: const Icon(Icons.chat_rounded),
-            label: Text(t.agent.sessions.continue_chat),
-          ),
-        ],
+      body: Builder(
+        builder: (context) {
+          if (_isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (_sessions == null || _sessions!.isEmpty) {
+            return _buildEmptyState(theme);
+          }
+          return _buildSessionList(theme);
+        },
       ),
     );
   }

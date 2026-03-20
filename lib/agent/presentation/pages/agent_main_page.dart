@@ -38,9 +38,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
     setState(() => _isLoading = true);
     try {
       final manager = ref.read(sessionManagerProvider);
-      final sessions = (await manager.getSessions())
-          .where((s) => s.id != SessionManager.companionSessionId)
-          .toList();
+      final sessions = (await manager.getSessions()).toList();
 
       setState(() {
         _sessions = sessions;
@@ -67,9 +65,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
   Future<void> _refreshSessionList() async {
     try {
       final manager = ref.read(sessionManagerProvider);
-      final sessions = (await manager.getSessions())
-          .where((s) => s.id != SessionManager.companionSessionId)
-          .toList();
+      final sessions = (await manager.getSessions()).toList();
       if (mounted) {
         setState(() => _sessions = sessions);
       }
@@ -141,24 +137,10 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
     setState(() {
       _selectedSessionId = null;
     });
-    // 如果在陪伴模式下，自动切换到会话模式
-    final isCompanion = ref.read(agentCompanionModeProvider);
-    if (isCompanion) {
-      ref.read(agentCompanionModeProvider.notifier).state = false;
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isCompanion = ref.watch(agentCompanionModeProvider);
-
-    // 当从陪伴模式切换到会话模式时，自动重新加载会话列表
-    ref.listen<bool>(agentCompanionModeProvider, (prev, next) {
-      if (prev == true && next == false) {
-        _loadSessions();
-      }
-    });
-
     // 监听 sessionId 变化
     ref.listen<AgentChatState>(agentChatProvider, (prev, next) {
       if (prev?.sessionId != next.sessionId && next.sessionId != null) {
@@ -177,19 +159,17 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
         Platform.isLinux;
 
     if (!isDesktop) {
-      // 手机端 drawer 侧边栏
       return Scaffold(
         body: const AgentChatPage(),
-        drawer: Drawer(child: _buildSidebar(theme, isCompanion)),
+        drawer: Drawer(child: _buildSidebar(theme)),
       );
     }
 
-    // 桌面端双栏 — 始终显示侧边栏（包括陪伴模式）
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       body: Row(
         children: [
-          _buildSidebar(theme, isCompanion),
+          _buildSidebar(theme),
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -209,7 +189,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
     );
   }
 
-  Widget _buildSidebar(ThemeData theme, bool isCompanion) {
+  Widget _buildSidebar(ThemeData theme) {
     final userProfile = ref.watch(userProfileProvider);
 
     return Container(
@@ -284,32 +264,6 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
 
             // ─── 功能选项区 ───
             _SidebarMenuItem(
-              icon: Icons.chat_bubble_rounded,
-              label: t.agent.sessions.history,
-              isSelected: !isCompanion,
-              theme: theme,
-              onTap: () {
-                if (isCompanion) {
-                  ref.read(agentCompanionModeProvider.notifier).state = false;
-                  _loadSessions();
-                }
-              },
-            ),
-            _SidebarMenuItem(
-              icon: Icons.favorite_rounded,
-              label: t.agent.chat.companion_mode,
-              isSelected: isCompanion,
-              theme: theme,
-              onTap: () {
-                if (!isCompanion) {
-                  ref.read(agentCompanionModeProvider.notifier).state = true;
-                  ref
-                      .read(agentChatProvider.notifier)
-                      .loadSession(SessionManager.companionSessionId);
-                }
-              },
-            ),
-            _SidebarMenuItem(
               icon: Icons.settings_rounded,
               label: t.settings.title,
               isSelected: false,
@@ -319,181 +273,197 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
 
             const SizedBox(height: 8),
 
-            // ─── 对话历史区（陪伴模式下隐藏）───
-            if (!isCompanion) ...[              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                child: Text(
-                  '最近对话',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.outline,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5,
-                  ),
+            // ─── 对话历史区 ───
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Text(
+                '最近对话',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
                 ),
               ),
+            ),
 
-              Expanded(
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : (_sessions == null || _sessions!.isEmpty)
-                    ? Center(
-                        child: Text(
-                          t.agent.sessions.no_history,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.outline,
-                          ),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : (_sessions == null || _sessions!.isEmpty)
+                  ? Center(
+                      child: Text(
+                        t.agent.sessions.no_history,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.outline,
                         ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        itemCount: _sessions!.length,
-                        itemBuilder: (context, index) {
-                          final session = _sessions![index];
-                          final isSelected = session.id == _selectedSessionId;
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      itemCount: _sessions!.length,
+                      itemBuilder: (context, index) {
+                        final session = _sessions![index];
+                        final isSelected = session.id == _selectedSessionId;
+                        final isCompanionSession = session.id == SessionManager.companionSessionId;
 
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 2),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(10),
-                            onTap: () {
-                              setState(() => _selectedSessionId = session.id);
-                              ref
-                                  .read(agentChatProvider.notifier)
-                                  .loadSession(session.id);
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? theme.colorScheme.primaryContainer
-                                          .withValues(alpha: 0.5)
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Row(
-                                children: [
-                                  if (session.isPinned)
-                                    Padding(
-                                      padding: const EdgeInsets.only(right: 6),
-                                      child: Icon(
-                                        Icons.push_pin,
-                                        size: 13,
-                                        color: theme.colorScheme.primary,
-                                      ),
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 2),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: () {
+                            setState(() => _selectedSessionId = session.id);
+                            ref
+                                .read(agentChatProvider.notifier)
+                                .loadSession(session.id);
+                            // 同步 companion mode 状态
+                            if (isCompanionSession) {
+                              ref.read(agentCompanionModeProvider.notifier).set(true);
+                            } else {
+                              ref.read(agentCompanionModeProvider.notifier).set(false);
+                            }
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? theme.colorScheme.primaryContainer
+                                        .withValues(alpha: 0.5)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              children: [
+                                if (isCompanionSession)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 6),
+                                    child: Icon(
+                                      Icons.favorite_rounded,
+                                      size: 13,
+                                      color: const Color(0xFFD97706),
                                     ),
-                                  Expanded(
-                                    child: Text(
-                                      session.title.isEmpty
-                                          ? t.agent.sessions.new_chat
-                                          : session.title,
-                                      style: theme.textTheme.bodyMedium
-                                          ?.copyWith(
-                                            fontWeight: isSelected
-                                                ? FontWeight.w600
-                                                : FontWeight.normal,
-                                            color: isSelected
-                                                ? theme.colorScheme.primary
-                                                : theme.colorScheme.onSurface,
-                                          ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                                  )
+                                else if (session.isPinned)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 6),
+                                    child: Icon(
+                                      Icons.push_pin,
+                                      size: 13,
+                                      color: theme.colorScheme.primary,
                                     ),
                                   ),
-                                  if (isSelected)
-                                    PopupMenuButton<String>(
-                                      icon: Icon(
-                                        Icons.more_horiz,
-                                        size: 16,
-                                        color: theme.colorScheme.outline,
-                                      ),
-                                      padding: EdgeInsets.zero,
-                                      tooltip: t.agent.sessions.actions,
-                                      onSelected: (action) async {
-                                        if (action == 'pin') {
-                                          await ref
-                                              .read(sessionManagerProvider)
-                                              .togglePinSession(
-                                                session.id,
-                                                !session.isPinned,
-                                              );
-                                          _loadSessions();
-                                        } else if (action == 'rename') {
-                                          _renameSession(
-                                            session.id,
-                                            session.title,
-                                          );
-                                        } else if (action == 'delete') {
-                                          _deleteSession(session.id);
-                                        }
-                                      },
-                                      itemBuilder: (context) => [
-                                        PopupMenuItem(
-                                          value: 'pin',
-                                          child: Row(
-                                            children: [
-                                              Icon(
-                                                session.isPinned
-                                                    ? Icons.push_pin_outlined
-                                                    : Icons.push_pin,
-                                                size: 18,
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                session.isPinned
-                                                    ? t.agent.sessions.unpin
-                                                    : t.agent.sessions.pin,
-                                              ),
-                                            ],
-                                          ),
+                                Expanded(
+                                  child: Text(
+                                    isCompanionSession
+                                        ? t.agent.chat.companion_mode
+                                        : session.title.isEmpty
+                                            ? t.agent.sessions.new_chat
+                                            : session.title,
+                                    style: theme.textTheme.bodyMedium
+                                        ?.copyWith(
+                                          fontWeight: isSelected
+                                              ? FontWeight.w600
+                                              : FontWeight.normal,
+                                          color: isSelected
+                                              ? theme.colorScheme.primary
+                                              : theme.colorScheme.onSurface,
                                         ),
-                                        PopupMenuItem(
-                                          value: 'rename',
-                                          child: Row(
-                                            children: [
-                                              const Icon(Icons.edit, size: 18),
-                                              const SizedBox(width: 8),
-                                              Text(t.agent.sessions.rename),
-                                            ],
-                                          ),
-                                        ),
-                                        const PopupMenuDivider(),
-                                        PopupMenuItem(
-                                          value: 'delete',
-                                          child: Row(
-                                            children: [
-                                              Icon(
-                                                Icons.delete_outline,
-                                                size: 18,
-                                                color: theme.colorScheme.error,
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                t.agent.sessions.delete_session,
-                                                style: TextStyle(
-                                                  color:
-                                                      theme.colorScheme.error,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (isSelected && !isCompanionSession)
+                                  PopupMenuButton<String>(
+                                    icon: Icon(
+                                      Icons.more_horiz,
+                                      size: 16,
+                                      color: theme.colorScheme.outline,
                                     ),
-                                ],
-                              ),
+                                    padding: EdgeInsets.zero,
+                                    tooltip: t.agent.sessions.actions,
+                                    onSelected: (action) async {
+                                      if (action == 'pin') {
+                                        await ref
+                                            .read(sessionManagerProvider)
+                                            .togglePinSession(
+                                              session.id,
+                                              !session.isPinned,
+                                            );
+                                        _loadSessions();
+                                      } else if (action == 'rename') {
+                                        _renameSession(
+                                          session.id,
+                                          session.title,
+                                        );
+                                      } else if (action == 'delete') {
+                                        _deleteSession(session.id);
+                                      }
+                                    },
+                                    itemBuilder: (context) => [
+                                      PopupMenuItem(
+                                        value: 'pin',
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              session.isPinned
+                                                  ? Icons.push_pin_outlined
+                                                  : Icons.push_pin,
+                                              size: 18,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              session.isPinned
+                                                  ? t.agent.sessions.unpin
+                                                  : t.agent.sessions.pin,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'rename',
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.edit, size: 18),
+                                            const SizedBox(width: 8),
+                                            Text(t.agent.sessions.rename),
+                                          ],
+                                        ),
+                                      ),
+                                      const PopupMenuDivider(),
+                                      PopupMenuItem(
+                                        value: 'delete',
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.delete_outline,
+                                              size: 18,
+                                              color: theme.colorScheme.error,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              t.agent.sessions.delete_session,
+                                              style: TextStyle(
+                                                color:
+                                                    theme.colorScheme.error,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                              ],
                             ),
                           ),
-                        );
-                      },
-                    ),
-              ),
-            ], // end if (!isCompanion)
-            if (isCompanion) const Spacer(),
+                        ),
+                      );
+                    },
+                  ),
+            ),
 
             // ─── 底部用户卡片 ───
             Container(

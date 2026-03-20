@@ -297,6 +297,24 @@ class ApiConfigService {
     await _prefs.setBool(_keyAgentCompanionMode, enabled);
   }
 
+  /// 深度陪伴模式：达到此 token 数时触发压缩（默认 8000）
+  int get companionCompressTokens {
+    return _prefs.getInt('companion_compress_tokens') ?? 8000;
+  }
+
+  Future<void> setCompanionCompressTokens(int value) async {
+    await _prefs.setInt('companion_compress_tokens', value);
+  }
+
+  /// 深度陪伴模式：压缩时截断多少 token 以前的对话（默认 4000）
+  int get companionTruncateTokens {
+    return _prefs.getInt('companion_truncate_tokens') ?? 4000;
+  }
+
+  Future<void> setCompanionTruncateTokens(int value) async {
+    await _prefs.setInt('companion_truncate_tokens', value);
+  }
+
   /// Agent 角色人设描述
   String get agentPersona {
     return _prefs.getString(_keyAgentPersona) ??
