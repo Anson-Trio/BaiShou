@@ -1,4 +1,5 @@
 import 'package:baishou/core/services/api_config_service.dart';
+import 'package:baishou/agent/prompts/prompt_templates.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,8 +19,6 @@ class _SummarySettingsViewState extends ConsumerState<SummarySettingsView>
   String _monthlySummarySource = 'weeklies';
   bool _initialized = false;
 
-  static const _defaultInstructions =
-      '**重要指令**：禁止输出任何问候语、开场白或结束语。直接输出纯 Markdown 内容。';
 
   // 4 种总结类型
   static const _types = ['weekly', 'monthly', 'quarterly', 'yearly'];
@@ -66,12 +65,10 @@ class _SummarySettingsViewState extends ConsumerState<SummarySettingsView>
       _initialized = true;
     });
 
-    // 加载每种类型的提示词，向后兼容旧统一字段
-    final legacyInstructions = service.summaryInstructions;
+    // 加载每种类型的提示词模板
     for (final type in _types) {
-      final typeInstructions = service.getSummaryInstructions(type);
-      _controllers[type]!.text =
-          typeInstructions ?? legacyInstructions ?? _defaultInstructions;
+      final saved = service.getSummaryInstructions(type);
+      _controllers[type]!.text = saved ?? PromptTemplates.getDefaultTemplate(type);
     }
   }
 
@@ -213,7 +210,8 @@ class _SummarySettingsViewState extends ConsumerState<SummarySettingsView>
                           }
                         },
                         onReset: () {
-                          _controllers[type]!.text = _defaultInstructions;
+                          _controllers[type]!.text =
+                              PromptTemplates.getDefaultTemplate(type);
                         },
                       ),
                     ],

@@ -1,37 +1,20 @@
 /// 总结 Prompt 模板
 ///
-/// 统一使用中文提示词（AI 模型都能理解中文 prompt）
+/// 统一使用中文提示词
+/// 支持用户自定义完整模板（使用 {year}, {month} 等占位符）
 
 class PromptTemplates {
-  static const _persona = '你是一个专业的个人传记作家助手。';
+  // ─── 默认模板常量（暴露给 UI 展示和编辑） ─────────────────
 
-  static const _defaultInstructions =
-      '**重要指令**：禁止输出任何问候语、开场白或结束语（如"你好"、"当然"、"这是你要的..."等）。'
-      '直接输出纯 Markdown 内容。不要将整个内容包裹在 Markdown 代码块中，直接输出 Markdown 文本。';
-
-  // ─── 周总结 ────────────────────────────────────────────
-
-  static String buildWeekly({
-    required int year,
-    required int month,
-    required int week,
-    required String startStr,
-    required String endStr,
-    String? customInstructions,
-  }) {
-    final instructions = customInstructions ?? _defaultInstructions;
-
-    return '''
-$_persona
-周总结 ($year-$month-$week)
-$instructions
+  static const defaultWeekly = '''你是一个专业的个人传记作家助手。
+**重要指令**：禁止输出任何问候语、开场白或结束语。直接输出纯 Markdown 内容。
 
 ### Markdown Template:
 ```markdown
-##### ${year}年${month}月第${week}周总结
+##### {year}年{month}月第{week}周总结
 
 ###### 📅 时间周期
-- **日期范围**: $startStr 至 $endStr
+- **日期范围**: {start} 至 {end}
 
 ###### 🎯 本周核心关键词
 **关键词1**, **关键词2**, **关键词3**
@@ -65,32 +48,17 @@ $instructions
 ---
 ###### 🍵 给月度总结的"胶囊"
 > (一句话概括)
-```
-''';
-  }
+```''';
 
-  // ─── 月度总结 ──────────────────────────────────────────
-
-  static String buildMonthly({
-    required int year,
-    required int month,
-    required String startStr,
-    required String endStr,
-    String? customInstructions,
-  }) {
-    final instructions = customInstructions ?? _defaultInstructions;
-
-    return '''
-$_persona
-月度总结 ($year-$month)
-$instructions
+  static const defaultMonthly = '''你是一个专业的个人传记作家助手。
+**重要指令**：禁止输出任何问候语、开场白或结束语。直接输出纯 Markdown 内容。
 
 ### Markdown Template:
 ```markdown
-##### ${year}年${month}月度总结
+##### {year}年{month}月度总结
 
 ###### 📅 日期范围
-- **范围**: $startStr 至 $endStr
+- **范围**: {start} 至 {end}
 
 ###### 🎯 本月核心主题
 **主题1**, **主题2**
@@ -120,32 +88,17 @@ $instructions
 ---
 ###### 🔮 下月展望
 - **重点方向**:
-```
-''';
-  }
+```''';
 
-  // ─── 季度总结 ──────────────────────────────────────────
-
-  static String buildQuarterly({
-    required int year,
-    required int quarter,
-    required String startStr,
-    required String endStr,
-    String? customInstructions,
-  }) {
-    final instructions = customInstructions ?? _defaultInstructions;
-
-    return '''
-$_persona
-季度总结 ($year Q$quarter)
-$instructions
+  static const defaultQuarterly = '''你是一个专业的个人传记作家助手。
+**重要指令**：禁止输出任何问候语、开场白或结束语。直接输出纯 Markdown 内容。
 
 ### Markdown Template:
 ```markdown
-##### ${year}年第${quarter}季度总结
+##### {year}年第{quarter}季度总结
 
 ###### 📅 日期范围
-- **范围**: $startStr 至 $endStr
+- **范围**: {start} 至 {end}
 
 ###### 🏆 季度里程碑
 1. 
@@ -169,31 +122,17 @@ $instructions
 
 ###### 🧭 下季度战略重点
 - **核心方向**:
-```
-''';
-  }
+```''';
 
-  // ─── 年度总结 ──────────────────────────────────────────
-
-  static String buildYearly({
-    required int year,
-    required String startStr,
-    required String endStr,
-    String? customInstructions,
-  }) {
-    final instructions = customInstructions ?? _defaultInstructions;
-
-    return '''
-$_persona
-年度回顾 ($year)
-$instructions
+  static const defaultYearly = '''你是一个专业的个人传记作家助手。
+**重要指令**：禁止输出任何问候语、开场白或结束语。直接输出纯 Markdown 内容。
 
 ### Markdown Template:
 ```markdown
-# $year 年度回顾：(用一个词定义这一年)
+# {year} 年度回顾：(用一个词定义这一年)
 
 ###### 📅 日期范围
-- **范围**: $startStr 至 $endStr
+- **范围**: {start} 至 {end}
 
 ---
 
@@ -221,7 +160,83 @@ $instructions
 
 ###### 💌 给未来的一封信
 > 
-```
-''';
+```''';
+
+  /// 按类型获取默认模板
+  static String getDefaultTemplate(String type) {
+    switch (type) {
+      case 'weekly':
+        return defaultWeekly;
+      case 'monthly':
+        return defaultMonthly;
+      case 'quarterly':
+        return defaultQuarterly;
+      case 'yearly':
+        return defaultYearly;
+      default:
+        return defaultWeekly;
+    }
+  }
+
+  // ─── 构建方法（替换占位符） ─────────────────────────────
+
+  static String buildWeekly({
+    required int year,
+    required int month,
+    required int week,
+    required String startStr,
+    required String endStr,
+    String? customTemplate,
+  }) {
+    final template = customTemplate ?? defaultWeekly;
+    return template
+        .replaceAll('{year}', '$year')
+        .replaceAll('{month}', '$month')
+        .replaceAll('{week}', '$week')
+        .replaceAll('{start}', startStr)
+        .replaceAll('{end}', endStr);
+  }
+
+  static String buildMonthly({
+    required int year,
+    required int month,
+    required String startStr,
+    required String endStr,
+    String? customTemplate,
+  }) {
+    final template = customTemplate ?? defaultMonthly;
+    return template
+        .replaceAll('{year}', '$year')
+        .replaceAll('{month}', '$month')
+        .replaceAll('{start}', startStr)
+        .replaceAll('{end}', endStr);
+  }
+
+  static String buildQuarterly({
+    required int year,
+    required int quarter,
+    required String startStr,
+    required String endStr,
+    String? customTemplate,
+  }) {
+    final template = customTemplate ?? defaultQuarterly;
+    return template
+        .replaceAll('{year}', '$year')
+        .replaceAll('{quarter}', '$quarter')
+        .replaceAll('{start}', startStr)
+        .replaceAll('{end}', endStr);
+  }
+
+  static String buildYearly({
+    required int year,
+    required String startStr,
+    required String endStr,
+    String? customTemplate,
+  }) {
+    final template = customTemplate ?? defaultYearly;
+    return template
+        .replaceAll('{year}', '$year')
+        .replaceAll('{start}', startStr)
+        .replaceAll('{end}', endStr);
   }
 }
