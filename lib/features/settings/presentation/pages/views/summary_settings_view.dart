@@ -1,6 +1,7 @@
 import 'package:baishou/core/services/api_config_service.dart';
 import 'package:baishou/agent/prompts/prompt_templates.dart';
 import 'package:baishou/i18n/strings.g.dart';
+import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -201,12 +202,8 @@ class _SummarySettingsViewState extends ConsumerState<SummarySettingsView>
                               .setSummaryInstructions(
                                   type, _controllers[type]!.text.trim());
                           if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                    '${_typeLabel(type)} ${t.settings.saved}'),
-                              ),
-                            );
+                            AppToast.showSuccess(context,
+                                '${_typeLabel(type)} ${t.settings.saved}');
                           }
                         },
                         onReset: () {

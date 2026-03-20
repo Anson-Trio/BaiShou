@@ -9,6 +9,7 @@ import 'package:baishou/i18n/strings.g.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:baishou/core/widgets/app_toast.dart';
 
 class AssistantEditPage extends ConsumerStatefulWidget {
   /// 传入 null 表示创建新助手，传入已有助手表示编辑
@@ -242,9 +243,7 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
   Future<void> _save() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.agent.assistant.name_required)),
-      );
+      AppToast.showError(context, t.agent.assistant.name_required);
       return;
     }
 
@@ -283,9 +282,7 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        AppToast.showError(context, 'Error: $e');
       }
     } finally {
       if (mounted) setState(() => _saving = false);

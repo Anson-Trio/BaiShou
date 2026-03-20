@@ -8,6 +8,7 @@ import 'package:baishou/agent/models/chat_message.dart';
 import 'package:baishou/agent/presentation/notifiers/agent_chat_notifier.dart';
 import 'package:baishou/features/settings/domain/services/user_profile_service.dart';
 import 'package:baishou/i18n/strings.g.dart';
+import 'package:baishou/core/widgets/app_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -291,13 +292,7 @@ class ChatMessageBubble extends ConsumerWidget {
     final content = message.content ?? '';
     if (content.isEmpty) return;
     Clipboard.setData(ClipboardData(text: content));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(t.common.copied),
-        duration: const Duration(seconds: 1),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    AppToast.showSuccess(context, t.common.copied);
   }
 }
 
