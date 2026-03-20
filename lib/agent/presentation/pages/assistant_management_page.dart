@@ -36,7 +36,7 @@ class AssistantManagementPage extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.smart_toy_outlined,
+                  Icon(Icons.auto_awesome_outlined,
                       size: 64, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4)),
                   const SizedBox(height: 16),
                   Text(
@@ -116,7 +116,7 @@ class _AssistantCard extends StatelessWidget {
                 backgroundColor: colorScheme.surfaceContainerHighest,
                 backgroundImage: _getAvatar(),
                 child: _getAvatar() == null
-                    ? Icon(Icons.smart_toy_rounded,
+                    ? Icon(Icons.auto_awesome_rounded,
                         size: 24, color: colorScheme.primary)
                     : null,
               ),

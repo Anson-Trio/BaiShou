@@ -766,7 +766,11 @@
       "remove_avatar": "移除头像",
       "delete_confirm_title": "删除助手",
       "delete_confirm_content": "确定要删除此助手吗？关联的对话不会被删除。",
-      "settings_entry": "助手管理"
+      "settings_entry": "助手管理",
+      "select_title": "选择助手",
+      "clear_selection": "清除",
+      "default_tag": "默认",
+      "no_assistant": "无助手"
     },
     "provider": {
       "add_title": "新增 AI 供应商",

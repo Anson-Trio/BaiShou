@@ -775,7 +775,11 @@
       "remove_avatar": "移除頭像",
       "delete_confirm_title": "刪除助手",
       "delete_confirm_content": "確定要刪除此助手嗎？關聯的對話不會被刪除。",
-      "settings_entry": "助手管理"
+      "settings_entry": "助手管理",
+      "select_title": "選擇助手",
+      "clear_selection": "清除",
+      "default_tag": "預設",
+      "no_assistant": "無助手"
     },
     "provider": {
       "add_title": "新增 AI 供應商",

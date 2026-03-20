@@ -9,11 +9,17 @@ import 'package:flutter/services.dart';
 class ChatInputBar extends StatefulWidget {
   final bool isLoading;
   final ValueChanged<String> onSend;
+  /// 当前助手名称（显示在 chip 上）
+  final String? assistantName;
+  /// 点击助手 chip 的回调
+  final VoidCallback? onAssistantTap;
 
   const ChatInputBar({
     super.key,
     required this.isLoading,
     required this.onSend,
+    this.assistantName,
+    this.onAssistantTap,
   });
 
   @override
@@ -255,6 +261,13 @@ class _ChatInputBarState extends State<ChatInputBar> {
                       padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
                       child: Row(
                         children: [
+                          // 助手选择 chip
+                          _QuickActionChip(
+                            icon: Icons.auto_awesome_rounded,
+                            label: widget.assistantName ?? t.agent.assistant.no_assistant,
+                            onTap: widget.onAssistantTap ?? () {},
+                          ),
+                          const SizedBox(width: 8),
                           _QuickActionChip(
                             icon: Icons.extension_outlined,
                             label: t.agent.tools.tool_call,

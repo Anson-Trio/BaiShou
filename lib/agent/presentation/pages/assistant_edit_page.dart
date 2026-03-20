@@ -88,7 +88,7 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
                           backgroundColor: colorScheme.surfaceContainerHighest,
                           backgroundImage: _getAvatarImage(),
                           child: _getAvatarImage() == null
-                              ? Icon(Icons.smart_toy_rounded,
+                              ? Icon(Icons.auto_awesome_rounded,
                                   size: 40, color: colorScheme.primary)
                               : null,
                         ),

@@ -766,7 +766,11 @@
       "remove_avatar": "アバターを削除",
       "delete_confirm_title": "アシスタントを削除",
       "delete_confirm_content": "このアシスタントを削除しますか？関連する会話は削除されません。",
-      "settings_entry": "アシスタント管理"
+      "settings_entry": "アシスタント管理",
+      "select_title": "アシスタントを選択",
+      "clear_selection": "クリア",
+      "default_tag": "デフォルト",
+      "no_assistant": "アシスタントなし"
     },
     "provider": {
       "add_title": "AIプロバイダーを追加",

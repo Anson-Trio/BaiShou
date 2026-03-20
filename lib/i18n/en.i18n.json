@@ -767,7 +767,11 @@
       "remove_avatar": "Remove Avatar",
       "delete_confirm_title": "Delete Assistant",
       "delete_confirm_content": "Are you sure you want to delete this assistant? Associated conversations will not be deleted.",
-      "settings_entry": "Assistant Management"
+      "settings_entry": "Assistant Management",
+      "select_title": "Select Assistant",
+      "clear_selection": "Clear",
+      "default_tag": "Default",
+      "no_assistant": "No Assistant"
     },
     "provider": {
       "add_title": "Add AI Provider",

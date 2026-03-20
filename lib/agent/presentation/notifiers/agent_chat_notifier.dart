@@ -48,6 +48,8 @@ class AgentChatState {
   final int totalInputTokens;
   /// 当前会话累计输出 token
   final int totalOutputTokens;
+  /// 当前选择的助手 ID（新对话创建时使用）
+  final String? currentAssistantId;
 
   const AgentChatState({
     this.sessionId,
@@ -60,6 +62,7 @@ class AgentChatState {
     this.totalCostMicros = 0,
     this.totalInputTokens = 0,
     this.totalOutputTokens = 0,
+    this.currentAssistantId,
   });
 
   AgentChatState copyWith({
@@ -73,6 +76,7 @@ class AgentChatState {
     int? totalCostMicros,
     int? totalInputTokens,
     int? totalOutputTokens,
+    String? Function()? currentAssistantId,
   }) {
     return AgentChatState(
       sessionId: sessionId ?? this.sessionId,
@@ -86,6 +90,8 @@ class AgentChatState {
       totalCostMicros: totalCostMicros ?? this.totalCostMicros,
       totalInputTokens: totalInputTokens ?? this.totalInputTokens,
       totalOutputTokens: totalOutputTokens ?? this.totalOutputTokens,
+      currentAssistantId:
+          currentAssistantId != null ? currentAssistantId() : this.currentAssistantId,
     );
   }
 }
@@ -100,6 +106,8 @@ class AgentChatNotifier extends _$AgentChatNotifier {
 
   @override
   AgentChatState build() {
+    // 初始化时加载默认助手
+    _initDefaultAssistant();
     return const AgentChatState();
   }
 
@@ -200,6 +208,7 @@ class AgentChatNotifier extends _$AgentChatNotifier {
       totalCostMicros: session?.totalCostMicros ?? 0,
       totalInputTokens: session?.totalInputTokens ?? 0,
       totalOutputTokens: session?.totalOutputTokens ?? 0,
+      currentAssistantId: () => session?.assistantId,
     );
   }
 
@@ -217,12 +226,27 @@ class AgentChatNotifier extends _$AgentChatNotifier {
     return _sessionStateCache[sessionId] ?? state;
   }
 
+  /// 设置当前助手（新对话创建时使用）
+  void setAssistant(String? id) {
+    state = state.copyWith(currentAssistantId: () => id);
+  }
+
+  /// 初始化默认助手
+  Future<void> _initDefaultAssistant() async {
+    try {
+      final assistantRepo = ref.read(assistantRepositoryProvider);
+      final defaultAssistant = await assistantRepo.getDefault();
+      if (defaultAssistant != null) {
+        state = state.copyWith(currentAssistantId: () => defaultAssistant.id.toString());
+      }
+    } catch (_) {}
+  }
+
   /// 发送消息并运行 Agent
   Future<void> sendMessage({
     required String text,
     String? persona,
     String? guidelines,
-    String? assistantId,
   }) async {
     if (text.trim().isEmpty || state.isLoading) return;
 
@@ -302,7 +326,7 @@ class AgentChatNotifier extends _$AgentChatNotifier {
           vaultName: vaultName,
           providerId: providerId,
           modelId: modelId,
-          assistantId: assistantId,
+          assistantId: state.currentAssistantId,
         );
         state = state.copyWith(sessionId: sessionId);
       }

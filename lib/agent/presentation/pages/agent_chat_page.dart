@@ -6,6 +6,8 @@ import 'package:baishou/agent/models/chat_message.dart';
 import 'package:baishou/core/services/api_config_service.dart';
 import 'package:baishou/agent/session/session_manager.dart';
 import 'package:baishou/agent/presentation/notifiers/agent_chat_notifier.dart';
+import 'package:baishou/agent/presentation/notifiers/assistant_notifier.dart';
+import 'package:baishou/agent/presentation/widgets/assistant_picker_sheet.dart';
 import 'package:baishou/agent/presentation/widgets/chat_input_bar.dart';
 import 'package:baishou/agent/presentation/widgets/chat_message_bubble.dart';
 import 'package:baishou/i18n/strings.g.dart';
@@ -82,6 +84,19 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
     final apiConfig = ref.watch(apiConfigServiceProvider);
     final currentModel = apiConfig.globalDialogueModelId;
 
+    // 解析当前助手名称
+    final currentAssistantId = chatState.currentAssistantId;
+    final assistantsAsync = ref.watch(assistantListProvider);
+    final assistantName = assistantsAsync.whenOrNull(
+      data: (list) {
+        if (currentAssistantId == null) return null;
+        final match = list.where((a) => a.id.toString() == currentAssistantId);
+        return match.isNotEmpty ? match.first.name : null;
+      },
+    );
+    // 已有会话不允许切换助手
+    final hasExistingSession = chatState.sessionId != null;
+
     return Scaffold(
       appBar: AppBar(
         title: Column(
@@ -106,12 +121,15 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
                 ),
               ],
             ),
-            // 当前模型名称
-            if (currentModel.isNotEmpty)
+            // 当前模型名称 + 助手名称
+            if (currentModel.isNotEmpty || assistantName != null)
               Padding(
                 padding: const EdgeInsets.only(top: 2),
                 child: Text(
-                  currentModel,
+                  [
+                    if (assistantName != null) '✨ $assistantName',
+                    if (currentModel.isNotEmpty) currentModel,
+                  ].join(' · '),
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: theme.colorScheme.outline,
                     fontSize: 10,
@@ -303,8 +321,18 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
 
           ChatInputBar(
             isLoading: chatState.isLoading,
+            assistantName: assistantName,
+            onAssistantTap: hasExistingSession ? null : () async {
+              final selected = await AssistantPickerSheet.show(
+                context,
+                currentAssistantId: currentAssistantId,
+              );
+              // selected == null 表示用户点了“清除”
+              ref.read(agentChatProvider.notifier).setAssistant(
+                selected?.id.toString(),
+              );
+            },
             onSend: (text) async {
-              // Now we fetch system prompt directly from db instead of the textfield
               String? guidelines;
               if (chatState.sessionId != null) {
                 final session = await ref.read(sessionManagerProvider).getSession(chatState.sessionId!);
