@@ -7,6 +7,7 @@ import 'package:baishou/features/settings/presentation/pages/data_sync_page.dart
 import 'package:baishou/features/settings/presentation/pages/lan_transfer_page.dart';
 import 'package:baishou/features/settings/presentation/pages/views/general_settings_view.dart';
 import 'package:baishou/features/settings/presentation/pages/views/summary_settings_view.dart';
+import 'package:baishou/agent/presentation/pages/assistant_management_page.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -88,6 +89,8 @@ class _SettingsPageState extends State<SettingsPage> {
         return const SummarySettingsView(key: ValueKey('tab_summary'));
       case 7:
         return const RagMemoryView(key: ValueKey('tab_rag'));
+      case 8:
+        return const AssistantManagementPage(key: ValueKey('tab_assistants'));
       default:
         return const SizedBox();
     }
@@ -149,6 +152,12 @@ class _SettingsPageState extends State<SettingsPage> {
             title: Text(t.agent.rag.title),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/settings/rag'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.smart_toy_outlined),
+            title: Text(t.agent.assistant.settings_entry),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/settings/assistants'),
           ),
         ],
       ),
@@ -236,6 +245,11 @@ class _SettingsPageState extends State<SettingsPage> {
                           t.agent.rag.title,
                           Icons.psychology_outlined,
                           7,
+                        ),
+                        _buildSidebarTab(
+                          t.agent.assistant.settings_entry,
+                          Icons.smart_toy_outlined,
+                          8,
                         ),
                       ],
                     ),

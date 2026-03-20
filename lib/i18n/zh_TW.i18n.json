@@ -755,6 +755,28 @@
       "migration_start_now": "立即重新嵌入",
       "migration_preparing": "正在準備重新嵌入..."
     },
+    "assistant": {
+      "management_title": "助手管理",
+      "create_title": "建立助手",
+      "edit_title": "編輯助手",
+      "name_label": "助手名稱",
+      "name_hint": "例如：知識助手、寫作助手...",
+      "name_required": "請輸入助手名稱",
+      "prompt_label": "系統提示詞",
+      "prompt_hint": "定義助手的角色、行為和回覆風格...",
+      "context_window_label": "上下文輪數",
+      "context_window_desc": "每次對話發送給模型的歷史訊息條數，越大記憶越多但消耗更多 Token",
+      "set_default": "設為預設",
+      "set_default_desc": "新建對話時自動使用此助手",
+      "default_label": "預設",
+      "no_prompt": "未設定提示詞",
+      "empty_hint": "還沒有助手，建立一個吧",
+      "create_first": "建立第一個助手",
+      "remove_avatar": "移除頭像",
+      "delete_confirm_title": "刪除助手",
+      "delete_confirm_content": "確定要刪除此助手嗎？關聯的對話不會被刪除。",
+      "settings_entry": "助手管理"
+    },
     "provider": {
       "add_title": "新增 AI 供應商",
       "add_type_label": "供應商類型 (Client)",

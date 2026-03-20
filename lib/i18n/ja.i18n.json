@@ -746,6 +746,28 @@
       "migration_start_now": "今すぐ再埋め込み",
       "migration_preparing": "再埋め込みの準備中..."
     },
+    "assistant": {
+      "management_title": "アシスタント管理",
+      "create_title": "アシスタントを作成",
+      "edit_title": "アシスタントを編集",
+      "name_label": "アシスタント名",
+      "name_hint": "例：ナレッジヘルパー、ライティングアシスタント...",
+      "name_required": "アシスタント名を入力してください",
+      "prompt_label": "システムプロンプト",
+      "prompt_hint": "アシスタントの役割、行動、回答スタイルを定義...",
+      "context_window_label": "コンテキストウィンドウ",
+      "context_window_desc": "会話ごとにモデルに送信する最近のメッセージ数。多いほど記憶が多いが、トークン消費も増加",
+      "set_default": "デフォルトに設定",
+      "set_default_desc": "新しい会話で自動的にこのアシスタントを使用",
+      "default_label": "デフォルト",
+      "no_prompt": "プロンプト未設定",
+      "empty_hint": "アシスタントがありません。作成しましょう！",
+      "create_first": "最初のアシスタントを作成",
+      "remove_avatar": "アバターを削除",
+      "delete_confirm_title": "アシスタントを削除",
+      "delete_confirm_content": "このアシスタントを削除しますか？関連する会話は削除されません。",
+      "settings_entry": "アシスタント管理"
+    },
     "provider": {
       "add_title": "AIプロバイダーを追加",
       "add_type_label": "プロバイダータイプ (Client)",

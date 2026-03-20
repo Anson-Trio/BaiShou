@@ -15,6 +15,7 @@ import 'package:baishou/features/settings/presentation/pages/lan_transfer_page.d
 import 'package:baishou/features/summary/presentation/pages/summary_page.dart';
 import 'package:baishou/features/settings/presentation/pages/views/summary_settings_view.dart';
 import 'package:baishou/features/settings/presentation/pages/views/rag_memory_view.dart';
+import 'package:baishou/agent/presentation/pages/assistant_management_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -173,6 +174,11 @@ GoRouter goRouter(Ref ref) {
           appBar: AppBar(title: Text(t.agent.rag.title)),
           body: const RagMemoryView(),
         ),
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: '/settings/assistants',
+        builder: (context, state) => const AssistantManagementPage(),
       ),
       GoRoute(
         parentNavigatorKey: rootNavigatorKey,

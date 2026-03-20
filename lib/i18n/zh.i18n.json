@@ -746,6 +746,28 @@
       "migration_start_now": "立即重新嵌入",
       "migration_preparing": "正在准备重新嵌入..."
     },
+    "assistant": {
+      "management_title": "助手管理",
+      "create_title": "创建助手",
+      "edit_title": "编辑助手",
+      "name_label": "助手名称",
+      "name_hint": "例如：知识助手、写作助手...",
+      "name_required": "请输入助手名称",
+      "prompt_label": "系统提示词",
+      "prompt_hint": "定义助手的角色、行为和回复风格...",
+      "context_window_label": "上下文轮数",
+      "context_window_desc": "每次对话发送给模型的历史消息条数，越大记忆越多但消耗更多 Token",
+      "set_default": "设为默认",
+      "set_default_desc": "新建对话时自动使用此助手",
+      "default_label": "默认",
+      "no_prompt": "未设置提示词",
+      "empty_hint": "还没有助手，创建一个吧",
+      "create_first": "创建第一个助手",
+      "remove_avatar": "移除头像",
+      "delete_confirm_title": "删除助手",
+      "delete_confirm_content": "确定要删除此助手吗？关联的对话不会被删除。",
+      "settings_entry": "助手管理"
+    },
     "provider": {
       "add_title": "新增 AI 供应商",
       "add_type_label": "供应商类型 (Client)",

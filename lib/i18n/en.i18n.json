@@ -747,6 +747,28 @@
       "migration_start_now": "Re-embed Now",
       "migration_preparing": "Preparing to re-embed..."
     },
+    "assistant": {
+      "management_title": "Assistant Management",
+      "create_title": "Create Assistant",
+      "edit_title": "Edit Assistant",
+      "name_label": "Assistant Name",
+      "name_hint": "e.g. Knowledge Helper, Writing Assistant...",
+      "name_required": "Please enter assistant name",
+      "prompt_label": "System Prompt",
+      "prompt_hint": "Define the assistant's role, behavior and response style...",
+      "context_window_label": "Context Window",
+      "context_window_desc": "Number of recent messages sent to the model per conversation. More means better memory but higher Token cost",
+      "set_default": "Set as Default",
+      "set_default_desc": "Automatically use this assistant for new conversations",
+      "default_label": "Default",
+      "no_prompt": "No prompt set",
+      "empty_hint": "No assistants yet, create one!",
+      "create_first": "Create First Assistant",
+      "remove_avatar": "Remove Avatar",
+      "delete_confirm_title": "Delete Assistant",
+      "delete_confirm_content": "Are you sure you want to delete this assistant? Associated conversations will not be deleted.",
+      "settings_entry": "Assistant Management"
+    },
     "provider": {
       "add_title": "Add AI Provider",
       "add_type_label": "Provider Type (Client)",
