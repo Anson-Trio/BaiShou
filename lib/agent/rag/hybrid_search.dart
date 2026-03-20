@@ -13,6 +13,7 @@ class SearchResult {
   final String sessionTitle;
   final double score;
   final String source; // 'fts' | 'vector' | 'hybrid'
+  final DateTime? createdAt;
 
   const SearchResult({
     required this.messageId,
@@ -21,6 +22,7 @@ class SearchResult {
     required this.sessionTitle,
     required this.score,
     required this.source,
+    this.createdAt,
   });
 }
 
@@ -77,6 +79,7 @@ class HybridSearch {
               // 混合结果用blended分数，纯向量结果用原始余弦分数
               score: m.rawVectorScore > 0 ? m.rawVectorScore : m.totalScore,
               source: m.source,
+              createdAt: m.result.createdAt,
             ))
         .toList();
   }

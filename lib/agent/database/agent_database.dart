@@ -22,7 +22,7 @@ class AgentDatabase extends _$AgentDatabase {
   AgentDatabase(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -35,6 +35,9 @@ class AgentDatabase extends _$AgentDatabase {
           if (from < 2) {
             await m.addColumn(agentSessions, agentSessions.isPinned);
             await m.addColumn(agentSessions, agentSessions.systemPrompt);
+          }
+          if (from < 3) {
+            await m.addColumn(agentMessages, agentMessages.askId);
           }
         },
       );
@@ -100,7 +103,7 @@ class AgentDatabase extends _$AgentDatabase {
     }).toList();
   }
 
-  // ── 原生 sqlite-vec 向量搜索 ────────────────────────────────
+  // ── 原生 sqlite-vector 向量搜索 ────────────────────────────────
 
   /// 创建向量嵌入表 + 初始化向量索引
   Future<void> _createEmbeddingTable() async {
@@ -129,17 +132,19 @@ class AgentDatabase extends _$AgentDatabase {
     ''');
   }
 
-  /// 初始化向量索引（首次插入时调用，需要知道维度）
+  /// 初始化向量索引（每个连接都需要调用，首次插入时自动触发）
+  ///
+  /// 根据 sqlite-vector API，`vector_init` 必须在每个需要执行向量操作的数据库连接中调用。
   Future<void> initVectorIndex(int dimension) async {
     try {
       await customStatement(
         "SELECT vector_init('message_embeddings', 'embedding', "
-        "'type=FLOAT32,dimension=$dimension')",
+        "'type=FLOAT32,dimension=$dimension,distance=COSINE')",
       );
-      debugPrint('sqlite-vec: vector index initialized (dim=$dimension)');
+      debugPrint('sqlite-vector: vector index initialized (dim=$dimension, distance=COSINE)');
     } catch (e) {
-      // 索引已存在或 sqlite-vec 未加载时忽略
-      debugPrint('sqlite-vec: vector_init skipped: $e');
+      // 索引已存在或扩展未加载时忽略
+      debugPrint('sqlite-vector: vector_init skipped: $e');
     }
   }
 
@@ -175,10 +180,10 @@ class AgentDatabase extends _$AgentDatabase {
     );
   }
 
-  /// 原生 KNN 向量搜索 — 使用 sqlite-vec 的 vector_full_scan
+  /// 原生 KNN 向量搜索 — 使用 sqlite-vector 的 vector_full_scan
   ///
-  /// 使用 sqlite-vec 的 vec_distance_cosine() 在 SQL 层计算余弦距离（SIMD 加速）。
-  /// [dimension] 用于过滤维度不匹配的向量，防止跨模型搜索出错。
+  /// 使用 `vector_full_scan` 虚拟表做暴力 KNN 搜索（SIMD 加速）。
+  /// [dimension] 用于确保 vector_init 的维度匹配。
   Future<List<Map<String, dynamic>>> searchSimilar({
     required List<double> queryEmbedding,
     int topK = 20,
@@ -191,7 +196,10 @@ class AgentDatabase extends _$AgentDatabase {
         'dim=$effectiveDimension, topK=$topK');
 
     try {
-      // 使用 vec_distance_cosine 在 SQL 层计算余弦距离
+      // 确保当前连接已初始化向量索引（vector_init 必须在每个连接中调用）
+      await initVectorIndex(effectiveDimension);
+
+      // 使用 vector_full_scan 虚拟表做 KNN 搜索，然后 JOIN 回原表获取元数据
       final results = await customSelect(
         '''
         SELECT
@@ -202,18 +210,18 @@ class AgentDatabase extends _$AgentDatabase {
           e.chunk_text,
           e.dimension,
           e.model_id,
-          vec_distance_cosine(e.embedding, vector_as_f32(?)) AS distance,
+          v.distance,
+          e.created_at,
           s.title AS session_title
-        FROM message_embeddings AS e
+        FROM vector_full_scan('message_embeddings', 'embedding', vector_as_f32(?), ?) AS v
+        JOIN message_embeddings AS e ON e.id = v.rowid
         LEFT JOIN agent_sessions AS s ON e.session_id = s.id
         WHERE e.dimension = ?
-        ORDER BY distance ASC
-        LIMIT ?
         ''',
         variables: [
           Variable.withString(vectorJson),
-          Variable.withInt(effectiveDimension),
           Variable.withInt(topK),
+          Variable.withInt(effectiveDimension),
         ],
       ).get();
 
@@ -230,12 +238,13 @@ class AgentDatabase extends _$AgentDatabase {
           'dimension': row.read<int>('dimension'),
           'model_id': row.read<String>('model_id'),
           'distance': row.read<double>('distance'),
+          'created_at': row.read<int>('created_at'),
           'session_title':
               row.readNullable<String>('session_title') ?? t.agent.sessions.unnamed_session,
         };
       }).toList();
     } catch (e) {
-      debugPrint('searchSimilar vec_distance_cosine failed: $e');
+      debugPrint('searchSimilar vector_full_scan failed: $e');
       return [];
     }
   }
@@ -444,12 +453,6 @@ class AgentDatabase extends _$AgentDatabase {
   }
 }
 
-/// 加载 sqlite-vec 扩展并返回 sqlite3 实例
-sql.Sqlite3 _loadExtensions() {
-  sql.sqlite3.loadSqliteVectorExtension();
-  return sql.sqlite3;
-}
-
 /// 打开 Agent 数据库连接
 /// 使用 NativeDatabase + LazyDatabase，注入 sqlite-vec 扩展
 QueryExecutor _openAgentConnection(StoragePathService pathService) {
@@ -458,7 +461,10 @@ QueryExecutor _openAgentConnection(StoragePathService pathService) {
     final dbFile = File(p.join(sysDir.path, 'agent.sqlite'));
     return NativeDatabase.createInBackground(
       dbFile,
-      sqlite3: _loadExtensions,
+      setup: (db) {
+        // 在后台 Isolate 的独立连接中加载向量库扩展
+        sql.sqlite3.loadSqliteVectorExtension();
+      },
     );
   });
 }
