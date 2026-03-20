@@ -13,6 +13,7 @@ import 'package:baishou/agent/session/session_manager.dart';
 import 'package:baishou/agent/tools/agent_tool.dart';
 import 'package:baishou/agent/tools/tool_repository.dart';
 import 'package:baishou/agent/database/agent_database.dart';
+import 'package:baishou/agent/session/assistant_repository.dart';
 import 'package:baishou/agent/rag/embedding_service.dart';
 import 'package:baishou/agent/pricing/model_pricing_service.dart';
 import 'package:baishou/agent/prompts/system_prompt_builder.dart';
@@ -221,6 +222,7 @@ class AgentChatNotifier extends _$AgentChatNotifier {
     required String text,
     String? persona,
     String? guidelines,
+    String? assistantId,
   }) async {
     if (text.trim().isEmpty || state.isLoading) return;
 
@@ -300,6 +302,7 @@ class AgentChatNotifier extends _$AgentChatNotifier {
           vaultName: vaultName,
           providerId: providerId,
           modelId: modelId,
+          assistantId: assistantId,
         );
         state = state.copyWith(sessionId: sessionId);
       }
@@ -353,10 +356,36 @@ class AgentChatNotifier extends _$AgentChatNotifier {
     // 构建工具注册表
     final tools = _buildToolRegistry();
 
-    // 构建 System Prompt（优先用参数传入，否则从设置读取）
+    // 构建 System Prompt
+    // 有助手时：用助手的提示词（没设就是没有，不回退到全局设置）
+    // 无助手时：走参数传入 → 全局设置 的原有逻辑
+    String? resolvedPersona;
+    int? assistantContextWindow;
+    bool hasAssistant = false;
+
+    final db = ref.read(agentDatabaseProvider);
+    final assistantRepo = ref.read(assistantRepositoryProvider);
+    final session = await (db.select(db.agentSessions)..where((t) => t.id.equals(sessionId))).getSingleOrNull();
+    if (session?.assistantId != null) {
+      final assistant = await assistantRepo.get(session!.assistantId!);
+      if (assistant != null) {
+        hasAssistant = true;
+        // 助手的提示词：有就用，没有就是空（不回退）
+        resolvedPersona = assistant.systemPrompt.isNotEmpty
+            ? assistant.systemPrompt
+            : null;
+        assistantContextWindow = assistant.contextWindow;
+      }
+    }
+
+    // 只有没关联助手时，才用参数传入或全局配置
+    if (!hasAssistant) {
+      resolvedPersona = persona ?? apiConfig.agentPersona;
+    }
+
     final systemPrompt = SystemPromptBuilder.build(
-      persona: persona ?? apiConfig.agentPersona,
-      guidelines: guidelines ?? apiConfig.agentGuidelines,
+      persona: resolvedPersona,
+      guidelines: hasAssistant ? null : (guidelines ?? apiConfig.agentGuidelines),
       vaultName: vaultName,
       tools: tools,
     );
@@ -377,7 +406,7 @@ class AgentChatNotifier extends _$AgentChatNotifier {
 
     // 运行 Agent Loop
     //  → 滑动窗口：只取最近 N 条消息作为上下文
-    final windowSize = apiConfig.agentContextWindowSize;
+    final windowSize = assistantContextWindow ?? apiConfig.agentContextWindowSize;
     final contextMessages = ContextWindow.fromMemory(
       messages: currentStateForWindow.messages
           .where((m) => m.role != MessageRole.system)

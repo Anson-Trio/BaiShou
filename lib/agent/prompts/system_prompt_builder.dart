@@ -13,16 +13,18 @@ class SystemPromptBuilder {
   /// [vaultName] 当前 Vault 名称
   /// [tools] 可用工具注册中心
   static String build({
-    required String persona,
-    required String guidelines,
+    String? persona,
+    String? guidelines,
     required String vaultName,
     required ToolRegistry tools,
   }) {
     final buffer = StringBuffer();
 
-    // 人设
-    buffer.writeln(persona);
-    buffer.writeln();
+    // 人设（可能为空，助手未设置提示词时）
+    if (persona != null && persona.isNotEmpty) {
+      buffer.writeln(persona);
+      buffer.writeln();
+    }
 
     // 时间上下文
     final now = DateTime.now();
@@ -59,8 +61,10 @@ class SystemPromptBuilder {
       }
     }
 
-    // 行为准则
-    buffer.writeln(guidelines);
+    // 行为准则（助手模式下可能为 null）
+    if (guidelines != null && guidelines.isNotEmpty) {
+      buffer.writeln(guidelines);
+    }
 
     return buffer.toString();
   }
