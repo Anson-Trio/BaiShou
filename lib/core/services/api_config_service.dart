@@ -35,6 +35,10 @@ class ApiConfigService {
   static const String _keyDisabledToolIds = 'disabled_tool_ids';
   static const String _keyToolConfigPrefix = 'tool_config_';
   static const String _keyRagEnabled = 'rag_global_enabled';
+  static const String _keySummaryPersona = 'summary_prompt_persona';
+  static const String _keySummaryInstructions = 'summary_prompt_instructions';
+  static const String _keyRagTopK = 'rag_top_k';
+  static const String _keyRagSimilarityThreshold = 'rag_similarity_threshold';
 
   final SharedPreferences _prefs;
 
@@ -367,6 +371,48 @@ class ApiConfigService {
   /// 设置全局记忆开关
   Future<void> setRagEnabled(bool enabled) async {
     await _prefs.setBool(_keyRagEnabled, enabled);
+  }
+
+  /// RAG 检索 topK（返回前 K 个最相似的结果，默认 20）
+  int get ragTopK {
+    return _prefs.getInt(_keyRagTopK) ?? 20;
+  }
+
+  /// 设置 RAG topK
+  Future<void> setRagTopK(int topK) async {
+    await _prefs.setInt(_keyRagTopK, topK.clamp(1, 50));
+  }
+
+  /// RAG 相似度阈值（低于此值的结果会被过滤，默认 0.0 不过滤）
+  double get ragSimilarityThreshold {
+    return _prefs.getDouble(_keyRagSimilarityThreshold) ?? 0.0;
+  }
+
+  /// 设置 RAG 相似度阈值
+  Future<void> setRagSimilarityThreshold(double threshold) async {
+    await _prefs.setDouble(_keyRagSimilarityThreshold, threshold.clamp(0.0, 1.0));
+  }
+
+  // --- 总结提示词自定义 ---
+
+  /// 获取用户自定义的总结角色描述（null 表示使用默认）
+  String? get summaryPersona {
+    return _prefs.getString(_keySummaryPersona);
+  }
+
+  /// 设置总结角色描述
+  Future<void> setSummaryPersona(String persona) async {
+    await _prefs.setString(_keySummaryPersona, persona);
+  }
+
+  /// 获取用户自定义的总结指令（null 表示使用默认）
+  String? get summaryInstructions {
+    return _prefs.getString(_keySummaryInstructions);
+  }
+
+  /// 设置总结指令
+  Future<void> setSummaryInstructions(String instructions) async {
+    await _prefs.setString(_keySummaryInstructions, instructions);
   }
 
   // --- 工具配置管理 ---

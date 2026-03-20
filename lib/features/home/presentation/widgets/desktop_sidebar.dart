@@ -222,7 +222,8 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
         ).evaluate(animation);
         return Material(
           elevation: elevation,
-          color: Colors.transparent,
+          color: Theme.of(context).colorScheme.surface,
+          clipBehavior: Clip.antiAliasWithSaveLayer,
           borderRadius: BorderRadius.circular(8),
           child: child,
         );

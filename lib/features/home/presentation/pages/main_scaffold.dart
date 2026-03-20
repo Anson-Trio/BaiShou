@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// 主级架构视图
 ///
@@ -39,6 +40,18 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
     if (branchIndex == 4) return 2;
     if (branchIndex == 3) return 3;
     if (branchIndex <= 1) return branchIndex;
+    return 0;
+  }
+
+  /// 读取侧边栏排序首位 branchIndex（移动端回退用）
+  Future<int> _getDefaultBranch() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getStringList('desktop_sidebar_nav_order');
+      if (saved != null && saved.isNotEmpty) {
+        return int.tryParse(saved.first) ?? 0;
+      }
+    } catch (_) {}
     return 0;
   }
 
@@ -164,7 +177,10 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
         if (didPop) return;
 
         if (currentIndex != 0) {
-          Future.microtask(() => _goBranch(0));
+          Future.microtask(() async {
+            final defaultBranch = await _getDefaultBranch();
+            _goBranch(defaultBranch);
+          });
           return;
         }
 

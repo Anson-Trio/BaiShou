@@ -30,7 +30,7 @@ class ThemeNotifier extends Notifier<AppThemeState> {
 
     final modeIndex = _prefs.getInt(_keyThemeMode) ?? ThemeMode.system.index;
     final colorValue =
-        _prefs.getInt(_keySeedColor) ?? 0xFF137FEC; // Default Blue
+        _prefs.getInt(_keySeedColor) ?? 0xFF5BA8F5; // 浅蓝
 
     return AppThemeState(
       mode: ThemeMode.values[modeIndex],

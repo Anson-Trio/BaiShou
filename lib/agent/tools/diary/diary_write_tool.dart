@@ -32,6 +32,8 @@ class DiaryWriteTool extends AgentTool {
       'IMPORTANT: Always use diary_read first to check existing content before writing, '
       'to avoid overwriting important entries. '
       'By default, content is appended to the end of the file. '
+      'When appending, content MUST be formatted with a level-5 heading using the current time: '
+      '"##### HH:mm\n{content}". If no date is specified, the current date will be used. '
       'Set mode to "overwrite" to replace the entire file content.';
 
   @override
@@ -41,7 +43,8 @@ class DiaryWriteTool extends AgentTool {
           'date': {
             'type': 'string',
             'description':
-                'The date of the diary to write, in YYYY-MM-DD format.',
+                'The date of the diary to write, in YYYY-MM-DD format. '
+                'If omitted, the current date will be used.',
           },
           'content': {
             'type': 'string',
@@ -57,7 +60,7 @@ class DiaryWriteTool extends AgentTool {
                 '"overwrite" replaces the entire file.',
           },
         },
-        'required': ['date', 'content'],
+        'required': ['content'],
       };
 
   @override
@@ -65,13 +68,16 @@ class DiaryWriteTool extends AgentTool {
     Map<String, dynamic> arguments,
     ToolContext context,
   ) async {
-    final date = arguments['date'] as String?;
+    final now = DateTime.now();
+    final rawDate = arguments['date'] as String?;
     final content = arguments['content'] as String?;
     final mode = arguments['mode'] as String? ?? 'append';
 
-    if (date == null || date.isEmpty) {
-      return ToolResult.error('Missing required parameter: date');
-    }
+    // 如果未指定日期，使用当前日期
+    final date = (rawDate != null && rawDate.isNotEmpty)
+        ? rawDate
+        : '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
     if (content == null || content.isEmpty) {
       return ToolResult.error('Missing required parameter: content');
     }
@@ -116,10 +122,15 @@ class DiaryWriteTool extends AgentTool {
           },
         );
       } else {
-        // 追加模式：读取已有内容并追加
+        // 追加模式：自动加上 ##### HH:mm 五级标题
         final existing = await file.readAsString();
         final separator = existing.endsWith('\n') ? '\n' : '\n\n';
-        final newContent = '$existing$separator$content';
+        final timeHeader = '##### ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+        // 如果内容已包含五级标题则不再自动添加
+        final formattedContent = content.trimLeft().startsWith('#####')
+            ? content
+            : '$timeHeader\n$content';
+        final newContent = '$existing$separator$formattedContent';
         await file.writeAsString(newContent);
         return ToolResult(
           output: 'Content has been appended to diary for $date. '
@@ -129,7 +140,7 @@ class DiaryWriteTool extends AgentTool {
             'date': date,
             'mode': 'append',
             'previous_length': existing.length,
-            'appended_length': content.length,
+            'appended_length': formattedContent.length,
             'total_length': newContent.length,
           },
         );

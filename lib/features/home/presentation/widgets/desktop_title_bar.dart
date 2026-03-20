@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
 /// 桌面端自定义标题栏
@@ -45,13 +46,32 @@ class _DesktopTitleBarState extends State<DesktopTitleBar>
     super.dispose();
   }
 
-  void _onTabChanged() {
+  void _onTabChanged() async {
     if (!_tabController.indexIsChanging) return;
     if (_tabController.index == 0) {
-      widget.router.go('/');
+      // 根据侧边栏排序首位决定默认路由
+      final route = await _getDefaultRoute();
+      widget.router.go(route);
     } else {
       widget.router.go('/agent');
     }
+  }
+
+  /// 读取侧边栏排序的首位 branchIndex，返回对应路由
+  Future<String> _getDefaultRoute() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getStringList('desktop_sidebar_nav_order');
+      if (saved != null && saved.isNotEmpty) {
+        final firstBranch = int.tryParse(saved.first) ?? 0;
+        return switch (firstBranch) {
+          1 => '/summary',
+          2 => '/sync',
+          _ => '/',
+        };
+      }
+    } catch (_) {}
+    return '/';
   }
 
   void _onRouteChanged() {
