@@ -42,35 +42,34 @@ class SummaryGeneratorService {
     String promptTemplate = '';
 
     try {
-      final customInstructions = apiConfig.summaryInstructions;
       switch (target.type) {
         case SummaryType.weekly:
           contextData = await _buildWeeklyContext(
             target.startDate,
             target.endDate,
           );
-          promptTemplate = getWeeklyPrompt(target, customInstructions: customInstructions);
+          promptTemplate = getWeeklyPrompt(target, customInstructions: apiConfig.getSummaryInstructions('weekly'));
           break;
         case SummaryType.monthly:
           contextData = await _buildMonthlyContext(
             target.startDate,
             target.endDate,
           );
-          promptTemplate = getMonthlyPrompt(target, customInstructions: customInstructions);
+          promptTemplate = getMonthlyPrompt(target, customInstructions: apiConfig.getSummaryInstructions('monthly'));
           break;
         case SummaryType.quarterly:
           contextData = await _buildQuarterlyContext(
             target.startDate,
             target.endDate,
           );
-          promptTemplate = getQuarterlyPrompt(target, customInstructions: customInstructions);
+          promptTemplate = getQuarterlyPrompt(target, customInstructions: apiConfig.getSummaryInstructions('quarterly'));
           break;
         case SummaryType.yearly:
           contextData = await _buildYearlyContext(
             target.startDate,
             target.endDate,
           );
-          promptTemplate = getYearlyPrompt(target, customInstructions: customInstructions);
+          promptTemplate = getYearlyPrompt(target, customInstructions: apiConfig.getSummaryInstructions('yearly'));
           break;
       }
 

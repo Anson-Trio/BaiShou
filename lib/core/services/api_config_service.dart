@@ -393,16 +393,21 @@ class ApiConfigService {
     await _prefs.setDouble(_keyRagSimilarityThreshold, threshold.clamp(0.0, 1.0));
   }
 
-  // --- 总结提示词自定义 ---
+  // --- 总结提示词自定义（按类型独立配置） ---
 
-  /// 获取用户自定义的总结指令（null 表示使用默认）
-  String? get summaryInstructions {
-    return _prefs.getString(_keySummaryInstructions);
+  /// 获取指定类型的总结自定义指令（null 表示使用默认）
+  String? getSummaryInstructions(String type) {
+    return _prefs.getString('${_keySummaryInstructions}_$type');
   }
 
-  /// 设置总结指令
-  Future<void> setSummaryInstructions(String instructions) async {
-    await _prefs.setString(_keySummaryInstructions, instructions);
+  /// 设置指定类型的总结指令
+  Future<void> setSummaryInstructions(String type, String instructions) async {
+    await _prefs.setString('${_keySummaryInstructions}_$type', instructions);
+  }
+
+  /// 向后兼容：获取旧的统一提示词（用于迁移）
+  String? get summaryInstructions {
+    return _prefs.getString(_keySummaryInstructions);
   }
 
   // --- 工具配置管理 ---
