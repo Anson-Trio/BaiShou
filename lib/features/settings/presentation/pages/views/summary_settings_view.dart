@@ -1,5 +1,4 @@
 import 'package:baishou/core/services/api_config_service.dart';
-import 'package:baishou/agent/prompts/prompt_templates.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,7 +36,7 @@ class _SummarySettingsViewState extends ConsumerState<SummarySettingsView> {
     });
 
     _instructionsController.text =
-        service.summaryInstructions ?? PromptTemplates.getInstructions(AppLocale.zh);
+        service.summaryInstructions ?? '**重要指令**：禁止输出任何问候语、开场白或结束语。直接输出纯 Markdown 内容。';
   }
 
   @override
@@ -126,7 +125,7 @@ class _SummarySettingsViewState extends ConsumerState<SummarySettingsView> {
                   },
                   onReset: () {
                     _instructionsController.text =
-                        PromptTemplates.getInstructions(AppLocale.zh);
+                        '**重要指令**：禁止输出任何问候语、开场白或结束语。直接输出纯 Markdown 内容。';
                   },
                 ),
               ],

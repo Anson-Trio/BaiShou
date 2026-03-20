@@ -35,7 +35,7 @@ class ApiConfigService {
   static const String _keyDisabledToolIds = 'disabled_tool_ids';
   static const String _keyToolConfigPrefix = 'tool_config_';
   static const String _keyRagEnabled = 'rag_global_enabled';
-  static const String _keySummaryPersona = 'summary_prompt_persona';
+
   static const String _keySummaryInstructions = 'summary_prompt_instructions';
   static const String _keyRagTopK = 'rag_top_k';
   static const String _keyRagSimilarityThreshold = 'rag_similarity_threshold';
@@ -394,16 +394,6 @@ class ApiConfigService {
   }
 
   // --- 总结提示词自定义 ---
-
-  /// 获取用户自定义的总结角色描述（null 表示使用默认）
-  String? get summaryPersona {
-    return _prefs.getString(_keySummaryPersona);
-  }
-
-  /// 设置总结角色描述
-  Future<void> setSummaryPersona(String persona) async {
-    await _prefs.setString(_keySummaryPersona, persona);
-  }
 
   /// 获取用户自定义的总结指令（null 表示使用默认）
   String? get summaryInstructions {
