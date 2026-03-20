@@ -131,6 +131,15 @@ class SessionManager {
         .go();
   }
 
+  /// 更新会话关联的助手
+  Future<void> updateSessionAssistant(String sessionId, String? assistantId) async {
+    await (_db.update(_db.agentSessions)
+          ..where((t) => t.id.equals(sessionId)))
+        .write(AgentSessionsCompanion(
+      assistantId: Value(assistantId),
+    ));
+  }
+
   /// 累加会话的 token 用量和费用
   Future<void> addUsage({
     required String sessionId,

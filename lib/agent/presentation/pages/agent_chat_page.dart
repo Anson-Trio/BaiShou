@@ -94,8 +94,7 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
         return match.isNotEmpty ? match.first.name : null;
       },
     );
-    // 已有会话不允许切换助手
-    final hasExistingSession = chatState.sessionId != null;
+
 
     return Scaffold(
       appBar: AppBar(
@@ -322,15 +321,18 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
           ChatInputBar(
             isLoading: chatState.isLoading,
             assistantName: assistantName,
-            onAssistantTap: hasExistingSession ? null : () async {
+            onAssistantTap: () async {
               final selected = await AssistantPickerSheet.show(
                 context,
                 currentAssistantId: currentAssistantId,
               );
-              // selected == null 表示用户点了“清除”
-              ref.read(agentChatProvider.notifier).setAssistant(
-                selected?.id.toString(),
-              );
+              final newId = selected?.id.toString();
+              ref.read(agentChatProvider.notifier).setAssistant(newId);
+              // 已有会话也同步更新 assistantId
+              if (chatState.sessionId != null) {
+                await ref.read(sessionManagerProvider)
+                    .updateSessionAssistant(chatState.sessionId!, newId);
+              }
             },
             onSend: (text) async {
               String? guidelines;
