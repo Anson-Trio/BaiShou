@@ -62,6 +62,9 @@ class AgentMessages extends Table {
   BoolColumn get isSummary =>
       boolean().withDefault(const Constant(false))();
 
+  /// 对应的用户提问消息 ID（针对 assistant 和 tool 消息）
+  TextColumn get askId => text().nullable()();
+
   /// 使用的供应商 ID（assistant 消息才有）
   TextColumn get providerId => text().nullable()();
 

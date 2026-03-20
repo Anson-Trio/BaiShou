@@ -6,6 +6,7 @@
 import 'dart:io';
 import 'package:baishou/agent/models/chat_message.dart';
 import 'package:baishou/agent/presentation/notifiers/agent_chat_notifier.dart';
+import 'package:baishou/features/agent/presentation/notifiers/agent_chat_notifier.dart';
 import 'package:baishou/features/settings/domain/services/user_profile_service.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
@@ -20,7 +21,6 @@ class ChatMessageBubble extends ConsumerWidget {
   final ChatMessage message;
   final VoidCallback? onEdit;
   final VoidCallback? onRegenerate;
-  final VoidCallback? onResend;
   final VoidCallback? onCopy;
 
   const ChatMessageBubble({
@@ -28,7 +28,6 @@ class ChatMessageBubble extends ConsumerWidget {
     required this.message,
     this.onEdit,
     this.onRegenerate,
-    this.onResend,
     this.onCopy,
   });
 
@@ -135,7 +134,6 @@ class ChatMessageBubble extends ConsumerWidget {
                 isUser: true,
                 alignment: MainAxisAlignment.end,
                 onEdit: onEdit,
-                onResend: onResend,
                 onCopy: onCopy ?? () => _copyToClipboard(context),
               ),
             ],
@@ -303,13 +301,11 @@ class ChatMessageBubble extends ConsumerWidget {
 
 // ─── 消息操作按钮行 ─────────────────────────────────────────────
 
-/// 28px 圆角方块，半透明背景
 class _MessageActionBar extends StatelessWidget {
   final bool isUser;
   final MainAxisAlignment alignment;
   final VoidCallback? onEdit;
   final VoidCallback? onRegenerate;
-  final VoidCallback? onResend;
   final VoidCallback? onCopy;
 
   const _MessageActionBar({
@@ -317,7 +313,6 @@ class _MessageActionBar extends StatelessWidget {
     required this.alignment,
     this.onEdit,
     this.onRegenerate,
-    this.onResend,
     this.onCopy,
   });
 
@@ -330,14 +325,6 @@ class _MessageActionBar extends StatelessWidget {
         mainAxisAlignment: alignment,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 重发（仅用户消息）
-          if (isUser && onResend != null)
-            _ActionButton(
-              icon: Icons.refresh_rounded,
-              tooltip: t.agent.chat.retry,
-              onTap: onResend!,
-              theme: theme,
-            ),
           // 编辑（仅用户消息）
           if (isUser && onEdit != null)
             _ActionButton(

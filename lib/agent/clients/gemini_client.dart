@@ -321,15 +321,17 @@ class GeminiClient extends BaseAiClient {
       if (msg.role == MessageRole.system) continue; // system 单独处理
 
       final parts = <Map<String, dynamic>>[];
+      String role = '';
 
       switch (msg.role) {
         case MessageRole.user:
+          role = 'user';
           parts.add({'text': msg.content ?? ''});
-          contents.add({'role': 'user', 'parts': parts});
           break;
 
         case MessageRole.assistant:
-          if (msg.content != null) {
+          role = 'model';
+          if (msg.content != null && msg.content!.isNotEmpty) {
             parts.add({'text': msg.content!});
           }
           if (msg.toolCalls != null) {
@@ -337,33 +339,47 @@ class GeminiClient extends BaseAiClient {
               parts.add({
                 'functionCall': {
                   'name': tc.name,
-                  'args': tc.arguments,
+                  'args': tc.arguments.isNotEmpty ? tc.arguments : <String, dynamic>{},
                 },
               });
             }
           }
-          contents.add({'role': 'model', 'parts': parts});
           break;
 
         case MessageRole.tool:
-          // 从 callId 中提取工具名（格式: gemini_{name}_{timestamp}）
-          final toolName = _extractToolName(msg.toolCallId);
-          contents.add({
-            'role': 'user',
-            'parts': [
-              {
-                'functionResponse': {
-                  'name': toolName,
-                  'response': {'result': msg.content ?? ''},
-                },
-              },
-            ],
+          role = 'user';
+          // 优先使用 toolName 属性，降级正则解析 callId
+          final toolName = msg.toolName ?? _extractToolName(msg.toolCallId);
+          parts.add({
+            'functionResponse': {
+              'name': toolName,
+              'response': {'result': msg.content ?? ''},
+            },
           });
           break;
 
         default:
-          break;
+          continue;
       }
+
+      // 忽略因全是 null 导致提取出空的 model Turn
+      if (parts.isEmpty && role == 'model') {
+        continue;
+      }
+
+      // 合并相邻且相同 Role 的对话块 (Gemini 强制要求交替 User/Model)
+      if (contents.isNotEmpty && contents.last['role'] == role) {
+        (contents.last['parts'] as List).addAll(parts);
+      } else {
+        contents.add({'role': role, 'parts': parts});
+      }
+    }
+
+    if (contents.isEmpty) {
+      contents.add({
+        'role': 'user',
+        'parts': [{'text': 'Hello'}],
+      });
     }
 
     return contents;

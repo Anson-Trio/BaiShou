@@ -78,6 +78,7 @@ class AgentRunner {
   Stream<AgentEvent> run({
     required List<ChatMessage> messages,
     required ToolContext context,
+    String? askId,
   }) async* {
     // messages 已由调用方包含完整上下文（含最新 userMessage）
     final messageHistory = List<ChatMessage>.from(messages);
@@ -141,6 +142,7 @@ class AgentRunner {
       final assistantMsg = ChatMessage.assistant(
         content: textBuffer.isNotEmpty ? textBuffer : null,
         toolCalls: pendingToolCalls.isNotEmpty ? pendingToolCalls : null,
+        askId: askId,
       );
       messageHistory.add(assistantMsg);
       newMessages.add(assistantMsg);
@@ -189,6 +191,7 @@ class AgentRunner {
           callId: call.id,
           content: result.output,
           toolName: call.name,
+          askId: askId,
         );
         messageHistory.add(toolMsg);
         newMessages.add(toolMsg);

@@ -44,6 +44,7 @@ class ChatMessage {
   final List<ToolCall>? toolCalls;
   final String? toolCallId;
   final String? toolName;
+  final String? askId;
   final DateTime timestamp;
 
   ChatMessage({
@@ -53,6 +54,7 @@ class ChatMessage {
     this.toolCalls,
     this.toolCallId,
     this.toolName,
+    this.askId,
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
 
@@ -74,12 +76,14 @@ class ChatMessage {
   factory ChatMessage.assistant({
     String? content,
     List<ToolCall>? toolCalls,
+    String? askId,
   }) =>
       ChatMessage(
         id: _generateId(),
         role: MessageRole.assistant,
         content: content,
         toolCalls: toolCalls,
+        askId: askId,
       );
 
   /// 创建 tool 执行结果消息
@@ -87,6 +91,7 @@ class ChatMessage {
     required String callId,
     required String content,
     String? toolName,
+    String? askId,
   }) =>
       ChatMessage(
         id: _generateId(),
@@ -94,6 +99,7 @@ class ChatMessage {
         content: content,
         toolCallId: callId,
         toolName: toolName,
+        askId: askId,
       );
 
   static const _uuid = Uuid();
@@ -106,6 +112,7 @@ class ChatMessage {
         'toolCalls': toolCalls?.map((t) => t.toMap()).toList(),
         'toolCallId': toolCallId,
         'toolName': toolName,
+        'askId': askId,
         'timestamp': timestamp.toIso8601String(),
       };
 
@@ -118,6 +125,7 @@ class ChatMessage {
             .toList(),
         toolCallId: map['toolCallId'] as String?,
         toolName: map['toolName'] as String?,
+        askId: map['askId'] as String?,
         timestamp: DateTime.parse(map['timestamp'] as String),
       );
 

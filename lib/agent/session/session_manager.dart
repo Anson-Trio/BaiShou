@@ -165,7 +165,6 @@ class SessionManager {
   }) async {
     final maxOrder = await _getMaxOrderIndex(sessionId);
 
-    // 1. 写 Message
     await _db.into(_db.agentMessages).insert(
           AgentMessagesCompanion.insert(
             id: msg.id,
@@ -174,6 +173,7 @@ class SessionManager {
             isSummary: Value(isSummary),
             providerId: Value(providerId),
             modelId: Value(modelId),
+            askId: Value(msg.askId),
             orderIndex: maxOrder + 1,
           ),
         );
@@ -216,6 +216,7 @@ class SessionManager {
               modelId: Value(
                 msg.role == MessageRole.assistant ? modelId : null,
               ),
+              askId: Value(msg.askId),
               orderIndex: order,
             ),
           );
@@ -291,6 +292,45 @@ class SessionManager {
     await (_db.delete(_db.agentMessages)
           ..where((t) => t.sessionId.equals(sessionId)))
         .go();
+  }
+
+  /// 编辑重发：删除某条用户消息及之后的所有消息（和它们的 Parts）
+  Future<void> deleteMessagesFromAndAfter(String sessionId, String messageId) async {
+    // 查找该消息的 orderIndex
+    final msg = await (_db.select(_db.agentMessages)..where((t) => t.id.equals(messageId))).getSingleOrNull();
+    if (msg == null) return;
+    final orderIdx = msg.orderIndex;
+
+    // 找到所有要删除的 messageIds
+    final msgsToDelete = await (_db.select(_db.agentMessages)
+          ..where((t) => t.sessionId.equals(sessionId) & t.orderIndex.isBiggerOrEqualValue(orderIdx)))
+        .get();
+    
+    final idsBtn = msgsToDelete.map((e) => e.id).toList();
+    if (idsBtn.isEmpty) return;
+
+    // 级联删除 FTS, Parts, Messages
+    await _db.customStatement(
+      'DELETE FROM agent_messages_fts WHERE message_id IN (${idsBtn.map((_) => '?').join(',')})',
+      idsBtn,
+    );
+    await (_db.delete(_db.agentParts)..where((t) => t.messageId.isIn(idsBtn))).go();
+    await (_db.delete(_db.agentMessages)..where((t) => t.id.isIn(idsBtn))).go();
+  }
+
+  /// 删除指定的多条消息及其关联依赖（用于重发、重新生成）
+  Future<void> deleteMessagesByIds(List<String> messageIds) async {
+    if (messageIds.isEmpty) return;
+    
+    // 清理 FTS 索引
+    await _db.customStatement(
+      'DELETE FROM agent_messages_fts WHERE message_id IN (${messageIds.map((_) => '?').join(',')})',
+      messageIds,
+    );
+    // 清理 Parts
+    await (_db.delete(_db.agentParts)..where((t) => t.messageId.isIn(messageIds))).go();
+    // 清理 Messages
+    await (_db.delete(_db.agentMessages)..where((t) => t.id.isIn(messageIds))).go();
   }
 
   // ─── FTS5 全文搜索 ──────────────────────────────────────────
@@ -451,6 +491,7 @@ class SessionManager {
       toolCalls: toolCalls,
       toolCallId: toolCallId,
       toolName: toolName,
+      askId: row.askId,
       timestamp: row.createdAt,
     );
   }
