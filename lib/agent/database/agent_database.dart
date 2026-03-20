@@ -17,12 +17,12 @@ part 'agent_database.g.dart';
 /// Agent 专属数据库
 /// 独立于主数据库（app_database），存储 Agent 的会话、消息和 Part
 /// 集成 sqlite-vec 原生向量搜索扩展
-@DriftDatabase(tables: [AgentSessions, AgentMessages, AgentParts])
+@DriftDatabase(tables: [AgentSessions, AgentMessages, AgentParts, AgentAssistants])
 class AgentDatabase extends _$AgentDatabase {
   AgentDatabase(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -38,6 +38,10 @@ class AgentDatabase extends _$AgentDatabase {
           }
           if (from < 3) {
             await m.addColumn(agentMessages, agentMessages.askId);
+          }
+          if (from < 4) {
+            await m.createTable(agentAssistants);
+            await m.addColumn(agentSessions, agentSessions.assistantId);
           }
         },
       );

@@ -26,6 +26,7 @@ class SessionManager {
     required String providerId,
     required String modelId,
     String? title,
+    String? assistantId,
   }) async {
     final id = _uuid.v4();
     await _db.into(_db.agentSessions).insert(AgentSessionsCompanion.insert(
@@ -34,6 +35,7 @@ class SessionManager {
           providerId: providerId,
           modelId: modelId,
           title: Value(title ?? t.agent.sessions.default_title),
+          assistantId: Value(assistantId),
         ));
     return id;
   }
@@ -46,6 +48,7 @@ class SessionManager {
     required String vaultName,
     required String providerId,
     required String modelId,
+    String? assistantId,
   }) async {
     await _db.into(_db.agentSessions).insert(AgentSessionsCompanion.insert(
           id: companionSessionId,
@@ -53,6 +56,7 @@ class SessionManager {
           providerId: providerId,
           modelId: modelId,
           title: Value(t.agent.sessions.companion_session_title),
+          assistantId: Value(assistantId),
         ));
   }
 

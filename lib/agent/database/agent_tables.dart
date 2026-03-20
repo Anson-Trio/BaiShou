@@ -11,6 +11,9 @@ class AgentSessions extends Table {
   /// 关联的 Vault 名称
   TextColumn get vaultName => text()();
 
+  /// 关联的助手 ID（nullable，null 表示无绑定助手）
+  TextColumn get assistantId => text().nullable()();
+
   /// 是否置顶
   BoolColumn get isPinned => boolean().withDefault(const Constant(false))();
 
@@ -102,6 +105,37 @@ class AgentParts extends Table {
 
   /// 创建时间
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// AI 助手表
+/// 用户可创建不同角色的助手，每个助手有独立的提示词、头像和上下文窗口配置
+class AgentAssistants extends Table {
+  /// 助手 ID (UUID)
+  TextColumn get id => text()();
+
+  /// 助手名称
+  TextColumn get name => text()();
+
+  /// 头像本地路径（null 表示使用默认头像）
+  TextColumn get avatarPath => text().nullable()();
+
+  /// 系统提示词
+  TextColumn get systemPrompt => text().withDefault(const Constant(''))();
+
+  /// 是否为默认助手
+  BoolColumn get isDefault => boolean().withDefault(const Constant(false))();
+
+  /// 上下文窗口大小（发送给模型的历史消息条数）
+  IntColumn get contextWindow => integer().withDefault(const Constant(20))();
+
+  /// 创建时间
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  /// 更新时间
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 
   @override
   Set<Column> get primaryKey => {id};
