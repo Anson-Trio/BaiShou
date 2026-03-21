@@ -25,7 +25,6 @@ class ApiConfigService {
   static const String _keyMonthlySummarySource = 'monthly_summary_source';
   static const String _keyAgentContextWindowSize =
       'agent_context_window_size';
-  static const String _keyAgentCompanionMode = 'agent_companion_mode';
   static const String _keyAgentPersona = 'agent_persona';
   static const String _keyAgentGuidelines = 'agent_guidelines';
   static const String _keyGlobalEmbeddingProviderId =
@@ -285,17 +284,6 @@ class ApiConfigService {
     await _prefs.setInt(_keyAgentContextWindowSize, clamped);
   }
 
-  /// 是否启用伴侣模式
-  /// 伴侣模式：无会话概念，持续交互，自动管理上下文窗口
-  /// 会话模式（默认）：传统多会话，每个会话独立
-  bool get agentCompanionMode {
-    return _prefs.getBool(_keyAgentCompanionMode) ?? false;
-  }
-
-  /// 设置伴侣模式开关
-  Future<void> setAgentCompanionMode(bool enabled) async {
-    await _prefs.setBool(_keyAgentCompanionMode, enabled);
-  }
 
   /// 深度陪伴模式：达到此 token 数时触发压缩（默认 8000）
   int get companionCompressTokens {
@@ -550,28 +538,3 @@ final apiConfigServiceProvider = Provider<ApiConfigService>((ref) {
   return ApiConfigService(prefs);
 });
 
-/// 响应式的伴侣模式状态 Notifier
-/// UI 通过 ref.watch(agentCompanionModeProvider) 实现即时刷新
-class AgentCompanionModeNotifier extends Notifier<bool> {
-  @override
-  bool build() {
-    return ref.read(apiConfigServiceProvider).agentCompanionMode;
-  }
-
-  Future<void> toggle() async {
-    final newValue = !state;
-    await ref.read(apiConfigServiceProvider).setAgentCompanionMode(newValue);
-    state = newValue;
-  }
-
-  Future<void> set(bool value) async {
-    if (state == value) return;
-    await ref.read(apiConfigServiceProvider).setAgentCompanionMode(value);
-    state = value;
-  }
-}
-
-final agentCompanionModeProvider =
-    NotifierProvider<AgentCompanionModeNotifier, bool>(
-  AgentCompanionModeNotifier.new,
-);

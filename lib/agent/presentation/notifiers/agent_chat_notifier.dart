@@ -286,50 +286,19 @@ class AgentChatNotifier extends _$AgentChatNotifier {
       return;
     }
 
-    // 创建或复用会话
-    // 伴侣模式：固定单一会话，无"新建对话"概念
-    // 会话模式：每次可新建独立会话
-    final isCompanionMode = apiConfig.agentCompanionMode;
+    // 创建新会话
     String sessionId = state.sessionId ?? '';
     bool isNewSession = false;
 
     if (sessionId.isEmpty) {
-      if (isCompanionMode) {
-        // 伴侣模式：查找或创建固定的伴侣会话
-        final sessions = await manager.getSessions();
-        final companion = sessions.where(
-          (s) => s.id == SessionManager.companionSessionId,
-        );
-        if (companion.isNotEmpty) {
-          sessionId = companion.first.id;
-          // 加载历史消息到 UI
-          final history = await manager.getMessages(sessionId);
-          state = state.copyWith(
-            sessionId: sessionId,
-            messages: history,
-          );
-        } else {
-          isNewSession = true;
-          // 用固定 ID 创建伴侣会话
-          await manager.createCompanionSession(
-            vaultName: vaultName,
-            providerId: providerId,
-            modelId: modelId,
-          );
-          sessionId = SessionManager.companionSessionId;
-          state = state.copyWith(sessionId: sessionId);
-        }
-      } else {
-        // 会话模式：正常新建
-        isNewSession = true;
-        sessionId = await manager.createSession(
+      isNewSession = true;
+      sessionId = await manager.createSession(
           vaultName: vaultName,
           providerId: providerId,
           modelId: modelId,
           assistantId: state.currentAssistantId,
         );
-        state = state.copyWith(sessionId: sessionId);
-      }
+      state = state.copyWith(sessionId: sessionId);
     }
 
     // 添加用户消息到 UI

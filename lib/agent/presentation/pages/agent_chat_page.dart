@@ -74,12 +74,6 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
       }
     });
 
-    final isCompanion = ref.watch(agentCompanionModeProvider);
-    // 模式对应的暖色/冷色
-    final modeColor = isCompanion
-        ? const Color(0xFFD97706) // amber-600
-        : theme.colorScheme.primary;
-
     // 获取当前模型名称
     final apiConfig = ref.watch(apiConfigServiceProvider);
     final currentModel = apiConfig.globalDialogueModelId;
@@ -105,13 +99,13 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  isCompanion ? Icons.favorite_rounded : Icons.smart_toy_outlined,
+                  Icons.smart_toy_outlined,
                   size: 20,
-                  color: modeColor,
+                  color: theme.colorScheme.primary,
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  isCompanion ? t.agent.chat.companion_mode : t.agent.chat.session_mode,
+                  t.agent.chat.session_mode,
                   style: TextStyle(
                     color: theme.colorScheme.onSurface,
                     fontSize: 16,
@@ -321,20 +315,6 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
           ChatInputBar(
             isLoading: chatState.isLoading,
             assistantName: assistantName,
-            isCompanionMode: isCompanion,
-            onCompanionToggle: () async {
-              final notifier = ref.read(agentCompanionModeProvider.notifier);
-              final chatNotifier = ref.read(agentChatProvider.notifier);
-              if (isCompanion) {
-                // 关闭陪伴模式 → 恢复会话模式
-                await notifier.set(false);
-                chatNotifier.clearChat();
-              } else {
-                // 开启陪伴模式 → 加载 companion session
-                await notifier.set(true);
-                chatNotifier.loadSession(SessionManager.companionSessionId);
-              }
-            },
             onAssistantTap: () async {
               final (didSelect, selected) = await AssistantPickerSheet.show(
                 context,

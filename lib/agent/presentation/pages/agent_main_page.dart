@@ -1,13 +1,11 @@
 /// Agent 主页面
 ///
 /// 侧边栏两区布局：功能选项区 + 对话历史区
-/// 陪伴模式与会话模式共享侧边栏，通过侧边栏按钮切换
 
 import 'dart:io';
 
 import 'package:baishou/agent/database/agent_database.dart';
 import 'package:baishou/agent/session/session_manager.dart';
-import 'package:baishou/core/services/api_config_service.dart';
 import 'package:baishou/agent/presentation/notifiers/agent_chat_notifier.dart';
 import 'package:baishou/agent/presentation/pages/agent_chat_page.dart';
 import 'package:baishou/features/settings/domain/services/user_profile_service.dart';
@@ -305,7 +303,6 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
                       itemBuilder: (context, index) {
                         final session = _sessions![index];
                         final isSelected = session.id == _selectedSessionId;
-                        final isCompanionSession = session.id == SessionManager.companionSessionId;
 
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 2),
@@ -316,12 +313,6 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
                             ref
                                 .read(agentChatProvider.notifier)
                                 .loadSession(session.id);
-                            // 同步 companion mode 状态
-                            if (isCompanionSession) {
-                              ref.read(agentCompanionModeProvider.notifier).set(true);
-                            } else {
-                              ref.read(agentCompanionModeProvider.notifier).set(false);
-                            }
                           },
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
@@ -338,16 +329,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
                             ),
                             child: Row(
                               children: [
-                                if (isCompanionSession)
-                                  Padding(
-                                    padding: const EdgeInsets.only(right: 6),
-                                    child: Icon(
-                                      Icons.favorite_rounded,
-                                      size: 13,
-                                      color: const Color(0xFFD97706),
-                                    ),
-                                  )
-                                else if (session.isPinned)
+                                if (session.isPinned)
                                   Padding(
                                     padding: const EdgeInsets.only(right: 6),
                                     child: Icon(
@@ -358,11 +340,9 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
                                   ),
                                 Expanded(
                                   child: Text(
-                                    isCompanionSession
-                                        ? t.agent.chat.companion_mode
-                                        : session.title.isEmpty
-                                            ? t.agent.sessions.new_chat
-                                            : session.title,
+                                    session.title.isEmpty
+                                        ? t.agent.sessions.new_chat
+                                        : session.title,
                                     style: theme.textTheme.bodyMedium
                                         ?.copyWith(
                                           fontWeight: isSelected
@@ -376,7 +356,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                if (isSelected && !isCompanionSession)
+                                if (isSelected)
                                   PopupMenuButton<String>(
                                     icon: Icon(
                                       Icons.more_horiz,

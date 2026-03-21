@@ -140,8 +140,6 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
         itemCount: _sessions!.length,
         itemBuilder: (context, index) {
           final session = _sessions![index];
-          final isCompanion =
-              session.id == SessionManager.companionSessionId;
           final totalTokens =
               session.totalInputTokens + session.totalOutputTokens;
           final cost = _formatCost(session.totalCostMicros);
@@ -149,9 +147,7 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
 
           return Dismissible(
             key: Key(session.id),
-            direction: isCompanion
-                ? DismissDirection.none // 伴侣模式不允许删除
-                : DismissDirection.endToStart,
+            direction: DismissDirection.endToStart,
             confirmDismiss: (direction) async {
               return await showDialog<bool>(
                     context: context,
@@ -184,14 +180,10 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
             ),
             child: ListTile(
               leading: CircleAvatar(
-                backgroundColor: isCompanion
-                    ? theme.colorScheme.tertiaryContainer
-                    : theme.colorScheme.primaryContainer,
+                backgroundColor: theme.colorScheme.primaryContainer,
                 child: Icon(
-                  isCompanion ? Icons.favorite_rounded : Icons.smart_toy_outlined,
-                  color: isCompanion
-                      ? theme.colorScheme.onTertiaryContainer
-                      : theme.colorScheme.onPrimaryContainer,
+                  Icons.smart_toy_outlined,
+                  color: theme.colorScheme.onPrimaryContainer,
                   size: 20,
                 ),
               ),
@@ -248,7 +240,6 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
-            final companionMode = ref.read(agentCompanionModeProvider);
             final windowSize = apiConfig.agentContextWindowSize;
             final persona = apiConfig.agentPersona;
             final guidelines = apiConfig.agentGuidelines;
@@ -285,27 +276,6 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
                         style: theme.textTheme.titleLarge,
                       ),
                       const SizedBox(height: 20),
-
-                      // 伴侣模式开关
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(t.agent.sessions.companion_switch),
-                        subtitle: Text(
-                          companionMode
-                              ? t.agent.sessions.companion_on
-                              : t.agent.sessions.companion_off,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.outline,
-                          ),
-                        ),
-                        value: companionMode,
-                        onChanged: (v) async {
-                          await ref.read(agentCompanionModeProvider.notifier).set(v);
-                          setSheetState(() {});
-                        },
-                      ),
-
-                      const Divider(),
 
                       // 上下文窗口大小
                       ListTile(

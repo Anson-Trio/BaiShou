@@ -20,10 +20,13 @@ class AssistantPickerSheet extends ConsumerWidget {
   });
 
   /// 静态方法：弹出选择器
-  static Future<AgentAssistant?> show(
+  /// 返回 (是否做出了选择, 选中的助手)
+  /// didSelect=false 表示用户关闭弹窗未操作
+  static Future<(bool, AgentAssistant?)> show(
     BuildContext context, {
     String? currentAssistantId,
   }) async {
+    bool didSelect = false;
     AgentAssistant? result;
     await showModalBottomSheet(
       context: context,
@@ -40,13 +43,14 @@ class AssistantPickerSheet extends ConsumerWidget {
           scrollController: scrollController,
           currentAssistantId: currentAssistantId,
           onSelect: (assistant) {
+            didSelect = true;
             result = assistant;
             Navigator.pop(ctx);
           },
         ),
       ),
     );
-    return result;
+    return (didSelect, result);
   }
 
   @override

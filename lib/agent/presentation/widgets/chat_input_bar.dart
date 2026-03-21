@@ -13,10 +13,6 @@ class ChatInputBar extends StatefulWidget {
   final String? assistantName;
   /// 点击助手 chip 的回调
   final VoidCallback? onAssistantTap;
-  /// 是否处于深度陪伴模式
-  final bool isCompanionMode;
-  /// 切换深度陪伴模式的回调
-  final VoidCallback? onCompanionToggle;
 
   const ChatInputBar({
     super.key,
@@ -24,8 +20,6 @@ class ChatInputBar extends StatefulWidget {
     required this.onSend,
     this.assistantName,
     this.onAssistantTap,
-    this.isCompanionMode = false,
-    this.onCompanionToggle,
   });
 
   @override
@@ -138,13 +132,6 @@ class _ChatInputBarState extends State<ChatInputBar> {
                       icon: Icons.auto_awesome_rounded,
                       label: widget.assistantName ?? t.agent.assistant.no_assistant,
                       onTap: widget.onAssistantTap ?? () {},
-                    ),
-                    const SizedBox(width: 8),
-                    _QuickActionChip(
-                      icon: Icons.favorite_rounded,
-                      label: t.agent.chat.companion_mode,
-                      isActive: widget.isCompanionMode,
-                      onTap: widget.onCompanionToggle ?? () {},
                     ),
                     const SizedBox(width: 8),
                     _QuickActionChip(
