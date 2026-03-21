@@ -111,6 +111,13 @@ class SessionManager {
         .go();
   }
 
+  /// 批量删除会话
+  Future<void> deleteSessions(List<String> ids) async {
+    for (final id in ids) {
+      await deleteSession(id);
+    }
+  }
+
   /// 更新会话关联的助手
   Future<void> updateSessionAssistant(String sessionId, String? assistantId) async {
     await (_db.update(_db.agentSessions)

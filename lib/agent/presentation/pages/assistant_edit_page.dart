@@ -4,7 +4,9 @@
 
 import 'dart:io';
 import 'package:baishou/agent/database/agent_database.dart';
+import 'package:baishou/agent/models/ai_provider_model.dart';
 import 'package:baishou/agent/presentation/notifiers/assistant_notifier.dart';
+import 'package:baishou/core/services/api_config_service.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -24,11 +26,19 @@ class AssistantEditPage extends ConsumerStatefulWidget {
 class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
   late TextEditingController _nameController;
   late TextEditingController _promptController;
+  late TextEditingController _emojiController;
+  late TextEditingController _descriptionController;
   double _contextWindow = 20;
+  double _compressThreshold = 8000;
+  double _truncateThreshold = 4000;
   bool _isDefault = false;
   String? _avatarPath;
   bool _avatarRemoved = false;
   bool _saving = false;
+
+  // 模型绑定
+  String? _selectedProviderId;
+  String? _selectedModelId;
 
   bool get _isEditing => widget.assistant != null;
 
@@ -38,15 +48,23 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
     final a = widget.assistant;
     _nameController = TextEditingController(text: a?.name ?? '');
     _promptController = TextEditingController(text: a?.systemPrompt ?? '');
+    _emojiController = TextEditingController(text: a?.emoji ?? '');
+    _descriptionController = TextEditingController(text: a?.description ?? '');
     _contextWindow = (a?.contextWindow ?? 20).toDouble();
+    _compressThreshold = (a?.compressTokenThreshold ?? 8000).toDouble();
+    _truncateThreshold = (a?.truncateTokenThreshold ?? 4000).toDouble();
     _isDefault = a?.isDefault ?? false;
     _avatarPath = a?.avatarPath;
+    _selectedProviderId = a?.providerId;
+    _selectedModelId = a?.modelId;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _promptController.dispose();
+    _emojiController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
@@ -77,7 +95,7 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── 头像 ──
+                // ── 头像 + Emoji ──
                 Center(
                   child: GestureDetector(
                     onTap: _pickAvatar,
@@ -88,8 +106,12 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
                           backgroundColor: colorScheme.surfaceContainerHighest,
                           backgroundImage: _getAvatarImage(),
                           child: _getAvatarImage() == null
-                              ? Icon(Icons.auto_awesome_rounded,
-                                  size: 40, color: colorScheme.primary)
+                              ? Text(
+                                  _emojiController.text.isNotEmpty
+                                      ? _emojiController.text
+                                      : '⭐',
+                                  style: const TextStyle(fontSize: 36),
+                                )
                               : null,
                         ),
                         Positioned(
@@ -119,19 +141,71 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
 
                 const SizedBox(height: 24),
 
-                // ── 名称 ──
-                Text(t.agent.assistant.name_label,
-                    style: theme.textTheme.titleSmall),
+                // ── Emoji ──
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 1,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Emoji', style: theme.textTheme.titleSmall),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _emojiController,
+                            decoration: InputDecoration(
+                              hintText: '⭐',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 12),
+                            ),
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      flex: 3,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(t.agent.assistant.name_label,
+                              style: theme.textTheme.titleSmall),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _nameController,
+                            decoration: InputDecoration(
+                              hintText: t.agent.assistant.name_hint,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+
+                // ── 简介 ──
+                Text('简介', style: theme.textTheme.titleSmall),
                 const SizedBox(height: 8),
                 TextField(
-                  controller: _nameController,
+                  controller: _descriptionController,
+                  maxLines: 2,
                   decoration: InputDecoration(
-                    hintText: t.agent.assistant.name_hint,
+                    hintText: '简短描述助手的用途...',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
+                    contentPadding: const EdgeInsets.all(16),
                   ),
                 ),
 
@@ -153,6 +227,11 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
                   ),
                   style: theme.textTheme.bodySmall,
                 ),
+
+                const SizedBox(height: 24),
+
+                // ── 模型绑定 ──
+                _buildModelSection(theme, colorScheme),
 
                 const SizedBox(height: 24),
 
@@ -181,6 +260,11 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     )),
+
+                const SizedBox(height: 24),
+
+                // ── 会话压缩设置 ──
+                _buildCompressionSection(theme, colorScheme),
 
                 const SizedBox(height: 16),
 
@@ -215,6 +299,207 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
           ),
         ),
       ),
+    );
+  }
+
+  /// 模型绑定区域
+  Widget _buildModelSection(ThemeData theme, ColorScheme colorScheme) {
+    final apiConfig = ref.read(apiConfigServiceProvider);
+    final providers = apiConfig.getProviders().where((p) => p.isEnabled).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('绑定模型', style: theme.textTheme.titleSmall),
+            const Spacer(),
+            if (_selectedProviderId != null)
+              TextButton(
+                onPressed: () => setState(() {
+                  _selectedProviderId = null;
+                  _selectedModelId = null;
+                }),
+                child: const Text('使用全局模型'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (_selectedProviderId == null)
+          OutlinedButton.icon(
+            onPressed: () => _showModelPicker(providers),
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('选择模型（使用全局默认）'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 48),
+            ),
+          )
+        else
+          InkWell(
+            onTap: () => _showModelPicker(providers),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: colorScheme.outline.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.smart_toy_outlined,
+                      color: colorScheme.primary, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(_selectedProviderId ?? '',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            )),
+                        Text(_selectedModelId ?? '',
+                            style: theme.textTheme.bodyMedium),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: colorScheme.outline),
+                ],
+              ),
+            ),
+          ),
+        const SizedBox(height: 4),
+        Text(
+          '绑定后，使用此助手的会话将始终使用指定模型',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 会话压缩设置区域
+  Widget _buildCompressionSection(ThemeData theme, ColorScheme colorScheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('会话压缩', style: theme.textTheme.titleSmall),
+        const SizedBox(height: 4),
+        Text(
+          '对话 token 达到阈值时自动压缩旧消息',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // 压缩阈值
+        Row(
+          children: [
+            const Text('压缩触发'),
+            const Spacer(),
+            Text('${_compressThreshold.round()} tokens',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.primary,
+                )),
+          ],
+        ),
+        Slider(
+          value: _compressThreshold,
+          min: 2000,
+          max: 32000,
+          divisions: 30,
+          label: '${_compressThreshold.round()}',
+          onChanged: (v) => setState(() {
+            _compressThreshold = v;
+            if (_truncateThreshold > _compressThreshold) {
+              _truncateThreshold = _compressThreshold;
+            }
+          }),
+        ),
+
+        // 截断阈值
+        Row(
+          children: [
+            const Text('截断旧消息'),
+            const Spacer(),
+            Text('${_truncateThreshold.round()} tokens',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.tertiary,
+                )),
+          ],
+        ),
+        Slider(
+          value: _truncateThreshold,
+          min: 1000,
+          max: _compressThreshold,
+          divisions: 30,
+          label: '${_truncateThreshold.round()}',
+          onChanged: (v) => setState(() => _truncateThreshold = v),
+        ),
+      ],
+    );
+  }
+
+  void _showModelPicker(List<AiProviderModel> providers) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          minChildSize: 0.3,
+          maxChildSize: 0.85,
+          expand: false,
+          builder: (ctx, controller) {
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text('选择模型',
+                      style: Theme.of(context).textTheme.titleLarge),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    controller: controller,
+                    itemCount: providers.length,
+                    itemBuilder: (ctx, i) {
+                      final provider = providers[i];
+                      final modelList = provider.enabledModels.isNotEmpty
+                          ? provider.enabledModels
+                          : provider.models;
+
+                      return ExpansionTile(
+                        title: Text(provider.name),
+                        children: modelList.map((modelId) {
+                          final isSelected = _selectedProviderId == provider.id &&
+                              _selectedModelId == modelId;
+                          return ListTile(
+                            title: Text(modelId),
+                            trailing: isSelected
+                                ? Icon(Icons.check_circle,
+                                    color: Theme.of(context).colorScheme.primary)
+                                : null,
+                            onTap: () {
+                              setState(() {
+                                _selectedProviderId = provider.id;
+                                _selectedModelId = modelId;
+                              });
+                              Navigator.pop(ctx);
+                            },
+                          );
+                        }).toList(),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -256,6 +541,8 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
         await service.updateAssistant(
           id: widget.assistant!.id,
           name: name,
+          emoji: _emojiController.text.trim().isEmpty ? null : _emojiController.text.trim(),
+          description: _descriptionController.text.trim(),
           systemPrompt: _promptController.text.trim(),
           avatarPath: _avatarPath != widget.assistant?.avatarPath
               ? _avatarPath
@@ -263,14 +550,25 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
           avatarRemoved: _avatarRemoved,
           contextWindow: _contextWindow.round(),
           isDefault: _isDefault,
+          providerId: _selectedProviderId,
+          modelId: _selectedModelId,
+          clearModel: _selectedProviderId == null,
+          compressTokenThreshold: _compressThreshold.round(),
+          truncateTokenThreshold: _truncateThreshold.round(),
         );
       } else {
         await service.createAssistant(
           name: name,
+          emoji: _emojiController.text.trim().isEmpty ? null : _emojiController.text.trim(),
+          description: _descriptionController.text.trim(),
           systemPrompt: _promptController.text.trim(),
           avatarPath: _avatarPath,
           contextWindow: _contextWindow.round(),
           isDefault: _isDefault,
+          providerId: _selectedProviderId,
+          modelId: _selectedModelId,
+          compressTokenThreshold: _compressThreshold.round(),
+          truncateTokenThreshold: _truncateThreshold.round(),
         );
       }
 

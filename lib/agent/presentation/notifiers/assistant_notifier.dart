@@ -45,8 +45,14 @@ class AssistantService {
     required String name,
     required String systemPrompt,
     String? avatarPath,
+    String? emoji,
+    String description = '',
     int contextWindow = 20,
     bool isDefault = false,
+    String? providerId,
+    String? modelId,
+    int compressTokenThreshold = 8000,
+    int truncateTokenThreshold = 4000,
   }) async {
     final id = _uuid.v4();
 
@@ -62,10 +68,16 @@ class AssistantService {
     await _repo.insert(AgentAssistantsCompanion.insert(
       id: id,
       name: name,
+      emoji: Value(emoji),
+      description: Value(description),
       systemPrompt: Value(systemPrompt),
       avatarPath: Value(savedAvatarPath),
       contextWindow: Value(contextWindow),
       isDefault: Value(isDefault),
+      providerId: Value(providerId),
+      modelId: Value(modelId),
+      compressTokenThreshold: Value(compressTokenThreshold),
+      truncateTokenThreshold: Value(truncateTokenThreshold),
     ));
 
     return id;
@@ -78,8 +90,15 @@ class AssistantService {
     String? systemPrompt,
     String? avatarPath,
     bool? avatarRemoved,
+    String? emoji,
+    String? description,
     int? contextWindow,
     bool? isDefault,
+    String? providerId,
+    String? modelId,
+    int? compressTokenThreshold,
+    int? truncateTokenThreshold,
+    bool clearModel = false,
   }) async {
     if (isDefault == true) {
       await _repo.clearDefault();
@@ -98,12 +117,18 @@ class AssistantService {
     await _repo.updateAssistant(AgentAssistantsCompanion(
       id: Value(id),
       name: name != null ? Value(name) : const Value.absent(),
+      emoji: emoji != null ? Value(emoji) : const Value.absent(),
+      description: description != null ? Value(description) : const Value.absent(),
       systemPrompt: systemPrompt != null ? Value(systemPrompt) : const Value.absent(),
       avatarPath: avatarRemoved == true
           ? const Value(null)
           : (savedAvatarPath != null ? Value(savedAvatarPath) : const Value.absent()),
       contextWindow: contextWindow != null ? Value(contextWindow) : const Value.absent(),
       isDefault: isDefault != null ? Value(isDefault) : const Value.absent(),
+      providerId: clearModel ? const Value(null) : (providerId != null ? Value(providerId) : const Value.absent()),
+      modelId: clearModel ? const Value(null) : (modelId != null ? Value(modelId) : const Value.absent()),
+      compressTokenThreshold: compressTokenThreshold != null ? Value(compressTokenThreshold) : const Value.absent(),
+      truncateTokenThreshold: truncateTokenThreshold != null ? Value(truncateTokenThreshold) : const Value.absent(),
       updatedAt: Value(DateTime.now()),
     ));
   }

@@ -22,7 +22,7 @@ class AgentDatabase extends _$AgentDatabase {
   AgentDatabase(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -42,6 +42,15 @@ class AgentDatabase extends _$AgentDatabase {
           if (from < 4) {
             await m.createTable(agentAssistants);
             await m.addColumn(agentSessions, agentSessions.assistantId);
+          }
+          if (from < 5) {
+            // 助手增强：emoji、description、模型绑定、会话压缩
+            await m.addColumn(agentAssistants, agentAssistants.emoji);
+            await m.addColumn(agentAssistants, agentAssistants.description);
+            await m.addColumn(agentAssistants, agentAssistants.providerId);
+            await m.addColumn(agentAssistants, agentAssistants.modelId);
+            await m.addColumn(agentAssistants, agentAssistants.compressTokenThreshold);
+            await m.addColumn(agentAssistants, agentAssistants.truncateTokenThreshold);
           }
         },
       );

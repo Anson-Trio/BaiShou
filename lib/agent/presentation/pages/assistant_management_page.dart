@@ -116,8 +116,10 @@ class _AssistantCard extends StatelessWidget {
                 backgroundColor: colorScheme.surfaceContainerHighest,
                 backgroundImage: _getAvatar(),
                 child: _getAvatar() == null
-                    ? Icon(Icons.auto_awesome_rounded,
-                        size: 24, color: colorScheme.primary)
+                    ? Text(
+                        assistant.emoji ?? '⭐',
+                        style: const TextStyle(fontSize: 20),
+                      )
                     : null,
               ),
               const SizedBox(width: 16),
@@ -156,9 +158,11 @@ class _AssistantCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      assistant.systemPrompt.isEmpty
-                          ? t.agent.assistant.no_prompt
-                          : assistant.systemPrompt,
+                      assistant.description.isNotEmpty
+                          ? assistant.description
+                          : (assistant.systemPrompt.isEmpty
+                              ? t.agent.assistant.no_prompt
+                              : assistant.systemPrompt),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
@@ -166,11 +170,30 @@ class _AssistantCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      '${t.agent.assistant.context_window_label}: ${assistant.contextWindow}',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: colorScheme.outline,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          '${t.agent.assistant.context_window_label}: ${assistant.contextWindow}',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: colorScheme.outline,
+                          ),
+                        ),
+                        if (assistant.modelId != null) ...[
+                          const SizedBox(width: 8),
+                          Icon(Icons.smart_toy_outlined, size: 12, color: colorScheme.outline),
+                          const SizedBox(width: 2),
+                          Expanded(
+                            child: Text(
+                              assistant.modelId!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: colorScheme.outline,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),

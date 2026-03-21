@@ -26,6 +26,10 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
   bool _isLoading = true;
   String? _selectedSessionId;
 
+  // 批量删除
+  bool _isMultiSelect = false;
+  final Set<String> _selectedIds = {};
+
   @override
   void initState() {
     super.initState();
@@ -272,17 +276,40 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
 
             const SizedBox(height: 8),
 
-            // ─── 对话历史区 ───
+            // ─── 对话历史区标题 ───
             Padding(
               padding:
                   const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Text(
-                '最近对话',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.outline,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
+              child: Row(
+                children: [
+                  Text(
+                    '最近对话',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.outline,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (_sessions != null && _sessions!.isNotEmpty)
+                    InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () => setState(() {
+                        _isMultiSelect = !_isMultiSelect;
+                        _selectedIds.clear();
+                      }),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(
+                          _isMultiSelect ? Icons.close : Icons.checklist_rounded,
+                          size: 16,
+                          color: _isMultiSelect
+                              ? theme.colorScheme.error
+                              : theme.colorScheme.outline,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
 
@@ -330,6 +357,20 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
                             ),
                             child: Row(
                               children: [
+                                // 多选 checkbox
+                                if (_isMultiSelect)
+                                  Checkbox(
+                                    value: _selectedIds.contains(session.id),
+                                    onChanged: (v) => setState(() {
+                                      if (v == true) {
+                                        _selectedIds.add(session.id);
+                                      } else {
+                                        _selectedIds.remove(session.id);
+                                      }
+                                    }),
+                                    visualDensity: VisualDensity.compact,
+                                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
                                 if (session.isPinned)
                                   Padding(
                                     padding: const EdgeInsets.only(right: 6),
@@ -445,6 +486,83 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
                     },
                   ),
             ),
+
+            // ─── 批量删除操作栏 ───
+            if (_isMultiSelect && _sessions != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(
+                      color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                    ),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    TextButton(
+                      onPressed: () => setState(() {
+                        if (_selectedIds.length == _sessions!.length) {
+                          _selectedIds.clear();
+                        } else {
+                          _selectedIds.addAll(_sessions!.map((s) => s.id));
+                        }
+                      }),
+                      child: Text(
+                        _selectedIds.length == _sessions!.length ? '取消全选' : '全选',
+                      ),
+                    ),
+                    const Spacer(),
+                    FilledButton.icon(
+                      onPressed: _selectedIds.isEmpty ? null : () async {
+                        final count = _selectedIds.length;
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: Text(t.agent.sessions.delete_title),
+                            content: Text('确定删除 $count 个对话？此操作不可撤销。'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: Text(t.common.cancel),
+                              ),
+                              FilledButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: theme.colorScheme.error,
+                                ),
+                                child: Text('删除 ($count)'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm == true) {
+                          await ref.read(sessionManagerProvider).deleteSessions(
+                            _selectedIds.toList(),
+                          );
+                          if (_selectedIds.contains(_selectedSessionId)) {
+                            _selectedSessionId = null;
+                            ref.read(agentChatProvider.notifier).clearChat();
+                          }
+                          _selectedIds.clear();
+                          _isMultiSelect = false;
+                          _loadSessions();
+                        }
+                      },
+                      icon: const Icon(Icons.delete_outline, size: 16),
+                      label: Text('删除 (${_selectedIds.length})'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _selectedIds.isEmpty
+                            ? theme.colorScheme.surfaceContainerHighest
+                            : theme.colorScheme.error,
+                        foregroundColor: _selectedIds.isEmpty
+                            ? theme.colorScheme.onSurfaceVariant
+                            : theme.colorScheme.onError,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
             // ─── 底部用户卡片 ───
             Container(

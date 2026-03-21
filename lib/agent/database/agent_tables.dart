@@ -119,6 +119,12 @@ class AgentAssistants extends Table {
   /// 助手名称
   TextColumn get name => text()();
 
+  /// 表情符号（用于侧栏展示，null 时使用默认图标）
+  TextColumn get emoji => text().nullable()();
+
+  /// 助手简介
+  TextColumn get description => text().withDefault(const Constant(''))();
+
   /// 头像本地路径（null 表示使用默认头像）
   TextColumn get avatarPath => text().nullable()();
 
@@ -130,6 +136,20 @@ class AgentAssistants extends Table {
 
   /// 上下文窗口大小（发送给模型的历史消息条数）
   IntColumn get contextWindow => integer().withDefault(const Constant(20))();
+
+  /// 绑定的供应商 ID（null 时使用全局模型）
+  TextColumn get providerId => text().nullable()();
+
+  /// 绑定的模型 ID（null 时使用全局模型）
+  TextColumn get modelId => text().nullable()();
+
+  /// 会话压缩阈值：对话达到此 token 数时触发压缩（默认 8000）
+  IntColumn get compressTokenThreshold =>
+      integer().withDefault(const Constant(8000))();
+
+  /// 截断阈值：压缩时截断此 token 数以前的内容（默认 4000）
+  IntColumn get truncateTokenThreshold =>
+      integer().withDefault(const Constant(4000))();
 
   /// 创建时间
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
