@@ -70,13 +70,14 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
     } catch (_) {}
   }
 
-  Future<void> _deleteSession(String id) async {
+  Future<void> _deleteSession(String id, String title) async {
+    final displayTitle = title.isEmpty ? t.agent.sessions.new_chat : title;
     final act = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(t.agent.sessions.delete_title),
         content: Text(
-          t.agent.sessions.delete_confirm.replaceAll('{title}', ''),
+          t.agent.sessions.delete_confirm.replaceAll('{title}', displayTitle),
         ),
         actions: [
           TextButton(
@@ -380,7 +381,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
                                           session.title,
                                         );
                                       } else if (action == 'delete') {
-                                        _deleteSession(session.id);
+                                        _deleteSession(session.id, session.title);
                                       }
                                     },
                                     itemBuilder: (context) => [
