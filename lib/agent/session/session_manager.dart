@@ -50,6 +50,46 @@ class SessionManager {
         .get();
   }
 
+  /// 获取指定助手的会话列表
+  Future<List<AgentSession>> getSessionsByAssistant(String assistantId) async {
+    return (_db.select(_db.agentSessions)
+          ..where((t) => t.assistantId.equals(assistantId))
+          ..orderBy([
+            (t) => OrderingTerm.desc(t.isPinned),
+            (t) => OrderingTerm.desc(t.updatedAt),
+          ]))
+        .get();
+  }
+
+  /// 获取指定助手的会话数量
+  Future<int> getSessionCountByAssistant(String assistantId) async {
+    final count = await (_db.selectOnly(_db.agentSessions)
+          ..addColumns([_db.agentSessions.id.count()])
+          ..where(_db.agentSessions.assistantId.equals(assistantId)))
+        .getSingle();
+    return count.read(_db.agentSessions.id.count()) ?? 0;
+  }
+
+  /// 获取每个助手的会话数量（批量）
+  Future<Map<String, int>> getSessionCountsByAssistant() async {
+    final results = await _db.customSelect(
+      'SELECT assistant_id, COUNT(*) AS cnt FROM agent_sessions WHERE assistant_id IS NOT NULL GROUP BY assistant_id',
+    ).get();
+    return {
+      for (final row in results)
+        row.read<String>('assistant_id'): row.read<int>('cnt'),
+    };
+  }
+
+  /// 获取指定助手最近 N 条会话标题
+  Future<List<AgentSession>> getRecentSessionsByAssistant(String assistantId, {int limit = 5}) async {
+    return (_db.select(_db.agentSessions)
+          ..where((t) => t.assistantId.equals(assistantId))
+          ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])
+          ..limit(limit))
+        .get();
+  }
+
   /// 获取单个会话
   Future<AgentSession?> getSession(String id) async {
     return (_db.select(_db.agentSessions)

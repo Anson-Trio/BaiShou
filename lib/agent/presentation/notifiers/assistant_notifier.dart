@@ -133,13 +133,44 @@ class AssistantService {
     ));
   }
 
-  /// 删除助手
+  /// 删除助手（不允许删除最后一个）
   Future<void> deleteAssistant(String id) async {
+    final all = await _repo.getAll();
+    if (all.length <= 1) {
+      throw Exception('至少保留一个助手');
+    }
     final existing = await _repo.get(id);
     if (existing?.avatarPath != null) {
       try { await File(existing!.avatarPath!).delete(); } catch (_) {}
     }
     await _repo.deleteById(id);
+    // 如果删的是默认，把第一个设为默认
+    if (existing?.isDefault == true) {
+      final remaining = await _repo.getAll();
+      if (remaining.isNotEmpty) {
+        await _repo.setDefault(remaining.first.id);
+      }
+    }
+  }
+
+  /// 确保至少有一个助手（首次启动时调用）
+  Future<AgentAssistant> ensureDefaultAssistant() async {
+    final existing = await _repo.getDefault();
+    if (existing != null) return existing;
+    final all = await _repo.getAll();
+    if (all.isNotEmpty) {
+      await _repo.setDefault(all.first.id);
+      return all.first;
+    }
+    // 创建默认助手
+    final id = await createAssistant(
+      name: '默认助手',
+      emoji: '⭐',
+      description: '通用 AI 助手',
+      systemPrompt: '',
+      isDefault: true,
+    );
+    return (await _repo.get(id))!;
   }
 
   /// 设置默认助手

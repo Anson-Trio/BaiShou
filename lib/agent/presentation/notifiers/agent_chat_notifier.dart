@@ -681,4 +681,11 @@ class AgentChatNotifier extends _$AgentChatNotifier {
     }
     state = const AgentChatState();
   }
+
+  /// 设置当前助手 ID（用于新建对话时绑定）
+  void setCurrentAssistantId(String assistantId) {
+    state = state.copyWith(
+      currentAssistantId: () => assistantId,
+    );
+  }
 }
