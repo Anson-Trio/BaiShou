@@ -11,6 +11,7 @@ import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:baishou/features/settings/presentation/pages/views/rag_memory_widgets.dart';
 
 class RagMemoryView extends ConsumerStatefulWidget {
   const RagMemoryView({super.key});
@@ -516,14 +517,14 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
               runSpacing: 8,
               children: [
                 // 清空当前维度
-                _ActionChip(
+                RagActionChip(
                   icon: Icons.layers_clear,
                   label: t.agent.rag.action_clear_dimension,
                   color: colorScheme.error,
                   onTap: _clearCurrentDimension,
                 ),
                 // 全量嵌入日记
-                _ActionChip(
+                RagActionChip(
                   icon: Icons.auto_stories,
                   label: _isBatchEmbedding
                       ? t.agent.rag.batch_embed_progress(progress: _batchProgress.toString(), total: _batchTotal.toString())
@@ -533,7 +534,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
                   isLoading: _isBatchEmbedding,
                 ),
                 // 手动添加记忆
-                _ActionChip(
+                RagActionChip(
                   icon: Icons.add_comment_outlined,
                   label: t.agent.rag.action_add_memory,
                   color: colorScheme.tertiary,
@@ -618,20 +619,20 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
       spacing: 16,
       runSpacing: 8,
       children: [
-        _StatChip(
+        RagStatChip(
           icon: Icons.layers_outlined,
           label: t.agent.rag.stat_total,
           value: '$totalCount',
           color: colorScheme.primary,
         ),
-        _StatChip(
+        RagStatChip(
           icon: Icons.model_training_outlined,
           label: t.agent.rag.stat_model,
           value: modelDisplay,
           color: colorScheme.tertiary,
         ),
         if (dimension > 0 || configDimension > 0)
-          _StatChip(
+          RagStatChip(
             icon: Icons.straighten_outlined,
             label: t.agent.rag.stat_dimension,
             value: '${dimension > 0 ? dimension : configDimension}',
@@ -771,158 +772,17 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
         final model = entry['model_id'] as String? ?? '';
         final embeddingId = entry['embedding_id'] as String? ?? '';
         final createdAt = entry['created_at'] as int?;
+        final dateFormat = DateFormat('MM/dd HH:mm');
         final timeStr = createdAt != null
             ? dateFormat.format(DateTime.fromMillisecondsSinceEpoch(createdAt))
             : '';
-
-        return Card(
-          margin: const EdgeInsets.symmetric(vertical: 3),
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-            side: BorderSide(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.4),
-            ),
-          ),
-          color: colorScheme.surfaceContainerLow,
-          child: ListTile(
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            leading: Icon(
-              Icons.data_object_rounded,
-              size: 18,
-              color: colorScheme.primary.withValues(alpha: 0.6),
-            ),
-            title: Text(
-              text.length > 200 ? '${text.substring(0, 200)}...' : text,
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-              style: textTheme.bodySmall?.copyWith(
-                height: 1.4,
-              ),
-            ),
-            subtitle: Text(
-              '$model · $timeStr',
-              style: textTheme.labelSmall?.copyWith(
-                color: colorScheme.outline,
-              ),
-            ),
-            trailing: IconButton(
-              icon: Icon(Icons.delete_outline, size: 18, color: colorScheme.error),
-              onPressed: () => _deleteEntry(embeddingId),
-              tooltip: t.agent.rag.delete_tooltip,
-            ),
-            onTap: () => _showFullContent(text, model, timeStr),
-          ),
+        return MemoryEntryCard(
+          entry: entry,
+          onDelete: () => _deleteEntry(embeddingId),
+          onTap: () => _showFullContent(text, model, timeStr),
         );
       },
     );
   }
 }
 
-// ─── 统计指标 chip ──────────────────────────────────────────
-
-class _StatChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color color;
-
-  const _StatChip({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
-          Text(
-            '$label: ',
-            style: TextStyle(
-              fontSize: 12,
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 操作按钮 Chip
-class _ActionChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback? onTap;
-  final bool isLoading;
-
-  const _ActionChip({
-    required this.icon,
-    required this.label,
-    required this.color,
-    this.onTap,
-    this.isLoading = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: MouseRegion(
-        cursor: onTap != null ? SystemMouseCursors.click : SystemMouseCursors.basic,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: color.withValues(alpha: 0.25)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (isLoading)
-                SizedBox(
-                  width: 14, height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: color),
-                )
-              else
-                Icon(icon, size: 14, color: color),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
