@@ -148,7 +148,7 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
                   child: Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
-                      '点击选 emoji · 长按选图片',
+                      t.agent.assistant.avatar_hint,
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: colorScheme.outline,
                       ),
@@ -191,13 +191,13 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
                 const SizedBox(height: 16),
 
                 // ── 简介 ──
-                Text('简介', style: theme.textTheme.titleSmall),
+                Text(t.agent.assistant.description_label, style: theme.textTheme.titleSmall),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _descriptionController,
                   maxLines: 2,
                   decoration: InputDecoration(
-                    hintText: '简短描述伙伴的用途...',
+                    hintText: t.agent.assistant.description_hint,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -299,7 +299,7 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
               ),
             const SizedBox(width: 4),
             Text(
-              _isUnlimitedContext ? '∞ 无限' : '有限',
+              _isUnlimitedContext ? t.agent.assistant.context_unlimited : t.agent.assistant.context_limited,
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(width: 4),
@@ -322,7 +322,7 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
           ),
         Text(
           _isUnlimitedContext
-              ? '将发送所有历史消息给模型'
+              ? t.agent.assistant.context_unlimited_desc
               : t.agent.assistant.context_window_desc,
           style: theme.textTheme.bodySmall?.copyWith(
             color: colorScheme.onSurfaceVariant,
@@ -345,7 +345,7 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
       children: [
         Row(
           children: [
-            Text('绑定模型', style: theme.textTheme.titleSmall),
+            Text(t.agent.assistant.bind_model_label, style: theme.textTheme.titleSmall),
             const Spacer(),
             if (_selectedProviderId != null)
               TextButton(
@@ -353,7 +353,7 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
                   _selectedProviderId = null;
                   _selectedModelId = null;
                 }),
-                child: const Text('使用全局模型'),
+                child: Text(t.agent.assistant.use_global_model),
               ),
           ],
         ),
@@ -362,7 +362,7 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
           OutlinedButton.icon(
             onPressed: () => _showModelPicker(providers),
             icon: const Icon(Icons.add, size: 18),
-            label: const Text('选择模型（使用全局默认）'),
+            label: Text(t.agent.assistant.select_model_label),
             style: OutlinedButton.styleFrom(
               minimumSize: const Size(double.infinity, 48),
             ),
@@ -411,7 +411,7 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
           ),
         const SizedBox(height: 4),
         Text(
-          '绑定后，使用此伙伴的会话将始终使用指定模型',
+          t.agent.assistant.bind_model_desc,
           style: theme.textTheme.bodySmall?.copyWith(
             color: colorScheme.onSurfaceVariant,
           ),
@@ -427,7 +427,7 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
       children: [
         Row(
           children: [
-            Text('自动压缩', style: theme.textTheme.titleSmall),
+            Text(t.agent.assistant.compress_label, style: theme.textTheme.titleSmall),
             const Spacer(),
             if (!_isCompressDisabled)
               Text(
@@ -447,7 +447,7 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
           ],
         ),
         Text(
-          _isCompressDisabled ? '对话不会自动压缩，所有消息将完整保留' : '对话超过阈值时自动将旧消息压缩为摘要',
+          _isCompressDisabled ? t.agent.assistant.compress_disabled_desc : t.agent.assistant.compress_enabled_desc,
           style: theme.textTheme.bodySmall?.copyWith(
             color: colorScheme.onSurfaceVariant,
           ),
@@ -467,10 +467,10 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
           const SizedBox(height: 16),
           Row(
             children: [
-              Text('保留互动轮数', style: theme.textTheme.titleSmall),
+              Text(t.agent.assistant.compress_keep_turns_label, style: theme.textTheme.titleSmall),
               const Spacer(),
               Text(
-                '${_compressKeepTurns.round()} 轮',
+                t.agent.assistant.compress_keep_turns_unit(count: _compressKeepTurns.round()),
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: colorScheme.primary,
@@ -479,7 +479,7 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
             ],
           ),
           Text(
-            '当触发压缩时，对话末尾最近几次互动将会作为原文幸存（一轮包含一问一答），其余则被缩减为摘要',
+            t.agent.assistant.compress_keep_turns_desc,
             style: theme.textTheme.bodySmall?.copyWith(
               color: colorScheme.onSurfaceVariant,
             ),
@@ -523,7 +523,7 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Text(
-                    '选择模型',
+                    t.agent.assistant.select_model_title,
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),

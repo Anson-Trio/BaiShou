@@ -2,6 +2,7 @@
 ///
 /// 封装 emoji_picker_flutter，提供统一的 emoji 选择体验
 
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 
@@ -56,7 +57,7 @@ Future<String?> showEmojiPickerDialog(BuildContext context) {
                   ),
                   searchViewConfig: SearchViewConfig(
                     backgroundColor: Theme.of(ctx).colorScheme.surface,
-                    hintText: '搜索 Emoji...',
+                    hintText: Translations.of(ctx).agent.chat.search_emoji,
                   ),
                 ),
               ),

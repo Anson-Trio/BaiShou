@@ -1,4 +1,4 @@
-﻿/// Agent 主页面
+/// Agent 主页面
 ///
 /// 侧边栏两区布局：功能选项区 + 对话历史区
 
@@ -205,7 +205,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
                 children: [
                   Row(
                     children: [
-                      Text('选择伙伴', style: Theme.of(ctx).textTheme.titleLarge),
+                      Text(t.agent.chat.select_partner, style: Theme.of(ctx).textTheme.titleLarge),
                       const Spacer(),
                       TextButton(
                         onPressed: () {
@@ -217,7 +217,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
                             ),
                           ).then((_) => _refreshCurrentAssistant());
                         },
-                        child: const Text('管理'),
+                        child: Text(t.agent.chat.manage),
                       ),
                     ],
                   ),
@@ -464,7 +464,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
               child: Row(
                 children: [
                   Text(
-                    '最近对话',
+                    t.agent.chat.recent_chats,
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: theme.colorScheme.outline,
                       fontWeight: FontWeight.w600,
@@ -702,8 +702,8 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
                       }),
                       child: Text(
                         _selectedIds.length == _sessions!.length
-                            ? '取消全选'
-                            : '全选',
+                            ? t.agent.chat.deselect_all
+                            : t.agent.chat.select_all,
                       ),
                     ),
                     const Spacer(),
@@ -716,7 +716,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
                                 context: context,
                                 builder: (ctx) => AlertDialog(
                                   title: Text(t.agent.sessions.delete_title),
-                                  content: Text('确定删除 $count 个对话？此操作不可撤销。'),
+                                  content: Text(t.agent.chat.delete_confirm_multi(count: count)),
                                   actions: [
                                     TextButton(
                                       onPressed: () =>
@@ -729,7 +729,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
                                         backgroundColor:
                                             theme.colorScheme.error,
                                       ),
-                                      child: Text('删除 ($count)'),
+                                      child: Text(t.agent.chat.delete_count(count: count)),
                                     ),
                                   ],
                                 ),
@@ -750,7 +750,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
                               }
                             },
                       icon: const Icon(Icons.delete_outline, size: 16),
-                      label: Text('删除 (${_selectedIds.length})'),
+                      label: Text(t.agent.chat.delete_count(count: _selectedIds.length)),
                       style: FilledButton.styleFrom(
                         backgroundColor: _selectedIds.isEmpty
                             ? theme.colorScheme.surfaceContainerHighest
@@ -984,7 +984,7 @@ class _AssistantSwitcherListState extends State<_AssistantSwitcherList> {
                             ),
                           ),
                           Text(
-                            '$count 个对话${assistant.description.isNotEmpty ? ' · ${assistant.description}' : ''}',
+                            '${t.agent.chat.chat_count(count: count)}${assistant.description.isNotEmpty ? ' · ${assistant.description}' : ''}',
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: colorScheme.onSurfaceVariant,
                             ),
@@ -1054,7 +1054,7 @@ class _AssistantSwitcherListState extends State<_AssistantSwitcherList> {
                                 Expanded(
                                   child: Text(
                                     session.title.isEmpty
-                                        ? '新对话'
+                                        ? t.agent.chat.new_chat_label
                                         : session.title,
                                     style: theme.textTheme.labelSmall?.copyWith(
                                       color: colorScheme.onSurfaceVariant,

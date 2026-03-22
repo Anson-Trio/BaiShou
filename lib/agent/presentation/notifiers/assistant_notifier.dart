@@ -5,6 +5,7 @@
 import 'dart:io';
 import 'package:baishou/agent/database/agent_database.dart';
 import 'package:baishou/agent/session/assistant_repository.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -159,7 +160,7 @@ class AssistantService {
   Future<void> deleteAssistant(String id) async {
     final all = await _repo.getAll();
     if (all.length <= 1) {
-      throw Exception('至少保留一个伙伴');
+      throw Exception(t.agent.assistant.keep_one_error);
     }
     final existing = await _repo.get(id);
     if (existing?.avatarPath != null) {
@@ -188,9 +189,9 @@ class AssistantService {
     }
     // 创建默认伙伴
     final id = await createAssistant(
-      name: '默认伙伴',
+      name: t.agent.assistant.default_assistant_name,
       emoji: '⭐',
-      description: '通用 AI 伙伴',
+      description: t.agent.assistant.default_assistant_desc,
       systemPrompt: '',
       isDefault: true,
     );

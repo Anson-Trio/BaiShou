@@ -1107,16 +1107,16 @@ class _ContextChainDialog extends StatelessWidget {
     required this.contextMessages,
   });
 
-  String _roleLabel(MessageRole role) {
+  String _roleLabel(Translations t, MessageRole role) {
     switch (role) {
       case MessageRole.system:
-        return '📋 系统';
+        return t.agent.chat.role_system;
       case MessageRole.user:
-        return '👤 用户';
+        return t.agent.chat.role_user;
       case MessageRole.assistant:
-        return '🤖 助手';
+        return t.agent.chat.role_assistant;
       case MessageRole.tool:
-        return '🔧 工具';
+        return t.agent.chat.role_tool;
     }
   }
 
@@ -1133,13 +1133,13 @@ class _ContextChainDialog extends StatelessWidget {
     }
   }
 
-  String _preview(ChatMessage msg) {
+  String _preview(Translations t, ChatMessage msg) {
     final content = msg.content ?? '';
     if (content.isEmpty) {
       if (msg.toolCalls != null && msg.toolCalls!.isNotEmpty) {
-        return '→ ${msg.toolCalls!.map((t) => t.name).join(', ')}';
+        return '→ ${msg.toolCalls!.map((tc) => tc.name).join(', ')}';
       }
-      return '(空)';
+      return t.agent.chat.empty_content;
     }
     final cleaned = content.replaceAll(RegExp(r'\s+'), ' ').trim();
     if (cleaned.length <= 80) return cleaned;
@@ -1154,6 +1154,7 @@ class _ContextChainDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final t = Translations.of(context);
     final input = message.inputTokens ?? 0;
     final output = message.outputTokens ?? 0;
     final cost = message.cost;
@@ -1210,7 +1211,7 @@ class _ContextChainDialog extends StatelessWidget {
                 ],
               ),
             ),
-            // Token/费用信息
+            // Token/费用信息（本轮）
             if (input > 0 || output > 0)
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
@@ -1218,20 +1219,20 @@ class _ContextChainDialog extends StatelessWidget {
                   children: [
                     _InfoChip(
                       icon: Icons.arrow_upward_rounded,
-                      label: '输入 ${_formatTokens(input)}',
+                      label: '${t.agent.chat.round_input} ${_formatTokens(input)}',
                       theme: theme,
                     ),
                     const SizedBox(width: 8),
                     _InfoChip(
                       icon: Icons.arrow_downward_rounded,
-                      label: '输出 ${_formatTokens(output)}',
+                      label: '${t.agent.chat.round_output} ${_formatTokens(output)}',
                       theme: theme,
                     ),
                     if (cost != null && cost > 0) ...[
                       const SizedBox(width: 8),
                       _InfoChip(
                         icon: Icons.attach_money_rounded,
-                        label: cost.toStringAsFixed(6),
+                        label: '${t.agent.chat.round_cost} ${cost.toStringAsFixed(6)}',
                         theme: theme,
                       ),
                     ],
@@ -1289,7 +1290,7 @@ class _ContextChainDialog extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
-                                _roleLabel(msg.role),
+                                _roleLabel(t, msg.role),
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   color: roleColor,
                                   fontSize: 10,
@@ -1301,7 +1302,7 @@ class _ContextChainDialog extends StatelessWidget {
                             // 内容预览
                             Expanded(
                               child: Text(
-                                _preview(msg),
+                                _preview(t, msg),
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: theme.colorScheme.onSurfaceVariant,
                                   fontSize: 11,
@@ -1366,7 +1367,7 @@ class _ContextChainDialog extends StatelessWidget {
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        _roleLabel(msg.role),
+                        _roleLabel(t, msg.role),
                         style: theme.textTheme.labelMedium?.copyWith(
                           color: roleColor,
                           fontWeight: FontWeight.w600,
@@ -1397,7 +1398,7 @@ class _ContextChainDialog extends StatelessWidget {
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: SelectableText(
-                    msg.content ?? '(无内容)',
+                    msg.content ?? t.agent.chat.no_content,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       height: 1.6,
                     ),
