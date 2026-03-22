@@ -8,8 +8,10 @@ import 'package:baishou/agent/session/session_manager.dart';
 import 'package:baishou/agent/presentation/notifiers/agent_chat_notifier.dart';
 import 'package:baishou/agent/presentation/notifiers/assistant_notifier.dart';
 import 'package:baishou/agent/presentation/widgets/assistant_picker_sheet.dart';
+import 'package:baishou/agent/presentation/widgets/chat_cost_dialog.dart';
 import 'package:baishou/agent/presentation/widgets/chat_input_bar.dart';
 import 'package:baishou/agent/presentation/widgets/chat_message_bubble.dart';
+import 'package:baishou/agent/presentation/widgets/streaming_bubble.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -147,72 +149,7 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
               child: Center(
                 child: InkWell(
                   borderRadius: BorderRadius.circular(6),
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: Text(t.agent.chat.cost_detail_title),
-                        content: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // ── 累计统计 ──
-                            Text(
-                              t.agent.chat.cost_cumulative_title,
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            _CostRow(
-                              label: t.agent.chat.cost_cumulative_total,
-                              value:
-                                  '\$${(chatState.totalCostMicros / 1000000).toStringAsFixed(6)}',
-                            ),
-                            _CostRow(
-                              label: t.agent.chat.cost_cumulative_input,
-                              value:
-                                  '${chatState.totalInputTokens} ${t.agent.chat.tokens_unit}',
-                            ),
-                            _CostRow(
-                              label: t.agent.chat.cost_cumulative_output,
-                              value:
-                                  '${chatState.totalOutputTokens} ${t.agent.chat.tokens_unit}',
-                            ),
-                            const Divider(height: 24),
-                            // ── 当前上下文 ──
-                            Text(
-                              t.agent.chat.cost_context_title,
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            _CostRow(
-                              label: t.agent.chat.cost_context_size,
-                              value: chatState.lastInputTokens > 0
-                                  ? '${chatState.lastInputTokens} ${t.agent.chat.tokens_unit}'
-                                  : t.agent.chat.cost_no_data,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              t.agent.chat.cost_disclaimer,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx),
-                            child: Text(t.common.confirm),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
+                  onTap: () => showCostDetailDialog(context, chatState),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
@@ -694,29 +631,3 @@ class _ToolGroup {
   const _ToolGroup(this.messages);
 }
 
-/// 费用详情弹窗中的 label-value 行
-class _CostRow extends StatelessWidget {
-  final String label;
-  final String value;
-  const _CostRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: Theme.of(context).textTheme.bodyMedium),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              fontFamily: 'RobotoMono',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

@@ -10,6 +10,7 @@ import 'package:baishou/agent/presentation/notifiers/agent_chat_notifier.dart';
 import 'package:baishou/agent/presentation/notifiers/assistant_notifier.dart';
 import 'package:baishou/agent/presentation/pages/agent_chat_page.dart';
 import 'package:baishou/agent/presentation/widgets/assistant_picker_sheet.dart';
+import 'package:baishou/agent/presentation/widgets/session_list_tile.dart';
 import 'package:baishou/features/settings/domain/services/user_profile_service.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
@@ -383,11 +384,10 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
             const SizedBox(height: 4),
 
             // ─── 功能选项区 ───
-            _SidebarMenuItem(
+            SidebarMenuItem(
               icon: Icons.settings_rounded,
               label: t.settings.title,
               isSelected: false,
-              theme: theme,
               onTap: () => context.push('/settings'),
             ),
 
@@ -450,159 +450,41 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
                         final session = _sessions![index];
                         final isSelected = session.id == _selectedSessionId;
 
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 2),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(10),
-                            onTap: () {
-                              setState(() => _selectedSessionId = session.id);
-                              ref
-                                  .read(agentChatProvider.notifier)
-                                  .loadSession(session.id);
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? theme.colorScheme.primaryContainer
-                                          .withValues(alpha: 0.5)
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Row(
-                                children: [
-                                  // 多选 checkbox
-                                  if (_isMultiSelect)
-                                    Checkbox(
-                                      value: _selectedIds.contains(session.id),
-                                      onChanged: (v) => setState(() {
-                                        if (v == true) {
-                                          _selectedIds.add(session.id);
-                                        } else {
-                                          _selectedIds.remove(session.id);
-                                        }
-                                      }),
-                                      visualDensity: VisualDensity.compact,
-                                      materialTapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                  if (session.isPinned)
-                                    Padding(
-                                      padding: const EdgeInsets.only(right: 6),
-                                      child: Icon(
-                                        Icons.push_pin,
-                                        size: 13,
-                                        color: theme.colorScheme.primary,
-                                      ),
-                                    ),
-                                  Expanded(
-                                    child: Text(
-                                      session.title.isEmpty
-                                          ? t.agent.sessions.new_chat
-                                          : session.title,
-                                      style: theme.textTheme.bodyMedium
-                                          ?.copyWith(
-                                            fontWeight: isSelected
-                                                ? FontWeight.w600
-                                                : FontWeight.normal,
-                                            color: isSelected
-                                                ? theme.colorScheme.primary
-                                                : theme.colorScheme.onSurface,
-                                          ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  if (isSelected)
-                                    PopupMenuButton<String>(
-                                      icon: Icon(
-                                        Icons.more_horiz,
-                                        size: 16,
-                                        color: theme.colorScheme.outline,
-                                      ),
-                                      padding: EdgeInsets.zero,
-                                      tooltip: t.agent.sessions.actions,
-                                      onSelected: (action) async {
-                                        if (action == 'pin') {
-                                          await ref
-                                              .read(sessionManagerProvider)
-                                              .togglePinSession(
-                                                session.id,
-                                                !session.isPinned,
-                                              );
-                                          _loadSessions();
-                                        } else if (action == 'rename') {
-                                          _renameSession(
-                                            session.id,
-                                            session.title,
-                                          );
-                                        } else if (action == 'delete') {
-                                          _deleteSession(
-                                            session.id,
-                                            session.title,
-                                          );
-                                        }
-                                      },
-                                      itemBuilder: (context) => [
-                                        PopupMenuItem(
-                                          value: 'pin',
-                                          child: Row(
-                                            children: [
-                                              Icon(
-                                                session.isPinned
-                                                    ? Icons.push_pin_outlined
-                                                    : Icons.push_pin,
-                                                size: 18,
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                session.isPinned
-                                                    ? t.agent.sessions.unpin
-                                                    : t.agent.sessions.pin,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        PopupMenuItem(
-                                          value: 'rename',
-                                          child: Row(
-                                            children: [
-                                              const Icon(Icons.edit, size: 18),
-                                              const SizedBox(width: 8),
-                                              Text(t.agent.sessions.rename),
-                                            ],
-                                          ),
-                                        ),
-                                        const PopupMenuDivider(),
-                                        PopupMenuItem(
-                                          value: 'delete',
-                                          child: Row(
-                                            children: [
-                                              Icon(
-                                                Icons.delete_outline,
-                                                size: 18,
-                                                color: theme.colorScheme.error,
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                t.agent.sessions.delete_session,
-                                                style: TextStyle(
-                                                  color:
-                                                      theme.colorScheme.error,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                ],
-                              ),
-                            ),
+                        return SessionListTile(
+                          key: ValueKey(session.id),
+                          session: session,
+                          isSelected: isSelected,
+                          isMultiSelect: _isMultiSelect,
+                          isChecked: _selectedIds.contains(session.id),
+                          onTap: () {
+                            setState(() => _selectedSessionId = session.id);
+                            ref
+                                .read(agentChatProvider.notifier)
+                                .loadSession(session.id);
+                          },
+                          onCheckChanged: (v) => setState(() {
+                            if (v == true) {
+                              _selectedIds.add(session.id);
+                            } else {
+                              _selectedIds.remove(session.id);
+                            }
+                          }),
+                          onPin: () async {
+                            await ref
+                                .read(sessionManagerProvider)
+                                .togglePinSession(
+                                  session.id,
+                                  !session.isPinned,
+                                );
+                            _loadSessions();
+                          },
+                          onRename: () => _renameSession(
+                            session.id,
+                            session.title,
+                          ),
+                          onDelete: () => _deleteSession(
+                            session.id,
+                            session.title,
                           ),
                         );
                       },
@@ -749,66 +631,6 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── 侧边栏菜单项 ───────────────────────────────────────────
-
-class _SidebarMenuItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isSelected;
-  final ThemeData theme;
-  final VoidCallback onTap;
-
-  const _SidebarMenuItem({
-    required this.icon,
-    required this.label,
-    required this.isSelected,
-    required this.theme,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 1),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: 20,
-                color: isSelected
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                label,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  color: isSelected
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
