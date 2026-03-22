@@ -1,4 +1,4 @@
-﻿/// Agent 聊天状态管理
+/// Agent 聊天状态管理
 ///
 /// 管理当前对话的消息列表、流式输出、工具执行状态
 
@@ -54,6 +54,9 @@ class AgentChatState {
   /// 当前会话累计输出 token
   final int totalOutputTokens;
 
+  /// 最近一次 API 调用的上下文 token 数（即当前对话上下文大小）
+  final int lastInputTokens;
+
   /// 当前选择的伙伴 ID（新对话创建时使用）
   final String? currentAssistantId;
 
@@ -74,6 +77,7 @@ class AgentChatState {
     this.totalCostMicros = 0,
     this.totalInputTokens = 0,
     this.totalOutputTokens = 0,
+    this.lastInputTokens = 0,
     this.currentAssistantId,
     this.hasMore = false,
     this.isLoadingMore = false,
@@ -90,6 +94,7 @@ class AgentChatState {
     int? totalCostMicros,
     int? totalInputTokens,
     int? totalOutputTokens,
+    int? lastInputTokens,
     String? Function()? currentAssistantId,
     bool? hasMore,
     bool? isLoadingMore,
@@ -107,6 +112,7 @@ class AgentChatState {
       totalCostMicros: totalCostMicros ?? this.totalCostMicros,
       totalInputTokens: totalInputTokens ?? this.totalInputTokens,
       totalOutputTokens: totalOutputTokens ?? this.totalOutputTokens,
+      lastInputTokens: lastInputTokens ?? this.lastInputTokens,
       currentAssistantId: currentAssistantId != null
           ? currentAssistantId()
           : this.currentAssistantId,
@@ -602,6 +608,7 @@ class AgentChatNotifier extends _$AgentChatNotifier {
                 completedTools: const [],
                 totalInputTokens: newInputTokens,
                 totalOutputTokens: newOutputTokens,
+                lastInputTokens: usage?.inputTokens ?? latestState.lastInputTokens,
               ),
             );
 
@@ -630,27 +637,28 @@ class AgentChatNotifier extends _$AgentChatNotifier {
             }
 
             // 异步检查是否需要压缩（不阻塞 UI）
-            if (session?.assistantId != null) {
+            if (usage != null && session?.assistantId != null) {
               final assist = await assistantRepo.get(session!.assistantId!);
               final threshold = assist?.compressTokenThreshold ?? 0;
               if (threshold > 0) {
-                // 异步执行，fire-and-forget
-                () async {
-                  try {
-                    final needs = await compressor.shouldCompress(
-                      sessionId,
-                      threshold,
-                    );
-                    if (needs) {
+                final currentContextTokens = usage.inputTokens;
+                final needs = compressor.shouldCompress(
+                  currentContextTokens,
+                  threshold,
+                );
+                if (needs) {
+                  // 异步执行，fire-and-forget
+                  () async {
+                    try {
                       await compressor.compress(
                         sessionId,
                         threshold: threshold,
                       );
+                    } catch (e) {
+                      debugPrint('CompressionService: Error: $e');
                     }
-                  } catch (e) {
-                    debugPrint('CompressionService: Error: $e');
-                  }
-                }();
+                  }();
+                }
               }
             }
             break;

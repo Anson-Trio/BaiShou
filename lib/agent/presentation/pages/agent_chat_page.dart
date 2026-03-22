@@ -172,14 +172,40 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // ── 累计统计 ──
                             Text(
-                              '${t.agent.chat.cost_total}: \$${(chatState.totalCostMicros / 1000000).toStringAsFixed(6)}',
+                              t.agent.chat.cost_cumulative_title,
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             const SizedBox(height: 8),
-                            Text('Input Tokens: ${chatState.totalInputTokens}'),
-                            const SizedBox(height: 4),
+                            _CostRow(
+                              label: t.agent.chat.cost_cumulative_total,
+                              value: '\$${(chatState.totalCostMicros / 1000000).toStringAsFixed(6)}',
+                            ),
+                            _CostRow(
+                              label: t.agent.chat.cost_cumulative_input,
+                              value: '${chatState.totalInputTokens} ${t.agent.chat.tokens_unit}',
+                            ),
+                            _CostRow(
+                              label: t.agent.chat.cost_cumulative_output,
+                              value: '${chatState.totalOutputTokens} ${t.agent.chat.tokens_unit}',
+                            ),
+                            const Divider(height: 24),
+                            // ── 当前上下文 ──
                             Text(
-                              'Output Tokens: ${chatState.totalOutputTokens}',
+                              t.agent.chat.cost_context_title,
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            _CostRow(
+                              label: t.agent.chat.cost_context_size,
+                              value: chatState.lastInputTokens > 0
+                                  ? '${chatState.lastInputTokens} ${t.agent.chat.tokens_unit}'
+                                  : t.agent.chat.cost_no_data,
                             ),
                             const SizedBox(height: 16),
                             Text(
@@ -672,4 +698,31 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
 class _ToolGroup {
   final List<ChatMessage> messages;
   const _ToolGroup(this.messages);
+}
+
+/// 费用详情弹窗中的 label-value 行
+class _CostRow extends StatelessWidget {
+  final String label;
+  final String value;
+  const _CostRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.bodyMedium),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              fontFamily: 'RobotoMono',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

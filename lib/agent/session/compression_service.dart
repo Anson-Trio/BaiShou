@@ -53,23 +53,18 @@ class CompressionService {
     return results.isEmpty ? null : results.first;
   }
 
-  // ─── 压缩触发判断（使用真实 API token） ────────────────────
+  // ─── 压缩触发判断（使用当前上下文的精确 token 数） ──────────
 
   /// 检查是否需要压缩
-  /// 使用 session 表中 API 返回的真实累计 inputTokens
-  Future<bool> shouldCompress(String sessionId, int threshold) async {
+  /// [currentContextTokens] 是最近一次 API 调用返回的 usage.inputTokens，
+  /// 即当前上下文的真实 token 数（非累加值）
+  bool shouldCompress(int currentContextTokens, int threshold) {
     if (threshold <= 0) return false;
-
-    final session = await sessionManager.getSession(sessionId);
-    if (session == null) return false;
-
-    // 直接用 DB 里累计的真实 token（每次 API 调用后 addUsage 写入）
-    final realTokens = session.totalInputTokens;
     debugPrint(
       'CompressionService: shouldCompress? '
-      'realTokens=$realTokens, threshold=$threshold',
+      'currentContextTokens=$currentContextTokens, threshold=$threshold',
     );
-    return realTokens > threshold;
+    return currentContextTokens > threshold;
   }
 
   // ─── 工具输出剪枝（参考 OpenCode prune 策略） ─────────────
