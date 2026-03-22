@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 class ChatInputBar extends StatefulWidget {
   final bool isLoading;
   final ValueChanged<String> onSend;
+  final VoidCallback? onStop;
 
   /// 当前伙伴名称（显示在 chip 上）
   final String? assistantName;
@@ -20,6 +21,7 @@ class ChatInputBar extends StatefulWidget {
     super.key,
     required this.isLoading,
     required this.onSend,
+    this.onStop,
     this.assistantName,
     this.onAssistantTap,
   });
@@ -227,22 +229,10 @@ class _ChatInputBarState extends State<ChatInputBar> {
                       child: AnimatedSwitcher(
                         duration: const Duration(milliseconds: 200),
                         child: widget.isLoading
-                            ? Container(
-                                key: const ValueKey('loading'),
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.surfaceContainerLow,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Center(
-                                  child: SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: theme.colorScheme.primary,
-                                    ),
-                                  ),
-                                ),
+                            ? _StopButton(
+                                key: const ValueKey('stop'),
+                                onTap: () => widget.onStop?.call(),
+                                theme: theme,
                               )
                             : _SendButton(
                                 key: const ValueKey('send'),
@@ -327,6 +317,78 @@ class _SendButtonState extends State<_SendButton>
             Icons.send_rounded,
             size: 18,
             color: widget.theme.colorScheme.onPrimary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 停止按钮 — 方形停止图标 + 按下缩放动效
+class _StopButton extends StatefulWidget {
+  final VoidCallback onTap;
+  final ThemeData theme;
+
+  const _StopButton({super.key, required this.onTap, required this.theme});
+
+  @override
+  State<_StopButton> createState() => _StopButtonState();
+}
+
+class _StopButtonState extends State<_StopButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _scaleController;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _scaleController = AnimationController(
+      duration: const Duration(milliseconds: 100),
+      vsync: this,
+      lowerBound: 0.0,
+      upperBound: 1.0,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.92).animate(
+      CurvedAnimation(parent: _scaleController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _scaleController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => _scaleController.forward(),
+      onTapUp: (_) {
+        _scaleController.reverse();
+        widget.onTap();
+      },
+      onTapCancel: () => _scaleController.reverse(),
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: widget.theme.colorScheme.error,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: widget.theme.colorScheme.error.withValues(alpha: 0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Icon(
+            Icons.stop_rounded,
+            size: 20,
+            color: widget.theme.colorScheme.onError,
           ),
         ),
       ),

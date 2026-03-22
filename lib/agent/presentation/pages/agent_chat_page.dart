@@ -436,6 +436,9 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
           ChatInputBar(
             isLoading: chatState.isLoading,
             assistantName: assistantName,
+            onStop: () {
+              ref.read(agentChatProvider.notifier).stopGeneration();
+            },
             onAssistantTap: () async {
               final (didSelect, selected) = await AssistantPickerSheet.show(
                 context,

@@ -10,8 +10,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'compression_service.g.dart';
 
-/// 压缩时保留的最近用户对话轮数（保留最近 N 轮 user 消息及其后续的全部消息不参与摘要）
-const int _kRetainUserTurns = 3;
+/// 默认压缩时保留的最近用户对话轮数（保留最近 N 轮 user 消息及其后续的全部消息不参与摘要）
+const int _kDefaultRetainUserTurns = 3;
 
 /// 被剪枝后的替代文本
 const String _kPrunedPlaceholder = '[工具输出已剪枝]';
@@ -129,7 +129,8 @@ class CompressionService {
   /// 执行压缩：先剪枝，再摘要
   ///
   /// [threshold] 压缩阈值，用于计算剪枝保护区大小
-  Future<void> compress(String sessionId, {required int threshold}) async {
+  Future<void> compress(String sessionId, {required int threshold, int? keepTurns}) async {
+    final retainTurns = keepTurns ?? _kDefaultRetainUserTurns;
     try {
       debugPrint('CompressionService: Starting compression for $sessionId');
 
@@ -146,13 +147,13 @@ class CompressionService {
       );
 
       // 保留最近 N 轮 user 消息及其后续的所有消息不参与压缩
-      // 从后往前找到第 _kRetainUserTurns 个 user 消息的位置
+      // 从后往前找到第 retainTurns 个 user 消息的位置
       int userTurnsSeen = 0;
       int retainFromIndex = messagesAfterPoint.length;
       for (int i = messagesAfterPoint.length - 1; i >= 0; i--) {
         if (messagesAfterPoint[i].role == MessageRole.user) {
           userTurnsSeen++;
-          if (userTurnsSeen >= _kRetainUserTurns) {
+          if (userTurnsSeen >= retainTurns) {
             retainFromIndex = i;
             break;
           }

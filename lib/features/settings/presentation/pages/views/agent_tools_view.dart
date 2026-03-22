@@ -58,7 +58,9 @@ class _AgentToolsViewState extends ConsumerState<AgentToolsView> {
 
   @override
   Widget build(BuildContext context) {
-    final allTools = ref.watch(toolRepositoryProvider);
+    final allTools = ref.watch(toolRepositoryProvider)
+        .where((tool) => tool.showInSettings)
+        .toList();
     final service = ref.watch(apiConfigServiceProvider);
     final colorScheme = Theme.of(context).colorScheme;
     final grouped = _groupByCategory(allTools);

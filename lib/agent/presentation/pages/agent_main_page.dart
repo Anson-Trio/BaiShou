@@ -5,12 +5,11 @@
 import 'dart:io';
 
 import 'package:baishou/agent/database/agent_database.dart';
-import 'package:baishou/agent/session/assistant_repository.dart';
 import 'package:baishou/agent/session/session_manager.dart';
 import 'package:baishou/agent/presentation/notifiers/agent_chat_notifier.dart';
 import 'package:baishou/agent/presentation/notifiers/assistant_notifier.dart';
 import 'package:baishou/agent/presentation/pages/agent_chat_page.dart';
-import 'package:baishou/agent/presentation/pages/assistant_management_page.dart';
+import 'package:baishou/agent/presentation/widgets/assistant_picker_sheet.dart';
 import 'package:baishou/features/settings/domain/services/user_profile_service.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
@@ -184,79 +183,15 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
   }
 
   Future<void> _showAssistantSwitcher() async {
-    final manager = ref.read(sessionManagerProvider);
-    final allAssistants = await ref.read(assistantRepositoryProvider).getAll();
-
     if (!mounted) return;
 
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400, maxHeight: 550),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Text(t.agent.chat.select_partner, style: Theme.of(ctx).textTheme.titleLarge),
-                      const Spacer(),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const AssistantManagementPage(),
-                            ),
-                          ).then((_) => _refreshCurrentAssistant());
-                        },
-                        child: Text(t.agent.chat.manage),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: _AssistantSwitcherList(
-                      assistants: allAssistants,
-                      currentAssistantId: _currentAssistant?.id ?? '',
-                      sessionManager: manager,
-                      onSelect: (assistant) {
-                        Navigator.pop(ctx);
-                        _switchAssistant(assistant);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
+    final (didSelect, selected) = await AssistantPickerSheet.show(
+      context,
+      currentAssistantId: _currentAssistant?.id.toString(),
     );
-  }
 
-  Future<void> _refreshCurrentAssistant() async {
-    // 管理页返回后，刷新当前伙伴（可能被编辑/删除）
-    final repo = ref.read(assistantRepositoryProvider);
-    if (_currentAssistant != null) {
-      final updated = await repo.get(_currentAssistant!.id);
-      if (updated != null) {
-        setState(() => _currentAssistant = updated);
-      } else {
-        // 当前伙伴被删除，切换到默认
-        final service = ref.read(assistantServiceProvider);
-        final def = await service.ensureDefaultAssistant();
-        setState(() => _currentAssistant = def);
-      }
-    }
-    _loadSessions();
+    if (!didSelect || selected == null) return;
+    _switchAssistant(selected);
   }
 
   @override
@@ -876,202 +811,6 @@ class _SidebarMenuItem extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-// ─── 伙伴切换列表（弹窗内） ─────────────────────────────────────
-
-class _AssistantSwitcherList extends StatefulWidget {
-  final List<AgentAssistant> assistants;
-  final String currentAssistantId;
-  final SessionManager sessionManager;
-  final void Function(AgentAssistant) onSelect;
-
-  const _AssistantSwitcherList({
-    required this.assistants,
-    required this.currentAssistantId,
-    required this.sessionManager,
-    required this.onSelect,
-  });
-
-  @override
-  State<_AssistantSwitcherList> createState() => _AssistantSwitcherListState();
-}
-
-class _AssistantSwitcherListState extends State<_AssistantSwitcherList> {
-  // 每个伙伴的会话数和最近会话
-  final Map<String, int> _sessionCounts = {};
-  final Map<String, List<AgentSession>> _recentSessions = {};
-  String? _expandedId;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadCounts();
-  }
-
-  Future<void> _loadCounts() async {
-    for (final a in widget.assistants) {
-      final count = await widget.sessionManager.getSessionCountByAssistant(
-        a.id,
-      );
-      if (mounted) {
-        setState(() => _sessionCounts[a.id] = count);
-      }
-    }
-  }
-
-  Future<void> _loadRecentSessions(String assistantId) async {
-    if (_recentSessions.containsKey(assistantId)) return;
-    final sessions = await widget.sessionManager.getRecentSessionsByAssistant(
-      assistantId,
-      limit: 5,
-    );
-    if (mounted) {
-      setState(() => _recentSessions[assistantId] = sessions);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return ListView.builder(
-      itemCount: widget.assistants.length,
-      itemBuilder: (ctx, i) {
-        final assistant = widget.assistants[i];
-        final isCurrent = assistant.id == widget.currentAssistantId;
-        final isExpanded = _expandedId == assistant.id;
-        final count = _sessionCounts[assistant.id] ?? 0;
-
-        return Column(
-          children: [
-            InkWell(
-              onTap: () => widget.onSelect(assistant),
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: isCurrent
-                      ? colorScheme.primaryContainer.withValues(alpha: 0.4)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    // emoji
-                    Text(
-                      assistant.emoji ?? '⭐',
-                      style: const TextStyle(fontSize: 24),
-                    ),
-                    const SizedBox(width: 12),
-                    // 名称 + 会话数
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            assistant.name,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: isCurrent
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                            ),
-                          ),
-                          Text(
-                            '${t.agent.chat.chat_count(count: count)}${assistant.description.isNotEmpty ? ' · ${assistant.description}' : ''}',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    // 当前标识
-                    if (isCurrent)
-                      Icon(
-                        Icons.check_circle,
-                        size: 18,
-                        color: colorScheme.primary,
-                      ),
-                    // 展开按钮
-                    if (count > 0)
-                      IconButton(
-                        icon: Icon(
-                          isExpanded
-                              ? Icons.keyboard_arrow_up
-                              : Icons.keyboard_arrow_down,
-                          size: 20,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            if (isExpanded) {
-                              _expandedId = null;
-                            } else {
-                              _expandedId = assistant.id;
-                              _loadRecentSessions(assistant.id);
-                            }
-                          });
-                        },
-                        visualDensity: VisualDensity.compact,
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            // 展开的最近会话
-            if (isExpanded)
-              Padding(
-                padding: const EdgeInsets.only(left: 48, bottom: 8),
-                child: _recentSessions[assistant.id] == null
-                    ? const Padding(
-                        padding: EdgeInsets.all(8),
-                        child: SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      )
-                    : Column(
-                        children: _recentSessions[assistant.id]!.map((session) {
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 2),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.chat_bubble_outline,
-                                  size: 12,
-                                  color: colorScheme.outline,
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    session.title.isEmpty
-                                        ? t.agent.chat.new_chat_label
-                                        : session.title,
-                                    style: theme.textTheme.labelSmall?.copyWith(
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ),
-              ),
-          ],
-        );
-      },
     );
   }
 }

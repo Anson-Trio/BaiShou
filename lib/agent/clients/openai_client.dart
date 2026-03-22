@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:baishou/agent/models/ai_provider_model.dart';
@@ -28,7 +28,7 @@ class OpenAiClient extends BaseAiClient {
     required String input,
     required String modelId,
   }) async {
-    final uri = Uri.parse('_baseUrl/embeddings');
+    final uri = Uri.parse('$baseUrl/embeddings');
 
     try {
       final response = await http
@@ -67,7 +67,7 @@ class OpenAiClient extends BaseAiClient {
       throw Exception(t.ai.error_openai_base_url);
     }
 
-    final uri = Uri.parse('_baseUrl/models');
+    final uri = Uri.parse('$baseUrl/models');
 
     try {
       final response = await http
@@ -114,7 +114,7 @@ class OpenAiClient extends BaseAiClient {
     required String prompt,
     required String modelId,
   }) async {
-    final uri = Uri.parse('_baseUrl/chat/completions');
+    final uri = Uri.parse('$baseUrl/chat/completions');
 
     try {
       final response = await http
@@ -161,7 +161,7 @@ class OpenAiClient extends BaseAiClient {
     List<ToolDefinition>? tools,
     double? temperature,
   }) async* {
-    final uri = Uri.parse('_baseUrl/chat/completions');
+    final uri = Uri.parse('$baseUrl/chat/completions');
 
     final body = <String, dynamic>{
       'model': modelId,

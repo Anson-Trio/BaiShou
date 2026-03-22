@@ -69,6 +69,9 @@ abstract class AgentTool {
   /// 是否允许用户禁用此工具（核心工具不允许）
   bool get canBeDisabled => true;
 
+  /// 是否在工具管理设置页面中显示（某些工具有专属管理页面，无需重复显示）
+  bool get showInSettings => true;
+
   /// 可配置参数列表（空 = 无可配参数）
   List<ToolConfigParam> get configurableParams => [];
 

@@ -173,7 +173,7 @@ class _SummarySettingsViewState extends ConsumerState<SummarySettingsView>
               const SizedBox(height: 12),
               // Tab Content
               SizedBox(
-                height: 220,
+                height: 360,
                 child: TabBarView(
                   controller: _tabController,
                   children: _types.map((type) => Column(

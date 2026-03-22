@@ -653,6 +653,7 @@ class AgentChatNotifier extends _$AgentChatNotifier {
                       await compressor.compress(
                         sessionId,
                         threshold: threshold,
+                        keepTurns: assist?.compressKeepTurns,
                       );
                     } catch (e) {
                       debugPrint('CompressionService: Error: $e');
@@ -838,6 +839,32 @@ class AgentChatNotifier extends _$AgentChatNotifier {
 
     // 用新文本作为普通发送
     await sendMessage(text: newText);
+  }
+
+  /// 停止当前正在进行的生成
+  void stopGeneration() {
+    if (!state.isLoading) return;
+    _currentRunId++; // 中断当前生成循环
+    final sessionId = state.sessionId;
+    if (sessionId != null) {
+      final currentState = _getSessionState(sessionId);
+      _updateSessionCache(
+        sessionId,
+        currentState.copyWith(
+          isLoading: false,
+          streamingText: '',
+          activeToolName: () => null,
+          completedTools: const [],
+        ),
+      );
+    } else {
+      state = state.copyWith(
+        isLoading: false,
+        streamingText: '',
+        activeToolName: () => null,
+        completedTools: const [],
+      );
+    }
   }
 
   /// 清空当前对话

@@ -32,6 +32,9 @@ class VectorSearchTool extends AgentTool {
   bool get canBeDisabled => true;
 
   @override
+  bool get showInSettings => false;
+
+  @override
   String get description =>
       'Semantic search over conversation history and stored memories. '
       'When the user asks about past content, previous decisions, personal preferences, '
@@ -50,7 +53,7 @@ class VectorSearchTool extends AgentTool {
       },
       'min_score': {
         'type': 'number',
-        'description': '最低相似度阈值(0-1)，低于此分数的结果将被过滤。默认0.3',
+        'description': '最低相似度阈值(0-1)，低于此分数的结果将被过滤。默认使用用户配置的阈值，仅在需要特别放宽或收紧时才传入',
       },
     },
     'required': ['query'],
