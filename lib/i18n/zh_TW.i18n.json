@@ -646,7 +646,6 @@
     },
     "chat": {
       "companion_mode": "深度陪伴",
-      "session_mode": "Agent 對話",
       "empty_hint": "試試問：「我這週寫了什麼日記？」",
       "input_system_prompt_hint": "輸入自訂 Agent 行為準則 (如：用簡短的中文回答)",
       "retry": "重試",

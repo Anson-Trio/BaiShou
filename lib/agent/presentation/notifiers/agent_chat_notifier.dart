@@ -159,10 +159,25 @@ class AgentChatNotifier extends _$AgentChatNotifier {
       _sessionStateCache[sessionId] = state;
     }
 
-    // 获取最新的 API Config 和 Provider
+    // 解析模型：优先使用伙伴绑定模型，否则回退全局模型
     final apiConfig = ref.read(apiConfigServiceProvider);
-    final providerId = apiConfig.globalDialogueProviderId;
-    final modelId = apiConfig.globalDialogueModelId;
+    String providerId = apiConfig.globalDialogueProviderId;
+    String modelId = apiConfig.globalDialogueModelId;
+
+    if (state.currentAssistantId != null) {
+      final assistant = await ref
+          .read(assistantRepositoryProvider)
+          .get(state.currentAssistantId!);
+      if (assistant != null &&
+          assistant.providerId != null &&
+          assistant.modelId != null &&
+          assistant.providerId!.isNotEmpty &&
+          assistant.modelId!.isNotEmpty) {
+        providerId = assistant.providerId!;
+        modelId = assistant.modelId!;
+      }
+    }
+
     final provider = apiConfig.getProvider(providerId);
 
     if (provider == null || modelId.isEmpty) {
@@ -332,10 +347,24 @@ class AgentChatNotifier extends _$AgentChatNotifier {
     final vaultDir = await storageService.getVaultDirectory(vaultName);
     final vaultPath = vaultDir.path;
 
-    // 获取 AI 供应商配置
-    // 暂时使用全局对话模型，后续可改为 Agent 专用模型
-    final providerId = apiConfig.globalDialogueProviderId;
-    final modelId = apiConfig.globalDialogueModelId;
+    // 解析模型：优先使用伙伴绑定模型，否则回退全局模型
+    String providerId = apiConfig.globalDialogueProviderId;
+    String modelId = apiConfig.globalDialogueModelId;
+
+    if (state.currentAssistantId != null) {
+      final assistant = await ref
+          .read(assistantRepositoryProvider)
+          .get(state.currentAssistantId!);
+      if (assistant != null &&
+          assistant.providerId != null &&
+          assistant.modelId != null &&
+          assistant.providerId!.isNotEmpty &&
+          assistant.modelId!.isNotEmpty) {
+        providerId = assistant.providerId!;
+        modelId = assistant.modelId!;
+      }
+    }
+
     final provider = apiConfig.getProvider(providerId);
 
     if (provider == null || modelId.isEmpty) {

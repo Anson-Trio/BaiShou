@@ -637,7 +637,6 @@
     },
     "chat": {
       "companion_mode": "ディープ・コンパニオン",
-      "session_mode": "Agent 対話",
       "empty_hint": "「今週はどんな日記を書いた？」と聞いてみてください",
       "input_system_prompt_hint": "Agentのカスタム行動規範を入力してください...",
       "retry": "再試行",

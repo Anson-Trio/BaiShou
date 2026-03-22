@@ -382,7 +382,7 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
               child: Row(
                 children: [
                   Icon(
-                    Icons.smart_toy_outlined,
+                    Icons.auto_awesome_outlined,
                     color: colorScheme.primary,
                     size: 20,
                   ),

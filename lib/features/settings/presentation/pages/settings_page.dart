@@ -133,7 +133,7 @@ class _SettingsPageState extends State<SettingsPage> {
           const Divider(height: 1),
           // ─── 功能 ───
           ListTile(
-            leading: const Icon(Icons.psychology_outlined),
+            leading: const Icon(Icons.color_lens),
             title: Text(t.agent.rag.title),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/settings/rag'),

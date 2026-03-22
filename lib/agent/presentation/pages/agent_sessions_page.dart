@@ -182,7 +182,7 @@ class _AgentSessionsPageState extends ConsumerState<AgentSessionsPage> {
               leading: CircleAvatar(
                 backgroundColor: theme.colorScheme.primaryContainer,
                 child: Icon(
-                  Icons.smart_toy_outlined,
+                  Icons.auto_awesome_outlined,
                   color: theme.colorScheme.onPrimaryContainer,
                   size: 20,
                 ),

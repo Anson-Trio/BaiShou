@@ -1,11 +1,12 @@
-﻿/// 伙伴管理页面
+/// 伙伴管理页面
 ///
-/// 展示所有伙伴的列表，支持创建、编辑、删除
+/// 展示所有伙伴的列表，支持创建、编辑、删除、拖动排序
 
 import 'dart:io';
 import 'package:baishou/agent/database/agent_database.dart';
 import 'package:baishou/agent/presentation/notifiers/assistant_notifier.dart';
 import 'package:baishou/agent/presentation/pages/assistant_edit_page.dart';
+import 'package:baishou/agent/session/assistant_repository.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -62,20 +63,27 @@ class AssistantManagementPage extends ConsumerWidget {
             );
           }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: assistants.length,
-            itemBuilder: (context, index) {
-              final assistant = assistants[index];
-              return _AssistantCard(
-                assistant: assistant,
-                onTap: () => _openEditPage(context, assistant),
-                onSetDefault: () {
-                  ref.read(assistantServiceProvider).setDefault(assistant.id);
-                  ref.invalidate(assistantListStreamProvider);
-                  ref.invalidate(defaultAssistantProvider);
-                },
-              );
+          return _ReorderableAssistantList(
+            assistants: assistants,
+            onTap: (a) => _openEditPage(context, a),
+            onSetDefault: (a) {
+              ref.read(assistantServiceProvider).setDefault(a.id);
+              ref.invalidate(assistantListStreamProvider);
+              ref.invalidate(defaultAssistantProvider);
+            },
+            onReorder: (oldIndex, newIndex) {
+              if (oldIndex < newIndex) newIndex -= 1;
+              final reordered = List<AgentAssistant>.from(assistants);
+              final item = reordered.removeAt(oldIndex);
+              reordered.insert(newIndex, item);
+
+              // 批量更新排序
+              final orders = <(String, int)>[];
+              for (int i = 0; i < reordered.length; i++) {
+                orders.add((reordered[i].id, i));
+              }
+              ref.read(assistantRepositoryProvider).updateSortOrders(orders);
+              ref.invalidate(assistantListStreamProvider);
             },
           );
         },
@@ -92,13 +100,57 @@ class AssistantManagementPage extends ConsumerWidget {
   }
 }
 
+class _ReorderableAssistantList extends StatelessWidget {
+  final List<AgentAssistant> assistants;
+  final ValueChanged<AgentAssistant> onTap;
+  final ValueChanged<AgentAssistant> onSetDefault;
+  final void Function(int oldIndex, int newIndex) onReorder;
+
+  const _ReorderableAssistantList({
+    required this.assistants,
+    required this.onTap,
+    required this.onSetDefault,
+    required this.onReorder,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ReorderableListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: assistants.length,
+      proxyDecorator: (child, index, animation) {
+        return Material(
+          elevation: 4,
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.transparent,
+          child: child,
+        );
+      },
+      onReorder: onReorder,
+      itemBuilder: (context, index) {
+        final assistant = assistants[index];
+        return _AssistantCard(
+          key: ValueKey(assistant.id),
+          assistant: assistant,
+          index: index,
+          onTap: () => onTap(assistant),
+          onSetDefault: () => onSetDefault(assistant),
+        );
+      },
+    );
+  }
+}
+
 class _AssistantCard extends StatelessWidget {
   final AgentAssistant assistant;
+  final int index;
   final VoidCallback onTap;
   final VoidCallback onSetDefault;
 
   const _AssistantCard({
+    super.key,
     required this.assistant,
+    required this.index,
     required this.onTap,
     required this.onSetDefault,
   });
@@ -115,7 +167,7 @@ class _AssistantCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: colorScheme.outlineVariant.withOpacity(0.5)),
+        side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
       ),
       child: InkWell(
         onTap: onTap,
@@ -123,6 +175,20 @@ class _AssistantCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
+              // 拖拽手柄
+              ReorderableDragStartListener(
+                index: index,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.grab,
+                  child: Icon(
+                    Icons.drag_handle_rounded,
+                    size: 20,
+                    color: colorScheme.outline.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+
               // 头像
               CircleAvatar(
                 radius: 24,
@@ -196,7 +262,7 @@ class _AssistantCard extends StatelessWidget {
                         if (assistant.modelId != null) ...[
                           const SizedBox(width: 8),
                           Icon(
-                            Icons.smart_toy_outlined,
+                            Icons.auto_awesome_outlined,
                             size: 12,
                             color: colorScheme.outline,
                           ),

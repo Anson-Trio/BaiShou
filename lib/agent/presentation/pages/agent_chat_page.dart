@@ -93,43 +93,27 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
 
     // 获取当前模型名称
     final apiConfig = ref.watch(apiConfigServiceProvider);
-    final currentModel = apiConfig.globalDialogueModelId;
 
-    // 解析当前伙伴名称
+    // 解析当前伙伴名称 + 绑定模型
     final currentAssistantId = chatState.currentAssistantId;
     final assistantsAsync = ref.watch(assistantListProvider);
-    final assistantName = assistantsAsync.whenOrNull(
+    final assistantData = assistantsAsync.whenOrNull(
       data: (list) {
         if (currentAssistantId == null) return null;
         final match = list.where((a) => a.id.toString() == currentAssistantId);
-        return match.isNotEmpty ? match.first.name : null;
+        return match.isNotEmpty ? match.first : null;
       },
     );
+    final assistantName = assistantData?.name;
+    // 优先显示伙伴绑定模型，否则回退到全局模型
+    final currentModel =
+        assistantData?.modelId ?? apiConfig.globalDialogueModelId;
 
     return Scaffold(
       appBar: AppBar(
         title: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.smart_toy_outlined,
-                  size: 20,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  t.agent.chat.session_mode,
-                  style: TextStyle(
-                    color: theme.colorScheme.onSurface,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
             // 当前模型名称 + 伙伴名称
             if (currentModel.isNotEmpty || assistantName != null)
               Padding(
@@ -182,15 +166,18 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
                             const SizedBox(height: 8),
                             _CostRow(
                               label: t.agent.chat.cost_cumulative_total,
-                              value: '\$${(chatState.totalCostMicros / 1000000).toStringAsFixed(6)}',
+                              value:
+                                  '\$${(chatState.totalCostMicros / 1000000).toStringAsFixed(6)}',
                             ),
                             _CostRow(
                               label: t.agent.chat.cost_cumulative_input,
-                              value: '${chatState.totalInputTokens} ${t.agent.chat.tokens_unit}',
+                              value:
+                                  '${chatState.totalInputTokens} ${t.agent.chat.tokens_unit}',
                             ),
                             _CostRow(
                               label: t.agent.chat.cost_cumulative_output,
-                              value: '${chatState.totalOutputTokens} ${t.agent.chat.tokens_unit}',
+                              value:
+                                  '${chatState.totalOutputTokens} ${t.agent.chat.tokens_unit}',
                             ),
                             const Divider(height: 24),
                             // ── 当前上下文 ──
@@ -268,7 +255,8 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
                         reverse: true, // 核心改动：倒排列表
                         cacheExtent: 2000,
                         padding: const EdgeInsets.only(top: 20, bottom: 20),
-                        itemCount: _buildDisplayItems(chatState).length +
+                        itemCount:
+                            _buildDisplayItems(chatState).length +
                             (chatState.isLoading ? 1 : 0) +
                             (chatState.hasMore ? 1 : 0),
                         itemBuilder: (context, idx) {
@@ -316,7 +304,8 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
                                         .read(agentChatProvider.notifier)
                                         .resendUserMessage(message.id)
                                   : null,
-                              onRegenerate: message.role == MessageRole.assistant
+                              onRegenerate:
+                                  message.role == MessageRole.assistant
                                   ? () => ref
                                         .read(agentChatProvider.notifier)
                                         .regenerateResponse(message.id)
@@ -335,7 +324,9 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
                               child: const SizedBox(
                                 width: 20,
                                 height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               ),
                             );
                           }

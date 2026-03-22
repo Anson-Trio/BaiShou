@@ -154,6 +154,9 @@ class AgentAssistants extends Table {
   IntColumn get compressKeepTurns =>
       integer().withDefault(const Constant(3))();
 
+  /// 排序权重（越小越靠前，用于手动拖动排序）
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+
   /// 创建时间
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 

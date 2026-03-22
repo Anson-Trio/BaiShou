@@ -190,7 +190,7 @@ class ChatMessageBubble extends ConsumerWidget {
             shape: BoxShape.circle,
           ),
           child: Icon(
-            Icons.smart_toy_outlined,
+            Icons.auto_awesome_outlined,
             size: 20,
             color: theme.colorScheme.primary,
           ),
@@ -622,7 +622,7 @@ class StreamingBubble extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             child: Icon(
-              Icons.smart_toy_outlined,
+              Icons.auto_awesome_outlined,
               size: 20,
               color: theme.colorScheme.primary,
             ),

@@ -1,4 +1,4 @@
-﻿/// 伙伴数据仓库
+/// 伙伴数据仓库
 /// 负责 AI 伙伴的 CRUD 操作，独立于 AgentDatabase
 
 import 'package:baishou/agent/database/agent_database.dart';
@@ -14,11 +14,14 @@ class AssistantRepository {
 
   // ─── 查询 ──────────────────────────────────────────
 
-  /// 获取所有伙伴（按创建时间降序）
+  /// 获取所有伙伴（按排序权重升序，同权重按创建时间降序）
   Future<List<AgentAssistant>> getAll() {
     return (_db.select(
       _db.agentAssistants,
-    )..orderBy([(t) => OrderingTerm.desc(t.createdAt)])).get();
+    )..orderBy([
+        (t) => OrderingTerm.asc(t.sortOrder),
+        (t) => OrderingTerm.desc(t.createdAt),
+      ])).get();
   }
 
   /// 获取单个伙伴
@@ -39,7 +42,10 @@ class AssistantRepository {
   Stream<List<AgentAssistant>> watchAll() {
     return (_db.select(
       _db.agentAssistants,
-    )..orderBy([(t) => OrderingTerm.desc(t.createdAt)])).watch();
+    )..orderBy([
+        (t) => OrderingTerm.asc(t.sortOrder),
+        (t) => OrderingTerm.desc(t.createdAt),
+      ])).watch();
   }
 
   // ─── 写入 ──────────────────────────────────────────
@@ -77,6 +83,19 @@ class AssistantRepository {
     await clearDefault();
     await (_db.update(_db.agentAssistants)..where((t) => t.id.equals(id)))
         .write(const AgentAssistantsCompanion(isDefault: Value(true)));
+  }
+
+  /// 批量更新排序权重（拖动排序后调用）
+  Future<void> updateSortOrders(List<(String, int)> orders) async {
+    await _db.batch((batch) {
+      for (final (id, order) in orders) {
+        batch.update(
+          _db.agentAssistants,
+          AgentAssistantsCompanion(sortOrder: Value(order)),
+          where: (t) => t.id.equals(id),
+        );
+      }
+    });
   }
 }
 

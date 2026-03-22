@@ -22,7 +22,7 @@ class AgentDatabase extends _$AgentDatabase {
   AgentDatabase(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -45,6 +45,10 @@ class AgentDatabase extends _$AgentDatabase {
           if (from < 4) {
             // v3 → v4: AgentAssistants 新增压缩保留轮数字段
             await m.addColumn(agentAssistants, agentAssistants.compressKeepTurns);
+          }
+          if (from < 5) {
+            // v4 → v5: AgentAssistants 新增拖动排序字段
+            await m.addColumn(agentAssistants, agentAssistants.sortOrder);
           }
         },
       );

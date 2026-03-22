@@ -637,7 +637,6 @@
     },
     "chat": {
       "companion_mode": "Deep Companion",
-      "session_mode": "Agent Session",
       "empty_hint": "Try asking: 'What diaries did I write this week?'",
       "input_system_prompt_hint": "Enter custom Agent behavior rules...",
       "retry": "Retry",
