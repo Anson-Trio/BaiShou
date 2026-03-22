@@ -659,7 +659,8 @@
       "err_no_model": "Please configure an AI model in Settings first",
       "cost_detail_title": "Cost Estimation Details",
       "cost_total": "Total Cost",
-      "cost_disclaimer": "Note: Cost calculations are based on local pricing rules (or models.dev), and may differ from actual billing. For reference only."
+      "cost_disclaimer": "Note: Cost calculations are based on local pricing rules (or models.dev), and may differ from actual billing. For reference only.",
+      "context_chain": "Context Messages"
     },
     "sessions": {
       "history": "Chat History",

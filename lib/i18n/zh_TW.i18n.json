@@ -668,7 +668,8 @@
       "err_no_model": "請先在設定中配置 AI 模型",
       "cost_detail_title": "費用估算詳情",
       "cost_total": "消耗總計",
-      "cost_disclaimer": "提示：此費用計算資料來自本機 pricing 規則（或 models.dev），存在更新不及時或計費方式不同的情況，僅供參考。"
+      "cost_disclaimer": "提示：此費用計算資料來自本機 pricing 規則（或 models.dev），存在更新不及時或計費方式不同的情況，僅供參考。",
+      "context_chain": "上下文訊息"
     },
     "sessions": {
       "history": "對話歷史",

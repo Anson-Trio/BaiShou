@@ -659,7 +659,8 @@
       "err_no_model": "設定でAIモデルを先に設定してください",
       "cost_detail_title": "費用見積詳細",
       "cost_total": "合計消費",
-      "cost_disclaimer": "注意：費用計算はローカルの価格ルール（または models.dev）に基づいており、実際の課金と異なる場合があります。参考値としてご利用ください。"
+      "cost_disclaimer": "注意：費用計算はローカルの価格ルール（または models.dev）に基づいており、実際の課金と異なる場合があります。参考値としてご利用ください。",
+      "context_chain": "コンテキストメッセージ"
     },
     "sessions": {
       "history": "対話履歴",
