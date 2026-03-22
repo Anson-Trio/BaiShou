@@ -1,4 +1,4 @@
-﻿/// Agent 会话管理器
+/// Agent 会话管理器
 /// 负责会话、消息、Part 的 CRUD 操作（三表架构）
 
 import 'dart:convert';
@@ -29,28 +29,31 @@ class SessionManager {
     String? assistantId,
   }) async {
     final id = _uuid.v4();
-    await _db.into(_db.agentSessions).insert(AgentSessionsCompanion.insert(
-          id: id,
-          vaultName: vaultName,
-          providerId: providerId,
-          modelId: modelId,
-          title: Value(title ?? t.agent.sessions.default_title),
-          assistantId: Value(assistantId),
-        ));
+    await _db
+        .into(_db.agentSessions)
+        .insert(
+          AgentSessionsCompanion.insert(
+            id: id,
+            vaultName: vaultName,
+            providerId: providerId,
+            modelId: modelId,
+            title: Value(title ?? t.agent.sessions.default_title),
+            assistantId: Value(assistantId),
+          ),
+        );
     return id;
   }
 
   /// 获取所有会话（按 isPinned 降序，再按最后活跃时间降序）
   Future<List<AgentSession>> getSessions() async {
-    return (_db.select(_db.agentSessions)
-          ..orderBy([
-            (t) => OrderingTerm.desc(t.isPinned),
-            (t) => OrderingTerm.desc(t.updatedAt),
-          ]))
+    return (_db.select(_db.agentSessions)..orderBy([
+          (t) => OrderingTerm.desc(t.isPinned),
+          (t) => OrderingTerm.desc(t.updatedAt),
+        ]))
         .get();
   }
 
-  /// 获取指定\u4f19\u4f34的会话列表
+  /// 获取指定伙伴的会话列表
   Future<List<AgentSession>> getSessionsByAssistant(String assistantId) async {
     return (_db.select(_db.agentSessions)
           ..where((t) => t.assistantId.equals(assistantId))
@@ -61,28 +64,34 @@ class SessionManager {
         .get();
   }
 
-  /// 获取指定\u4f19\u4f34的会话数量
+  /// 获取指定伙伴的会话数量
   Future<int> getSessionCountByAssistant(String assistantId) async {
-    final count = await (_db.selectOnly(_db.agentSessions)
-          ..addColumns([_db.agentSessions.id.count()])
-          ..where(_db.agentSessions.assistantId.equals(assistantId)))
-        .getSingle();
+    final count =
+        await (_db.selectOnly(_db.agentSessions)
+              ..addColumns([_db.agentSessions.id.count()])
+              ..where(_db.agentSessions.assistantId.equals(assistantId)))
+            .getSingle();
     return count.read(_db.agentSessions.id.count()) ?? 0;
   }
 
-  /// 获取每个\u4f19\u4f34的会话数量（批量）
+  /// 获取每个伙伴的会话数量（批量）
   Future<Map<String, int>> getSessionCountsByAssistant() async {
-    final results = await _db.customSelect(
-      'SELECT assistant_id, COUNT(*) AS cnt FROM agent_sessions WHERE assistant_id IS NOT NULL GROUP BY assistant_id',
-    ).get();
+    final results = await _db
+        .customSelect(
+          'SELECT assistant_id, COUNT(*) AS cnt FROM agent_sessions WHERE assistant_id IS NOT NULL GROUP BY assistant_id',
+        )
+        .get();
     return {
       for (final row in results)
         row.read<String>('assistant_id'): row.read<int>('cnt'),
     };
   }
 
-  /// 获取指定\u4f19\u4f34最近 N 条会话标题
-  Future<List<AgentSession>> getRecentSessionsByAssistant(String assistantId, {int limit = 5}) async {
+  /// 获取指定伙伴最近 N 条会话标题
+  Future<List<AgentSession>> getRecentSessionsByAssistant(
+    String assistantId, {
+    int limit = 5,
+  }) async {
     return (_db.select(_db.agentSessions)
           ..where((t) => t.assistantId.equals(assistantId))
           ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])
@@ -92,18 +101,19 @@ class SessionManager {
 
   /// 获取单个会话
   Future<AgentSession?> getSession(String id) async {
-    return (_db.select(_db.agentSessions)
-          ..where((t) => t.id.equals(id)))
-        .getSingleOrNull();
+    return (_db.select(
+      _db.agentSessions,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 
   /// 更新会话标题
   Future<void> updateSessionTitle(String id, String title) async {
-    await (_db.update(_db.agentSessions)..where((t) => t.id.equals(id)))
-        .write(AgentSessionsCompanion(
-      title: Value(title),
-      updatedAt: Value(DateTime.now()),
-    ));
+    await (_db.update(_db.agentSessions)..where((t) => t.id.equals(id))).write(
+      AgentSessionsCompanion(
+        title: Value(title),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
   }
 
   /// 重命名会话（与 updateSessionTitle 别名）
@@ -113,42 +123,45 @@ class SessionManager {
 
   /// 切换会话置顶状态
   Future<void> togglePinSession(String id, bool isPinned) async {
-    await (_db.update(_db.agentSessions)..where((t) => t.id.equals(id)))
-        .write(AgentSessionsCompanion(
-      isPinned: Value(isPinned),
-      updatedAt: Value(DateTime.now()),
-    ));
+    await (_db.update(_db.agentSessions)..where((t) => t.id.equals(id))).write(
+      AgentSessionsCompanion(
+        isPinned: Value(isPinned),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
   }
 
   /// 更新会话专属 System Prompt
   Future<void> updateSystemPrompt(String id, String? prompt) async {
-    await (_db.update(_db.agentSessions)..where((t) => t.id.equals(id)))
-        .write(AgentSessionsCompanion(
-      systemPrompt: Value(prompt),
-      updatedAt: Value(DateTime.now()),
-    ));
+    await (_db.update(_db.agentSessions)..where((t) => t.id.equals(id))).write(
+      AgentSessionsCompanion(
+        systemPrompt: Value(prompt),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
   }
 
   /// 更新会话活跃时间
   Future<void> touchSession(String id) async {
-    await (_db.update(_db.agentSessions)
-          ..where((t) => t.id.equals(id)))
-        .write(AgentSessionsCompanion(
-      updatedAt: Value(DateTime.now()),
-    ));
+    await (_db.update(_db.agentSessions)..where((t) => t.id.equals(id))).write(
+      AgentSessionsCompanion(updatedAt: Value(DateTime.now())),
+    );
   }
 
   /// 删除会话（级联删除 Parts → Messages）
   Future<void> deleteSession(String id) async {
-    await (_db.delete(_db.agentParts)
-          ..where((t) => t.sessionId.equals(id)))
-        .go();
-    await (_db.delete(_db.agentMessages)
-          ..where((t) => t.sessionId.equals(id)))
-        .go();
-    await (_db.delete(_db.agentSessions)
-          ..where((t) => t.id.equals(id)))
-        .go();
+    // 必须首先清理 FTS 索引
+    await _db.customStatement(
+      'DELETE FROM agent_messages_fts WHERE session_id = ?',
+      [id],
+    );
+    await (_db.delete(
+      _db.agentParts,
+    )..where((t) => t.sessionId.equals(id))).go();
+    await (_db.delete(
+      _db.agentMessages,
+    )..where((t) => t.sessionId.equals(id))).go();
+    await (_db.delete(_db.agentSessions)..where((t) => t.id.equals(id))).go();
   }
 
   /// 批量删除会话
@@ -158,13 +171,13 @@ class SessionManager {
     }
   }
 
-  /// 更新会话关联的\u4f19\u4f34
-  Future<void> updateSessionAssistant(String sessionId, String? assistantId) async {
-    await (_db.update(_db.agentSessions)
-          ..where((t) => t.id.equals(sessionId)))
-        .write(AgentSessionsCompanion(
-      assistantId: Value(assistantId),
-    ));
+  /// 更新会话关联的伙伴
+  Future<void> updateSessionAssistant(
+    String sessionId,
+    String? assistantId,
+  ) async {
+    await (_db.update(_db.agentSessions)..where((t) => t.id.equals(sessionId)))
+        .write(AgentSessionsCompanion(assistantId: Value(assistantId)));
   }
 
   /// 累加会话的 token 用量和费用
@@ -177,17 +190,16 @@ class SessionManager {
     final session = await getSession(sessionId);
     if (session == null) return;
 
-    await (_db.update(_db.agentSessions)
-          ..where((t) => t.id.equals(sessionId)))
-        .write(AgentSessionsCompanion(
-      totalInputTokens:
-          Value(session.totalInputTokens + inputTokens),
-      totalOutputTokens:
-          Value(session.totalOutputTokens + outputTokens),
-      totalCostMicros:
-          Value(session.totalCostMicros + costMicros),
-      updatedAt: Value(DateTime.now()),
-    ));
+    await (_db.update(
+      _db.agentSessions,
+    )..where((t) => t.id.equals(sessionId))).write(
+      AgentSessionsCompanion(
+        totalInputTokens: Value(session.totalInputTokens + inputTokens),
+        totalOutputTokens: Value(session.totalOutputTokens + outputTokens),
+        totalCostMicros: Value(session.totalCostMicros + costMicros),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
   }
 
   // ─── 消息 + Part CRUD ─────────────────────────────────────
@@ -205,7 +217,9 @@ class SessionManager {
   }) async {
     final maxOrder = await _getMaxOrderIndex(sessionId);
 
-    await _db.into(_db.agentMessages).insert(
+    await _db
+        .into(_db.agentMessages)
+        .insert(
           AgentMessagesCompanion.insert(
             id: msg.id,
             sessionId: sessionId,
@@ -215,6 +229,11 @@ class SessionManager {
             modelId: Value(modelId),
             askId: Value(msg.askId),
             orderIndex: maxOrder + 1,
+            inputTokens: Value(msg.inputTokens),
+            outputTokens: Value(msg.outputTokens),
+            costMicros: msg.cost != null
+                ? Value((msg.cost! * 1000000).round())
+                : const Value(null),
           ),
         );
 
@@ -245,7 +264,9 @@ class SessionManager {
       order++;
 
       // 写 Message
-      await _db.into(_db.agentMessages).insert(
+      await _db
+          .into(_db.agentMessages)
+          .insert(
             AgentMessagesCompanion.insert(
               id: msg.id,
               sessionId: sessionId,
@@ -258,6 +279,11 @@ class SessionManager {
               ),
               askId: Value(msg.askId),
               orderIndex: order,
+              inputTokens: Value(msg.inputTokens),
+              outputTokens: Value(msg.outputTokens),
+              costMicros: msg.cost != null
+                  ? Value((msg.cost! * 1000000).round())
+                  : const Value(null),
             ),
           );
 
@@ -273,20 +299,38 @@ class SessionManager {
     }
   }
 
-  /// 获取会话的所有消息 + Parts（重建为 ChatMessage）
-  Future<List<ChatMessage>> getMessages(String sessionId) async {
-    // 按顺序取消息
-    final msgRows = await (_db.select(_db.agentMessages)
-          ..where((t) => t.sessionId.equals(sessionId))
-          ..orderBy([(t) => OrderingTerm.asc(t.orderIndex)]))
-        .get();
+  /// 获取会话的所有消息 + Parts（重建为 ChatMessage），支持倒序和分页
+  Future<List<ChatMessage>> getMessages(
+    String sessionId, {
+    int? limit,
+    int? offset,
+    bool descending = false,
+  }) async {
+    // 默认按顺序取消息（旧逻辑），如果 descending = true 则逆序
+    var query = _db.select(_db.agentMessages)
+      ..where((t) => t.sessionId.equals(sessionId))
+      ..orderBy([
+        (t) => descending
+            ? OrderingTerm.desc(t.orderIndex)
+            : OrderingTerm.asc(t.orderIndex)
+      ]);
+
+    if (limit != null) {
+      if (offset != null) {
+        query.limit(limit, offset: offset);
+      } else {
+        query.limit(limit);
+      }
+    }
+
+    final msgRows = await query.get();
 
     if (msgRows.isEmpty) return [];
 
     // 一次性取所有 Parts
-    final partRows = await (_db.select(_db.agentParts)
-          ..where((t) => t.sessionId.equals(sessionId)))
-        .get();
+    final partRows = await (_db.select(
+      _db.agentParts,
+    )..where((t) => t.sessionId.equals(sessionId))).get();
 
     // 按 messageId 分组
     final partsByMsg = <String, List<AgentPart>>{};
@@ -303,20 +347,40 @@ class SessionManager {
 
   /// 获取消息的 Parts
   Future<List<MessagePart>> getPartsForMessage(String messageId) async {
-    final rows = await (_db.select(_db.agentParts)
-          ..where((t) => t.messageId.equals(messageId)))
-        .get();
+    final rows = await (_db.select(
+      _db.agentParts,
+    )..where((t) => t.messageId.equals(messageId))).get();
 
     return rows.map(_rowToPart).toList();
   }
 
   /// 更新单个 Part（用于 prune/compaction）
   Future<void> updatePart(MessagePart part) async {
-    await (_db.update(_db.agentParts)
-          ..where((t) => t.id.equals(part.id)))
-        .write(AgentPartsCompanion(
-      data: Value(jsonEncode(part.toDataMap())),
-    ));
+    await (_db.update(_db.agentParts)..where((t) => t.id.equals(part.id)))
+        .write(AgentPartsCompanion(data: Value(jsonEncode(part.toDataMap()))));
+  }
+
+  /// 更新消息的文本内容（用于剪枝时替换工具输出）
+  ///
+  /// 找到该消息的第一个 text 类型 Part，更新其 data JSON 中的 text 字段。
+  Future<void> updateMessageContent(
+    String messageId,
+    String newContent,
+  ) async {
+    final parts = await (_db.select(_db.agentParts)
+          ..where((t) => t.messageId.equals(messageId)))
+        .get();
+
+    for (final part in parts) {
+      if (part.type == 'text') {
+        final data = jsonDecode(part.data) as Map<String, dynamic>;
+        data['text'] = newContent;
+        await (_db.update(_db.agentParts)
+              ..where((t) => t.id.equals(part.id)))
+            .write(AgentPartsCompanion(data: Value(jsonEncode(data))));
+        return;
+      }
+    }
   }
 
   /// 清空会话消息和 Parts
@@ -326,26 +390,35 @@ class SessionManager {
       'DELETE FROM agent_messages_fts WHERE session_id = ?',
       [sessionId],
     );
-    await (_db.delete(_db.agentParts)
-          ..where((t) => t.sessionId.equals(sessionId)))
-        .go();
-    await (_db.delete(_db.agentMessages)
-          ..where((t) => t.sessionId.equals(sessionId)))
-        .go();
+    await (_db.delete(
+      _db.agentParts,
+    )..where((t) => t.sessionId.equals(sessionId))).go();
+    await (_db.delete(
+      _db.agentMessages,
+    )..where((t) => t.sessionId.equals(sessionId))).go();
   }
 
   /// 编辑重发：删除某条用户消息及之后的所有消息（和它们的 Parts）
-  Future<void> deleteMessagesFromAndAfter(String sessionId, String messageId) async {
+  Future<void> deleteMessagesFromAndAfter(
+    String sessionId,
+    String messageId,
+  ) async {
     // 查找该消息的 orderIndex
-    final msg = await (_db.select(_db.agentMessages)..where((t) => t.id.equals(messageId))).getSingleOrNull();
+    final msg = await (_db.select(
+      _db.agentMessages,
+    )..where((t) => t.id.equals(messageId))).getSingleOrNull();
     if (msg == null) return;
     final orderIdx = msg.orderIndex;
 
     // 找到所有要删除的 messageIds
-    final msgsToDelete = await (_db.select(_db.agentMessages)
-          ..where((t) => t.sessionId.equals(sessionId) & t.orderIndex.isBiggerOrEqualValue(orderIdx)))
-        .get();
-    
+    final msgsToDelete =
+        await (_db.select(_db.agentMessages)..where(
+              (t) =>
+                  t.sessionId.equals(sessionId) &
+                  t.orderIndex.isBiggerOrEqualValue(orderIdx),
+            ))
+            .get();
+
     final idsBtn = msgsToDelete.map((e) => e.id).toList();
     if (idsBtn.isEmpty) return;
 
@@ -354,23 +427,36 @@ class SessionManager {
       'DELETE FROM agent_messages_fts WHERE message_id IN (${idsBtn.map((_) => '?').join(',')})',
       idsBtn,
     );
-    await (_db.delete(_db.agentParts)..where((t) => t.messageId.isIn(idsBtn))).go();
+    await (_db.delete(
+      _db.agentParts,
+    )..where((t) => t.messageId.isIn(idsBtn))).go();
     await (_db.delete(_db.agentMessages)..where((t) => t.id.isIn(idsBtn))).go();
   }
 
   /// 删除指定的多条消息及其关联依赖（用于重发、重新生成）
   Future<void> deleteMessagesByIds(List<String> messageIds) async {
     if (messageIds.isEmpty) return;
-    
+
     // 清理 FTS 索引
     await _db.customStatement(
       'DELETE FROM agent_messages_fts WHERE message_id IN (${messageIds.map((_) => '?').join(',')})',
       messageIds,
     );
     // 清理 Parts
-    await (_db.delete(_db.agentParts)..where((t) => t.messageId.isIn(messageIds))).go();
+    await (_db.delete(
+      _db.agentParts,
+    )..where((t) => t.messageId.isIn(messageIds))).go();
     // 清理 Messages
-    await (_db.delete(_db.agentMessages)..where((t) => t.id.isIn(messageIds))).go();
+    await (_db.delete(
+      _db.agentMessages,
+    )..where((t) => t.id.isIn(messageIds))).go();
+  }
+
+  /// 更新消息的费用字段（异步费用计算后回填）
+  Future<void> updateMessageCost(String messageId, int costMicros) async {
+    await (_db.update(_db.agentMessages)
+          ..where((t) => t.id.equals(messageId)))
+        .write(AgentMessagesCompanion(costMicros: Value(costMicros)));
   }
 
   // ─── FTS5 全文搜索 ──────────────────────────────────────────
@@ -413,52 +499,65 @@ class SessionManager {
   // ─── 内部工具方法 ─────────────────────────────────────────
 
   Future<int> _getMaxOrderIndex(String sessionId) async {
-    final result = await (_db.selectOnly(_db.agentMessages)
-          ..where(_db.agentMessages.sessionId.equals(sessionId))
-          ..addColumns([_db.agentMessages.orderIndex.max()]))
-        .getSingleOrNull();
+    final result =
+        await (_db.selectOnly(_db.agentMessages)
+              ..where(_db.agentMessages.sessionId.equals(sessionId))
+              ..addColumns([_db.agentMessages.orderIndex.max()]))
+            .getSingleOrNull();
 
     return result?.read(_db.agentMessages.orderIndex.max()) ?? 0;
   }
 
   /// 从 ChatMessage 自动推断并创建 Parts
-  Future<void> _autoCreateParts(
-    String sessionId,
-    ChatMessage msg,
-  ) async {
+  Future<void> _autoCreateParts(String sessionId, ChatMessage msg) async {
     final parts = <MessagePart>[];
     int partIndex = 0;
 
     // 文本内容 → TextPart
     if (msg.content != null && msg.content!.isNotEmpty) {
-      parts.add(TextPart(
-        id: '${msg.id}_p${partIndex++}',
-        messageId: msg.id,
-        sessionId: sessionId,
-        text: msg.content!,
-        // tool result 消息额外存储 toolCallId 和 toolName
-        toolCallId: msg.toolCallId,
-        toolName: msg.toolName,
-      ));
+      parts.add(
+        TextPart(
+          id: '${msg.id}_p${partIndex++}',
+          messageId: msg.id,
+          sessionId: sessionId,
+          text: msg.content!,
+          // tool result 消息额外存储 toolCallId 和 toolName
+          toolCallId: msg.toolCallId,
+          toolName: msg.toolName,
+        ),
+      );
     }
 
     // 工具调用 → ToolPart
     if (msg.toolCalls != null) {
       for (final tc in msg.toolCalls!) {
-        parts.add(ToolPart(
-          id: '${msg.id}_p${partIndex++}',
-          messageId: msg.id,
-          sessionId: sessionId,
-          callId: tc.id,
-          toolName: tc.name,
-          status: ToolPartStatus.completed,
-          input: tc.arguments,
-        ));
+        parts.add(
+          ToolPart(
+            id: '${msg.id}_p${partIndex++}',
+            messageId: msg.id,
+            sessionId: sessionId,
+            callId: tc.id,
+            toolName: tc.name,
+            status: ToolPartStatus.completed,
+            input: tc.arguments,
+          ),
+        );
       }
     }
 
     if (parts.isNotEmpty) {
       await _writeParts(parts);
+    }
+
+    // 上下文快照 → ContextSnapshotPart
+    if (msg.contextMessages != null && msg.contextMessages!.isNotEmpty) {
+      final snapshotPart = ContextSnapshotPart(
+        id: '${msg.id}_ctx',
+        messageId: msg.id,
+        sessionId: sessionId,
+        messagesJson: msg.contextMessages!.map((m) => m.toMap()).toList(),
+      );
+      await _writeParts([snapshotPart]);
     }
   }
 
@@ -497,6 +596,7 @@ class SessionManager {
     List<ToolCall>? toolCalls;
     String? toolCallId;
     String? toolName;
+    List<ChatMessage>? contextMessages;
 
     for (final partRow in partRows) {
       final part = _rowToPart(partRow);
@@ -508,16 +608,20 @@ class SessionManager {
           if (part.toolName != null) toolName = part.toolName;
         case ToolPart():
           toolCalls ??= [];
-          toolCalls.add(ToolCall(
-            id: part.callId,
-            name: part.toolName,
-            arguments: part.input,
-          ));
+          toolCalls.add(
+            ToolCall(
+              id: part.callId,
+              name: part.toolName,
+              arguments: part.input,
+            ),
+          );
           // tool result 消息的 toolCallId 来自 ToolPart
           if (row.role == 'tool') {
             toolCallId = part.callId;
             toolName = part.toolName;
           }
+        case ContextSnapshotPart():
+          contextMessages = part.toChatMessages();
         case StepFinishPart():
         case CompactionPart():
           break; // 元数据 Part 不影响 ChatMessage 重建
@@ -532,6 +636,10 @@ class SessionManager {
       toolCallId: toolCallId,
       toolName: toolName,
       askId: row.askId,
+      inputTokens: row.inputTokens,
+      outputTokens: row.outputTokens,
+      cost: row.costMicros != null ? row.costMicros! / 1000000.0 : null,
+      contextMessages: contextMessages,
       timestamp: row.createdAt,
     );
   }
