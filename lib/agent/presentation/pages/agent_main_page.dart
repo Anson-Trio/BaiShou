@@ -29,7 +29,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
   bool _isLoading = true;
   String? _selectedSessionId;
 
-  // 当前\u4f19\u4f34
+  // 当前伙伴
   AgentAssistant? _currentAssistant;
 
   // 批量删除
@@ -56,7 +56,9 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
     setState(() => _isLoading = true);
     try {
       final manager = ref.read(sessionManagerProvider);
-      final sessions = await manager.getSessionsByAssistant(_currentAssistant!.id);
+      final sessions = await manager.getSessionsByAssistant(
+        _currentAssistant!.id,
+      );
 
       setState(() {
         _sessions = sessions;
@@ -84,7 +86,9 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
     if (_currentAssistant == null) return;
     try {
       final manager = ref.read(sessionManagerProvider);
-      final sessions = await manager.getSessionsByAssistant(_currentAssistant!.id);
+      final sessions = await manager.getSessionsByAssistant(
+        _currentAssistant!.id,
+      );
       if (mounted) {
         setState(() => _sessions = sessions);
       }
@@ -154,7 +158,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
   Future<void> _createNewSession() async {
     final notifier = ref.read(agentChatProvider.notifier);
     notifier.clearChat();
-    // 绑定当前\u4f19\u4f34
+    // 绑定当前伙伴
     if (_currentAssistant != null) {
       // 会话创建时 agentChatProvider 会自动绑定 assistantId
       // 我们在 clearChat 后设定当前 assistantId
@@ -173,7 +177,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
       _isMultiSelect = false;
       _selectedIds.clear();
     });
-    // 清空当前聊天并加载新\u4f19\u4f34的会话
+    // 清空当前聊天并加载新伙伴的会话
     ref.read(agentChatProvider.notifier).clearChat();
     ref.read(agentChatProvider.notifier).setCurrentAssistantId(assistant.id);
     await _loadSessions();
@@ -189,7 +193,9 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
       context: context,
       builder: (ctx) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 400, maxHeight: 550),
             child: Padding(
@@ -199,15 +205,17 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
                 children: [
                   Row(
                     children: [
-                      Text('选择伙伴',
-                          style: Theme.of(ctx).textTheme.titleLarge),
+                      Text('选择伙伴', style: Theme.of(ctx).textTheme.titleLarge),
                       const Spacer(),
                       TextButton(
                         onPressed: () {
                           Navigator.pop(ctx);
-                          Navigator.push(context, MaterialPageRoute(
-                            builder: (_) => const AssistantManagementPage(),
-                          )).then((_) => _refreshCurrentAssistant());
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AssistantManagementPage(),
+                            ),
+                          ).then((_) => _refreshCurrentAssistant());
                         },
                         child: const Text('管理'),
                       ),
@@ -235,14 +243,14 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
   }
 
   Future<void> _refreshCurrentAssistant() async {
-    // 管理页返回后，刷新当前\u4f19\u4f34（可能被编辑/删除）
+    // 管理页返回后，刷新当前伙伴（可能被编辑/删除）
     final repo = ref.read(assistantRepositoryProvider);
     if (_currentAssistant != null) {
       final updated = await repo.get(_currentAssistant!.id);
       if (updated != null) {
         setState(() => _currentAssistant = updated);
       } else {
-        // 当前\u4f19\u4f34被删除，切换到默认
+        // 当前伙伴被删除，切换到默认
         final service = ref.read(assistantServiceProvider);
         final def = await service.ensureDefaultAssistant();
         setState(() => _currentAssistant = def);
@@ -353,17 +361,25 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
               ),
             ),
 
-            // ─── 当前\u4f19\u4f34区域 ───
+            // ─── 当前伙伴区域 ───
             if (_currentAssistant != null)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
                 child: InkWell(
                   onTap: _showAssistantSwitcher,
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                      color: theme.colorScheme.primaryContainer.withValues(
+                        alpha: 0.3,
+                      ),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -397,8 +413,11 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
                             ],
                           ),
                         ),
-                        Icon(Icons.unfold_more,
-                            size: 18, color: theme.colorScheme.outline),
+                        Icon(
+                          Icons.unfold_more,
+                          size: 18,
+                          color: theme.colorScheme.outline,
+                        ),
                       ],
                     ),
                   ),
@@ -441,8 +460,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
 
             // ─── 对话历史区标题 ───
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               child: Row(
                 children: [
                   Text(
@@ -464,7 +482,9 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
                       child: Padding(
                         padding: const EdgeInsets.all(4),
                         child: Icon(
-                          _isMultiSelect ? Icons.close : Icons.checklist_rounded,
+                          _isMultiSelect
+                              ? Icons.close
+                              : Icons.checklist_rounded,
                           size: 16,
                           color: _isMultiSelect
                               ? theme.colorScheme.error
@@ -495,169 +515,178 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
                         final session = _sessions![index];
                         final isSelected = session.id == _selectedSessionId;
 
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 2),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(10),
-                          onTap: () {
-                            setState(() => _selectedSessionId = session.id);
-                            ref
-                                .read(agentChatProvider.notifier)
-                                .loadSession(session.id);
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? theme.colorScheme.primaryContainer
-                                        .withValues(alpha: 0.5)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Row(
-                              children: [
-                                // 多选 checkbox
-                                if (_isMultiSelect)
-                                  Checkbox(
-                                    value: _selectedIds.contains(session.id),
-                                    onChanged: (v) => setState(() {
-                                      if (v == true) {
-                                        _selectedIds.add(session.id);
-                                      } else {
-                                        _selectedIds.remove(session.id);
-                                      }
-                                    }),
-                                    visualDensity: VisualDensity.compact,
-                                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                  ),
-                                if (session.isPinned)
-                                  Padding(
-                                    padding: const EdgeInsets.only(right: 6),
-                                    child: Icon(
-                                      Icons.push_pin,
-                                      size: 13,
-                                      color: theme.colorScheme.primary,
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 2),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: () {
+                              setState(() => _selectedSessionId = session.id);
+                              ref
+                                  .read(agentChatProvider.notifier)
+                                  .loadSession(session.id);
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? theme.colorScheme.primaryContainer
+                                          .withValues(alpha: 0.5)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                children: [
+                                  // 多选 checkbox
+                                  if (_isMultiSelect)
+                                    Checkbox(
+                                      value: _selectedIds.contains(session.id),
+                                      onChanged: (v) => setState(() {
+                                        if (v == true) {
+                                          _selectedIds.add(session.id);
+                                        } else {
+                                          _selectedIds.remove(session.id);
+                                        }
+                                      }),
+                                      visualDensity: VisualDensity.compact,
+                                      materialTapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                  if (session.isPinned)
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 6),
+                                      child: Icon(
+                                        Icons.push_pin,
+                                        size: 13,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                    ),
+                                  Expanded(
+                                    child: Text(
+                                      session.title.isEmpty
+                                          ? t.agent.sessions.new_chat
+                                          : session.title,
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            fontWeight: isSelected
+                                                ? FontWeight.w600
+                                                : FontWeight.normal,
+                                            color: isSelected
+                                                ? theme.colorScheme.primary
+                                                : theme.colorScheme.onSurface,
+                                          ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
-                                Expanded(
-                                  child: Text(
-                                    session.title.isEmpty
-                                        ? t.agent.sessions.new_chat
-                                        : session.title,
-                                    style: theme.textTheme.bodyMedium
-                                        ?.copyWith(
-                                          fontWeight: isSelected
-                                              ? FontWeight.w600
-                                              : FontWeight.normal,
-                                          color: isSelected
-                                              ? theme.colorScheme.primary
-                                              : theme.colorScheme.onSurface,
-                                        ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                if (isSelected)
-                                  PopupMenuButton<String>(
-                                    icon: Icon(
-                                      Icons.more_horiz,
-                                      size: 16,
-                                      color: theme.colorScheme.outline,
-                                    ),
-                                    padding: EdgeInsets.zero,
-                                    tooltip: t.agent.sessions.actions,
-                                    onSelected: (action) async {
-                                      if (action == 'pin') {
-                                        await ref
-                                            .read(sessionManagerProvider)
-                                            .togglePinSession(
-                                              session.id,
-                                              !session.isPinned,
-                                            );
-                                        _loadSessions();
-                                      } else if (action == 'rename') {
-                                        _renameSession(
-                                          session.id,
-                                          session.title,
-                                        );
-                                      } else if (action == 'delete') {
-                                        _deleteSession(session.id, session.title);
-                                      }
-                                    },
-                                    itemBuilder: (context) => [
-                                      PopupMenuItem(
-                                        value: 'pin',
-                                        child: Row(
-                                          children: [
-                                            Icon(
-                                              session.isPinned
-                                                  ? Icons.push_pin_outlined
-                                                  : Icons.push_pin,
-                                              size: 18,
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              session.isPinned
-                                                  ? t.agent.sessions.unpin
-                                                  : t.agent.sessions.pin,
-                                            ),
-                                          ],
-                                        ),
+                                  if (isSelected)
+                                    PopupMenuButton<String>(
+                                      icon: Icon(
+                                        Icons.more_horiz,
+                                        size: 16,
+                                        color: theme.colorScheme.outline,
                                       ),
-                                      PopupMenuItem(
-                                        value: 'rename',
-                                        child: Row(
-                                          children: [
-                                            const Icon(Icons.edit, size: 18),
-                                            const SizedBox(width: 8),
-                                            Text(t.agent.sessions.rename),
-                                          ],
-                                        ),
-                                      ),
-                                      const PopupMenuDivider(),
-                                      PopupMenuItem(
-                                        value: 'delete',
-                                        child: Row(
-                                          children: [
-                                            Icon(
-                                              Icons.delete_outline,
-                                              size: 18,
-                                              color: theme.colorScheme.error,
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              t.agent.sessions.delete_session,
-                                              style: TextStyle(
-                                                color:
-                                                    theme.colorScheme.error,
+                                      padding: EdgeInsets.zero,
+                                      tooltip: t.agent.sessions.actions,
+                                      onSelected: (action) async {
+                                        if (action == 'pin') {
+                                          await ref
+                                              .read(sessionManagerProvider)
+                                              .togglePinSession(
+                                                session.id,
+                                                !session.isPinned,
+                                              );
+                                          _loadSessions();
+                                        } else if (action == 'rename') {
+                                          _renameSession(
+                                            session.id,
+                                            session.title,
+                                          );
+                                        } else if (action == 'delete') {
+                                          _deleteSession(
+                                            session.id,
+                                            session.title,
+                                          );
+                                        }
+                                      },
+                                      itemBuilder: (context) => [
+                                        PopupMenuItem(
+                                          value: 'pin',
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                session.isPinned
+                                                    ? Icons.push_pin_outlined
+                                                    : Icons.push_pin,
+                                                size: 18,
                                               ),
-                                            ),
-                                          ],
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                session.isPinned
+                                                    ? t.agent.sessions.unpin
+                                                    : t.agent.sessions.pin,
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                              ],
+                                        PopupMenuItem(
+                                          value: 'rename',
+                                          child: Row(
+                                            children: [
+                                              const Icon(Icons.edit, size: 18),
+                                              const SizedBox(width: 8),
+                                              Text(t.agent.sessions.rename),
+                                            ],
+                                          ),
+                                        ),
+                                        const PopupMenuDivider(),
+                                        PopupMenuItem(
+                                          value: 'delete',
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                Icons.delete_outline,
+                                                size: 18,
+                                                color: theme.colorScheme.error,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                t.agent.sessions.delete_session,
+                                                style: TextStyle(
+                                                  color:
+                                                      theme.colorScheme.error,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
+                        );
+                      },
+                    ),
             ),
 
             // ─── 批量删除操作栏 ───
             if (_isMultiSelect && _sessions != null)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   border: Border(
                     top: BorderSide(
-                      color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                      color: theme.colorScheme.outlineVariant.withValues(
+                        alpha: 0.3,
+                      ),
                     ),
                   ),
                 ),
@@ -672,46 +701,54 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
                         }
                       }),
                       child: Text(
-                        _selectedIds.length == _sessions!.length ? '取消全选' : '全选',
+                        _selectedIds.length == _sessions!.length
+                            ? '取消全选'
+                            : '全选',
                       ),
                     ),
                     const Spacer(),
                     FilledButton.icon(
-                      onPressed: _selectedIds.isEmpty ? null : () async {
-                        final count = _selectedIds.length;
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: Text(t.agent.sessions.delete_title),
-                            content: Text('确定删除 $count 个对话？此操作不可撤销。'),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, false),
-                                child: Text(t.common.cancel),
-                              ),
-                              FilledButton(
-                                onPressed: () => Navigator.pop(ctx, true),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: theme.colorScheme.error,
+                      onPressed: _selectedIds.isEmpty
+                          ? null
+                          : () async {
+                              final count = _selectedIds.length;
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: Text(t.agent.sessions.delete_title),
+                                  content: Text('确定删除 $count 个对话？此操作不可撤销。'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(ctx, false),
+                                      child: Text(t.common.cancel),
+                                    ),
+                                    FilledButton(
+                                      onPressed: () => Navigator.pop(ctx, true),
+                                      style: FilledButton.styleFrom(
+                                        backgroundColor:
+                                            theme.colorScheme.error,
+                                      ),
+                                      child: Text('删除 ($count)'),
+                                    ),
+                                  ],
                                 ),
-                                child: Text('删除 ($count)'),
-                              ),
-                            ],
-                          ),
-                        );
-                        if (confirm == true) {
-                          await ref.read(sessionManagerProvider).deleteSessions(
-                            _selectedIds.toList(),
-                          );
-                          if (_selectedIds.contains(_selectedSessionId)) {
-                            _selectedSessionId = null;
-                            ref.read(agentChatProvider.notifier).clearChat();
-                          }
-                          _selectedIds.clear();
-                          _isMultiSelect = false;
-                          _loadSessions();
-                        }
-                      },
+                              );
+                              if (confirm == true) {
+                                await ref
+                                    .read(sessionManagerProvider)
+                                    .deleteSessions(_selectedIds.toList());
+                                if (_selectedIds.contains(_selectedSessionId)) {
+                                  _selectedSessionId = null;
+                                  ref
+                                      .read(agentChatProvider.notifier)
+                                      .clearChat();
+                                }
+                                _selectedIds.clear();
+                                _isMultiSelect = false;
+                                _loadSessions();
+                              }
+                            },
                       icon: const Icon(Icons.delete_outline, size: 16),
                       label: Text('删除 (${_selectedIds.length})'),
                       style: FilledButton.styleFrom(
@@ -843,7 +880,7 @@ class _SidebarMenuItem extends StatelessWidget {
   }
 }
 
-// ─── \u4f19\u4f34切换列表（弹窗内） ─────────────────────────────────────
+// ─── 伙伴切换列表（弹窗内） ─────────────────────────────────────
 
 class _AssistantSwitcherList extends StatefulWidget {
   final List<AgentAssistant> assistants;
@@ -863,7 +900,7 @@ class _AssistantSwitcherList extends StatefulWidget {
 }
 
 class _AssistantSwitcherListState extends State<_AssistantSwitcherList> {
-  // 每个\u4f19\u4f34的会话数和最近会话
+  // 每个伙伴的会话数和最近会话
   final Map<String, int> _sessionCounts = {};
   final Map<String, List<AgentSession>> _recentSessions = {};
   String? _expandedId;
@@ -876,7 +913,9 @@ class _AssistantSwitcherListState extends State<_AssistantSwitcherList> {
 
   Future<void> _loadCounts() async {
     for (final a in widget.assistants) {
-      final count = await widget.sessionManager.getSessionCountByAssistant(a.id);
+      final count = await widget.sessionManager.getSessionCountByAssistant(
+        a.id,
+      );
       if (mounted) {
         setState(() => _sessionCounts[a.id] = count);
       }
@@ -885,8 +924,10 @@ class _AssistantSwitcherListState extends State<_AssistantSwitcherList> {
 
   Future<void> _loadRecentSessions(String assistantId) async {
     if (_recentSessions.containsKey(assistantId)) return;
-    final sessions = await widget.sessionManager
-        .getRecentSessionsByAssistant(assistantId, limit: 5);
+    final sessions = await widget.sessionManager.getRecentSessionsByAssistant(
+      assistantId,
+      limit: 5,
+    );
     if (mounted) {
       setState(() => _recentSessions[assistantId] = sessions);
     }
@@ -911,7 +952,10 @@ class _AssistantSwitcherListState extends State<_AssistantSwitcherList> {
               onTap: () => widget.onSelect(assistant),
               borderRadius: BorderRadius.circular(12),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: isCurrent
                       ? colorScheme.primaryContainer.withValues(alpha: 0.4)
@@ -952,8 +996,11 @@ class _AssistantSwitcherListState extends State<_AssistantSwitcherList> {
                     ),
                     // 当前标识
                     if (isCurrent)
-                      Icon(Icons.check_circle,
-                          size: 18, color: colorScheme.primary),
+                      Icon(
+                        Icons.check_circle,
+                        size: 18,
+                        color: colorScheme.primary,
+                      ),
                     // 展开按钮
                     if (count > 0)
                       IconButton(
@@ -998,8 +1045,11 @@ class _AssistantSwitcherListState extends State<_AssistantSwitcherList> {
                             padding: const EdgeInsets.only(bottom: 2),
                             child: Row(
                               children: [
-                                Icon(Icons.chat_bubble_outline,
-                                    size: 12, color: colorScheme.outline),
+                                Icon(
+                                  Icons.chat_bubble_outline,
+                                  size: 12,
+                                  color: colorScheme.outline,
+                                ),
                                 const SizedBox(width: 6),
                                 Expanded(
                                   child: Text(
@@ -1025,4 +1075,3 @@ class _AssistantSwitcherListState extends State<_AssistantSwitcherList> {
     );
   }
 }
-

@@ -1,4 +1,4 @@
-﻿/// Agent 聊天页面
+/// Agent 聊天页面
 ///
 /// 全屏覆盖路由，包含消息列表和输入框
 
@@ -26,36 +26,51 @@ class AgentChatPage extends ConsumerStatefulWidget {
 class _AgentChatPageState extends ConsumerState<AgentChatPage> {
   final _scrollController = ScrollController();
   final _promptController = TextEditingController();
+  bool _isAtBottom = true;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     if (widget.sessionId != null) {
-      // 延迟加载，等 widget 树构建完成
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref
-            .read(agentChatProvider.notifier)
-            .loadSession(widget.sessionId!);
+        ref.read(agentChatProvider.notifier).loadSession(widget.sessionId!);
       });
+    }
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    // 逆序排列下，pixels 接近 0 表示在列表的最底端（最新消息处）
+    final atBottom = pos.pixels <= 80;
+    if (atBottom != _isAtBottom) {
+      setState(() => _isAtBottom = atBottom);
     }
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _promptController.dispose();
     super.dispose();
   }
 
-  void _scrollToBottom() {
+  void _scrollToBottom({bool animate = false}) {
     if (_scrollController.hasClients) {
       Future.delayed(const Duration(milliseconds: 50), () {
         if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
-          );
+          if (animate) {
+            _scrollController.animateTo(
+              0, // target is 0 for reversed list
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          } else {
+            _scrollController.jumpTo(0);
+          }
+          if (mounted) setState(() => _isAtBottom = true);
         }
       });
     }
@@ -66,11 +81,13 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
     final chatState = ref.watch(agentChatProvider);
     final theme = Theme.of(context);
 
-    // 监听消息变化，自动滚动到底部
+    // 监听消息变化，仅在底部时自动滚动
     ref.listen(agentChatProvider, (prev, next) {
       if (prev?.messages.length != next.messages.length ||
           prev?.streamingText != next.streamingText) {
-        _scrollToBottom();
+        if (_isAtBottom) {
+          _scrollToBottom();
+        }
       }
     });
 
@@ -78,7 +95,7 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
     final apiConfig = ref.watch(apiConfigServiceProvider);
     final currentModel = apiConfig.globalDialogueModelId;
 
-    // 解析当前\u4f19\u4f34名称
+    // 解析当前伙伴名称
     final currentAssistantId = chatState.currentAssistantId;
     final assistantsAsync = ref.watch(assistantListProvider);
     final assistantName = assistantsAsync.whenOrNull(
@@ -88,7 +105,6 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
         return match.isNotEmpty ? match.first.name : null;
       },
     );
-
 
     return Scaffold(
       appBar: AppBar(
@@ -114,7 +130,7 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
                 ),
               ],
             ),
-            // 当前模型名称 + \u4f19\u4f34名称
+            // 当前模型名称 + 伙伴名称
             if (currentModel.isNotEmpty || assistantName != null)
               Padding(
                 padding: const EdgeInsets.only(top: 2),
@@ -156,15 +172,22 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('${t.agent.chat.cost_total}: \$${(chatState.totalCostMicros / 1000000).toStringAsFixed(6)}'),
+                            Text(
+                              '${t.agent.chat.cost_total}: \$${(chatState.totalCostMicros / 1000000).toStringAsFixed(6)}',
+                            ),
                             const SizedBox(height: 8),
                             Text('Input Tokens: ${chatState.totalInputTokens}'),
                             const SizedBox(height: 4),
-                            Text('Output Tokens: ${chatState.totalOutputTokens}'),
+                            Text(
+                              'Output Tokens: ${chatState.totalOutputTokens}',
+                            ),
                             const SizedBox(height: 16),
                             Text(
                               t.agent.chat.cost_disclaimer,
-                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
                             ),
                           ],
                         ),
@@ -178,12 +201,18 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
                     );
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                      color: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(
-                        color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                        color: theme.colorScheme.outlineVariant.withValues(
+                          alpha: 0.3,
+                        ),
                       ),
                     ),
                     child: Text(
@@ -206,49 +235,110 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
           Expanded(
             child: chatState.messages.isEmpty && !chatState.isLoading
                 ? _buildEmptyState(theme)
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.only(top: 20, bottom: 20),
-                    itemCount: _buildDisplayItems(chatState).length +
-                        (chatState.isLoading ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      final displayItems = _buildDisplayItems(chatState);
-                      // 流式输出气泡在末尾
-                      if (index == displayItems.length &&
-                          chatState.isLoading) {
-                        return StreamingBubble(
-                          text: chatState.streamingText,
-                          activeToolName: chatState.activeToolName,
-                          completedTools: chatState.completedTools,
-                        );
-                      }
+                : Stack(
+                    children: [
+                      ListView.builder(
+                        controller: _scrollController,
+                        reverse: true, // 核心改动：倒排列表
+                        cacheExtent: 2000,
+                        padding: const EdgeInsets.only(top: 20, bottom: 20),
+                        itemCount: _buildDisplayItems(chatState).length +
+                            (chatState.isLoading ? 1 : 0) +
+                            (chatState.hasMore ? 1 : 0),
+                        itemBuilder: (context, idx) {
+                          int index = idx;
+                          // 1. 如果正在加载（流式输出），最底部（index 0）放置流式气泡
+                          if (chatState.isLoading) {
+                            if (index == 0) {
+                              return StreamingBubble(
+                                key: const ValueKey('__streaming__'),
+                                text: chatState.streamingText,
+                                activeToolName: chatState.activeToolName,
+                                completedTools: chatState.completedTools,
+                              );
+                            }
+                            index--;
+                          }
 
-                      final item = displayItems[index];
-                      if (item is _ToolGroup) {
-                        return ToolResultGroup(messages: item.messages);
-                      }
-                      final message = item as ChatMessage;
-                      if (message.role.name == 'system') {
-                        return const SizedBox.shrink();
-                      }
-                      // 如果是 AI 的消息，但只包含工具调用且内容为空，则不渲染空的文本气泡
-                      if (message.role == MessageRole.assistant &&
-                          (message.content == null || message.content!.trim().isEmpty)) {
-                        return const SizedBox.shrink();
-                      }
-                      return ChatMessageBubble(
-                        message: message,
-                        onEdit: message.role == MessageRole.user
-                            ? () => _showEditDialog(context, ref, message)
-                            : null,
-                        onResend: message.role == MessageRole.user
-                            ? () => ref.read(agentChatProvider.notifier).resendUserMessage(message.id)
-                            : null,
-                        onRegenerate: message.role == MessageRole.assistant
-                            ? () => ref.read(agentChatProvider.notifier).regenerateResponse(message.id)
-                            : null,
-                      );
-                    },
+                          // 2. 正常渲染处理好的 UI 项（此时 displayItems 是随着 reverse ListView 呈倒序的）
+                          final displayItems = _buildDisplayItems(chatState);
+                          if (index < displayItems.length) {
+                            final item = displayItems[index];
+                            if (item is _ToolGroup) {
+                              return ToolResultGroup(
+                                key: ValueKey('tg_${item.messages.first.id}'),
+                                messages: item.messages,
+                              );
+                            }
+                            final message = item as ChatMessage;
+                            if (message.role.name == 'system') {
+                              return SizedBox.shrink(key: ValueKey(message.id));
+                            }
+                            if (message.role == MessageRole.assistant &&
+                                (message.content == null ||
+                                    message.content!.trim().isEmpty)) {
+                              return SizedBox.shrink(key: ValueKey(message.id));
+                            }
+                            return ChatMessageBubble(
+                              key: ValueKey(message.id),
+                              message: message,
+                              onEdit: message.role == MessageRole.user
+                                  ? () => _showEditDialog(context, ref, message)
+                                  : null,
+                              onResend: message.role == MessageRole.user
+                                  ? () => ref
+                                        .read(agentChatProvider.notifier)
+                                        .resendUserMessage(message.id)
+                                  : null,
+                              onRegenerate: message.role == MessageRole.assistant
+                                  ? () => ref
+                                        .read(agentChatProvider.notifier)
+                                        .regenerateResponse(message.id)
+                                  : null,
+                            );
+                          } else {
+                            // 3. 达到最顶部（历史最前），触发并显示加载更多
+                            if (!chatState.isLoadingMore) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                ref.read(agentChatProvider.notifier).loadMore();
+                              });
+                            }
+                            return Container(
+                              padding: const EdgeInsets.all(20),
+                              alignment: Alignment.center,
+                              child: const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                      // 滚动到底部 FAB
+                      if (!_isAtBottom && chatState.messages.isNotEmpty)
+                        Positioned(
+                          right: 16,
+                          bottom: 12,
+                          child: Material(
+                            elevation: 4,
+                            shape: const CircleBorder(),
+                            color: theme.colorScheme.surfaceContainerHighest,
+                            clipBehavior: Clip.antiAlias,
+                            child: InkWell(
+                              onTap: () => _scrollToBottom(animate: true),
+                              child: Padding(
+                                padding: const EdgeInsets.all(10),
+                                child: Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  size: 22,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
           ),
 
@@ -294,8 +384,11 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
                                 (m) => m.role == MessageRole.user,
                                 orElse: () => ChatMessage.user(''),
                               );
-                              if (lastUserMsg.id.isNotEmpty && lastUserMsg.content?.isNotEmpty == true) {
-                                ref.read(agentChatProvider.notifier).resendUserMessage(lastUserMsg.id);
+                              if (lastUserMsg.id.isNotEmpty &&
+                                  lastUserMsg.content?.isNotEmpty == true) {
+                                ref
+                                    .read(agentChatProvider.notifier)
+                                    .resendUserMessage(lastUserMsg.id);
                               }
                             },
                       icon: const Icon(Icons.refresh_rounded, size: 16),
@@ -303,7 +396,9 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
                       style: TextButton.styleFrom(
                         foregroundColor: theme.colorScheme.onErrorContainer,
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 4),
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
                         visualDensity: VisualDensity.compact,
                       ),
                     ),
@@ -324,28 +419,38 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
               final newId = selected?.id.toString();
               ref.read(agentChatProvider.notifier).setAssistant(newId);
               if (chatState.sessionId != null) {
-                await ref.read(sessionManagerProvider)
+                await ref
+                    .read(sessionManagerProvider)
                     .updateSessionAssistant(chatState.sessionId!, newId);
               }
             },
             onSend: (text) async {
+              // 发送消息时自动滚动到底部
+              setState(() => _isAtBottom = true);
               String? guidelines;
               if (chatState.sessionId != null) {
-                final session = await ref.read(sessionManagerProvider).getSession(chatState.sessionId!);
+                final session = await ref
+                    .read(sessionManagerProvider)
+                    .getSession(chatState.sessionId!);
                 guidelines = session?.systemPrompt;
               }
-              ref.read(agentChatProvider.notifier).sendMessage(
-                    text: text,
-                    guidelines: guidelines,
-                  );
+              ref
+                  .read(agentChatProvider.notifier)
+                  .sendMessage(text: text, guidelines: guidelines);
+              _scrollToBottom();
             },
           ),
         ],
       ),
     );
   }
+
   /// 编辑消息弹窗
-  Future<void> _showEditDialog(BuildContext context, WidgetRef ref, ChatMessage message) async {
+  Future<void> _showEditDialog(
+    BuildContext context,
+    WidgetRef ref,
+    ChatMessage message,
+  ) async {
     final controller = TextEditingController(text: message.content ?? '');
     final theme = Theme.of(context);
     final result = await showDialog<String>(
@@ -358,9 +463,7 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
           autofocus: true,
           decoration: InputDecoration(
             hintText: t.agent.chat.input_hint,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             filled: true,
             fillColor: theme.colorScheme.surfaceContainerLow,
           ),
@@ -377,11 +480,12 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
         ],
       ),
     );
-    if (result != null && result.trim().isNotEmpty && result != message.content) {
+    if (result != null &&
+        result.trim().isNotEmpty &&
+        result != message.content) {
       ref.read(agentChatProvider.notifier).editAndResend(message.id, result);
     }
   }
-
 
   Widget _buildEmptyState(ThemeData theme) {
     return Center(
@@ -439,15 +543,21 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
   /// 将原始错误信息转换为用户友好的提示
   String _friendlyError(String raw) {
     // 使用正则匹配 HTTP 状态码（避免误匹配端口号/时间戳等）
-    final statusMatch = RegExp(r'(?:status\s*(?:code)?|HTTP)\s*:?\s*(\d{3})').firstMatch(raw);
-    final statusCode = statusMatch != null ? int.tryParse(statusMatch.group(1)!) : null;
+    final statusMatch = RegExp(
+      r'(?:status\s*(?:code)?|HTTP)\s*:?\s*(\d{3})',
+    ).firstMatch(raw);
+    final statusCode = statusMatch != null
+        ? int.tryParse(statusMatch.group(1)!)
+        : null;
 
     String? friendly;
     if (statusCode != null) {
       if (statusCode == 400) friendly = t.agent.chat.err_format;
-      if (statusCode == 401 || statusCode == 403) friendly = t.agent.chat.err_unauthorized;
+      if (statusCode == 401 || statusCode == 403)
+        friendly = t.agent.chat.err_unauthorized;
       if (statusCode == 429) friendly = t.agent.chat.err_too_many_requests;
-      if (statusCode >= 500 && statusCode <= 503) friendly = t.agent.chat.err_server;
+      if (statusCode >= 500 && statusCode <= 503)
+        friendly = t.agent.chat.err_server;
     }
     if (raw.contains('timeout') || raw.contains('TimeoutException')) {
       friendly = t.agent.chat.err_timeout;
@@ -462,15 +572,19 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
   }
 
   /// 将消息列表预处理为展示项
-  /// 
+  ///
   /// 核心逻辑：把 「空内容 assistant(toolCalls) + tool 结果」 这种连续序列
   /// 合并为一个 _ToolGroup，这样多次工具调用不会拆分成多个独立卡片。
   ///
   /// 同时从 assistant 的 toolCalls 中提取工具名，回填到 tool 结果消息上
   /// （兼容旧数据）。
   List<Object> _buildDisplayItems(AgentChatState chatState) {
+    if (chatState.messages.isEmpty) return [];
+
     final items = <Object>[];
-    final messages = chatState.messages;
+    // chatState.messages 目前是按时间倒序的（最新在 0）。
+    // 为了和原有的合并连续工具调用的顺时逻辑保持高度一致，我们先将其翻转为正序（先发生在前，即 index=0）。
+    final messages = chatState.messages.reversed.toList();
 
     for (var i = 0; i < messages.length; i++) {
       final msg = messages[i];
@@ -489,7 +603,7 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
             // 这是一个空内容 assistant 消息，包含 toolCalls 信息
             // 向后查找对应的 tool 结果并回填工具名
             final callMap = {
-              for (final call in current.toolCalls!) call.id: call.name
+              for (final call in current.toolCalls!) call.id: call.name,
             };
 
             // 向后扫描紧邻的 tool 消息
@@ -502,14 +616,16 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
                 final resolvedName =
                     callMap[toolMsg.toolCallId] ?? toolMsg.toolName;
                 // 创建带工具名的副本（避免修改原对象）
-                toolGroup.add(ChatMessage(
-                  id: toolMsg.id,
-                  role: toolMsg.role,
-                  content: toolMsg.content,
-                  toolCallId: toolMsg.toolCallId,
-                  toolName: resolvedName,
-                  timestamp: toolMsg.timestamp,
-                ));
+                toolGroup.add(
+                  ChatMessage(
+                    id: toolMsg.id,
+                    role: toolMsg.role,
+                    content: toolMsg.content,
+                    toolCallId: toolMsg.toolCallId,
+                    toolName: resolvedName,
+                    timestamp: toolMsg.timestamp,
+                  ),
+                );
               } else {
                 toolGroup.add(toolMsg);
               }
@@ -534,7 +650,9 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
         items.add(msg);
       }
     }
-    return items;
+
+    // 最后，将合并好工具调用的 items 再次翻转回倒序，供 ListView(reverse: true) 使用
+    return items.reversed.toList();
   }
 
   /// 判断消息是否属于工具调用序列的一部分
@@ -555,4 +673,3 @@ class _ToolGroup {
   final List<ChatMessage> messages;
   const _ToolGroup(this.messages);
 }
-

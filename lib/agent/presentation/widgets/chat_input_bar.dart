@@ -1,4 +1,4 @@
-﻿/// 聊天输入框组件
+/// 聊天输入框组件
 import 'dart:io';
 
 import 'package:baishou/features/settings/presentation/pages/views/agent_tools_view.dart';
@@ -9,9 +9,11 @@ import 'package:flutter/services.dart';
 class ChatInputBar extends StatefulWidget {
   final bool isLoading;
   final ValueChanged<String> onSend;
-  /// 当前\u4f19\u4f34名称（显示在 chip 上）
+
+  /// 当前伙伴名称（显示在 chip 上）
   final String? assistantName;
-  /// 点击\u4f19\u4f34 chip 的回调
+
+  /// 点击伙伴 chip 的回调
   final VoidCallback? onAssistantTap;
 
   const ChatInputBar({
@@ -29,14 +31,10 @@ class ChatInputBar extends StatefulWidget {
 class _ChatInputBarState extends State<ChatInputBar> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
-  bool _hasFocus = false;
 
   @override
   void initState() {
     super.initState();
-    _focusNode.addListener(() {
-      setState(() => _hasFocus = _focusNode.hasFocus);
-    });
   }
 
   void _handleSend() {
@@ -50,7 +48,8 @@ class _ChatInputBarState extends State<ChatInputBar> {
   /// 桌面端：弹出对话框
   /// 移动端：跳转到新页面
   void _openToolManager() {
-    final isDesktop = MediaQuery.of(context).size.width >= 700 ||
+    final isDesktop =
+        MediaQuery.of(context).size.width >= 700 ||
         Platform.isWindows ||
         Platform.isMacOS ||
         Platform.isLinux;
@@ -64,10 +63,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
           ),
           clipBehavior: Clip.antiAlias,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 600,
-              maxHeight: 700,
-            ),
+            constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
             child: const AgentToolsView(),
           ),
         ),
@@ -76,9 +72,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => Scaffold(
-            appBar: AppBar(
-              title: Text(t.settings.agent_tools_title),
-            ),
+            appBar: AppBar(title: Text(t.settings.agent_tools_title)),
             body: const AgentToolsView(),
           ),
         ),
@@ -142,46 +136,38 @@ class _ChatInputBarState extends State<ChatInputBar> {
                 duration: const Duration(milliseconds: 200),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(26), // 胶囊型圆角
                   border: Border.all(
-                    color: _hasFocus
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.outlineVariant
-                            .withValues(alpha: 0.4),
-                    width: _hasFocus ? 1.5 : 1.0,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _hasFocus
-                          ? theme.colorScheme.primary.withValues(alpha: 0.12)
-                          : theme.colorScheme.shadow.withValues(alpha: 0.08),
-                      blurRadius: _hasFocus ? 20 : 12,
-                      spreadRadius: _hasFocus ? 2 : 0,
-                      offset: const Offset(0, 4),
+                    color: theme.colorScheme.outlineVariant.withValues(
+                      alpha: 0.4,
                     ),
-                  ],
+                    width: 1.0,
+                  ),
                 ),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    // 附件按钮
-                    Padding(
-                      padding: const EdgeInsets.only(left: 4, bottom: 6),
-                      child: IconButton(
-                        onPressed: () {
-                          // TODO: 附件功能
-                        },
-                        icon: Icon(
-                          Icons.add_circle_outline_rounded,
-                          color: theme.colorScheme.outline,
-                          size: 24,
-                        ),
-                        tooltip: '+',
-                        splashRadius: 20,
-                        padding: const EdgeInsets.all(8),
-                        constraints: const BoxConstraints(
-                          minWidth: 40,
-                          minHeight: 40,
+                    // 附件按钮 (固定高度 36)
+                    Container(
+                      width: 36,
+                      height: 36,
+                      margin: const EdgeInsets.only(right: 6),
+                      child: Material(
+                        color: Colors.transparent,
+                        shape: const CircleBorder(),
+                        clipBehavior: Clip.hardEdge,
+                        child: InkWell(
+                          onTap: () {
+                            // TODO: 附件功能
+                          },
+                          child: Center(
+                            child: Icon(
+                              Icons.add_circle_outline_rounded,
+                              color: theme.colorScheme.outline,
+                              size: 26,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -190,9 +176,11 @@ class _ChatInputBarState extends State<ChatInputBar> {
                     Expanded(
                       child: Shortcuts(
                         shortcuts: <ShortcutActivator, Intent>{
-                          const SingleActivator(LogicalKeyboardKey.enter,
-                                  control: false, shift: false):
-                              const _SendIntent(),
+                          const SingleActivator(
+                            LogicalKeyboardKey.enter,
+                            control: false,
+                            shift: false,
+                          ): const _SendIntent(),
                         },
                         child: Actions(
                           actions: <Type, Action<Intent>>{
@@ -206,45 +194,44 @@ class _ChatInputBarState extends State<ChatInputBar> {
                           child: TextField(
                             controller: _controller,
                             focusNode: _focusNode,
-                            maxLines: 5,
+                            maxLines: 6,
                             minLines: 1,
                             textInputAction: TextInputAction.newline,
                             decoration: InputDecoration(
                               hintText: t.agent.chat.input_hint,
                               border: InputBorder.none,
-                              contentPadding:
-                                  const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 14,
+                              contentPadding: const EdgeInsets.only(
+                                left: 6,
+                                right: 6,
+                                top: 2,
+                                bottom: 14, // 使偏下假象被彻底抵消，绝对视觉居中
                               ),
                               isDense: true,
-                              hintStyle:
-                                  theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.outline
-                                    .withValues(alpha: 0.5),
+                              hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.outline.withValues(
+                                  alpha: 0.5,
+                                ),
                               ),
                             ),
-                            style: theme.textTheme.bodyMedium,
+                            style: theme.textTheme.bodyMedium, // 移除固定的行高，避免由于字体度量导致的偏下问题
                           ),
                         ),
                       ),
                     ),
 
-                    // 发送按钮
-                    Padding(
-                      padding: const EdgeInsets.only(right: 6, bottom: 6),
+                    // 发送按钮 (固定高度 36)
+                    Container(
+                      width: 36,
+                      height: 36,
+                      margin: const EdgeInsets.only(left: 6),
                       child: AnimatedSwitcher(
                         duration: const Duration(milliseconds: 200),
                         child: widget.isLoading
                             ? Container(
                                 key: const ValueKey('loading'),
-                                width: 40,
-                                height: 40,
                                 decoration: BoxDecoration(
-                                  color: theme.colorScheme
-                                      .surfaceContainerLow,
-                                  borderRadius:
-                                      BorderRadius.circular(12),
+                                  color: theme.colorScheme.surfaceContainerLow,
+                                  shape: BoxShape.circle,
                                 ),
                                 child: Center(
                                   child: SizedBox(
@@ -280,11 +267,7 @@ class _SendButton extends StatefulWidget {
   final VoidCallback onTap;
   final ThemeData theme;
 
-  const _SendButton({
-    super.key,
-    required this.onTap,
-    required this.theme,
-  });
+  const _SendButton({super.key, required this.onTap, required this.theme});
 
   @override
   State<_SendButton> createState() => _SendButtonState();
@@ -327,15 +310,14 @@ class _SendButtonState extends State<_SendButton>
       child: ScaleTransition(
         scale: _scaleAnimation,
         child: Container(
-          width: 40,
-          height: 40,
+          width: 36,
+          height: 36,
           decoration: BoxDecoration(
             color: widget.theme.colorScheme.primary,
-            borderRadius: BorderRadius.circular(12),
+            shape: BoxShape.circle, // 按钮改成完全圆形
             boxShadow: [
               BoxShadow(
-                color: widget.theme.colorScheme.primary
-                    .withValues(alpha: 0.3),
+                color: widget.theme.colorScheme.primary.withValues(alpha: 0.3),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -343,7 +325,7 @@ class _SendButtonState extends State<_SendButton>
           ),
           child: Icon(
             Icons.send_rounded,
-            size: 20,
+            size: 18,
             color: widget.theme.colorScheme.onPrimary,
           ),
         ),
@@ -357,6 +339,7 @@ class _QuickActionChip extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+
   /// 是否为激活状态（toggle chip 用）
   final bool isActive;
 
@@ -398,11 +381,7 @@ class _QuickActionChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                icon,
-                size: 14,
-                color: fgColor,
-              ),
+              Icon(icon, size: 14, color: fgColor),
               const SizedBox(width: 6),
               Text(
                 label,
