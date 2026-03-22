@@ -439,10 +439,10 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
                       ),
                       Expanded(
                         child: Slider(
-                          value: ref.read(apiConfigServiceProvider).ragTopK.toDouble(),
-                          min: 1,
-                          max: 50,
-                          divisions: 49,
+                          value: ref.read(apiConfigServiceProvider).ragTopK.toDouble().clamp(10, 100),
+                          min: 10,
+                          max: 100,
+                          divisions: 9,
                           label: ref.read(apiConfigServiceProvider).ragTopK.toString(),
                           onChanged: (v) async {
                             await ref.read(apiConfigServiceProvider).setRagTopK(v.round());

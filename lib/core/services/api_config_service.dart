@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 
 import 'package:baishou/agent/models/ai_provider_model.dart';
 import 'package:baishou/agent/rag/embedding_model_utils.dart';
@@ -23,14 +23,12 @@ class ApiConfigService {
       'global_summary_provider_id';
   static const String _keyGlobalSummaryModelId = 'global_summary_model_id';
   static const String _keyMonthlySummarySource = 'monthly_summary_source';
-  static const String _keyAgentContextWindowSize =
-      'agent_context_window_size';
+  static const String _keyAgentContextWindowSize = 'agent_context_window_size';
   static const String _keyAgentPersona = 'agent_persona';
   static const String _keyAgentGuidelines = 'agent_guidelines';
   static const String _keyGlobalEmbeddingProviderId =
       'global_embedding_provider_id';
-  static const String _keyGlobalEmbeddingModelId =
-      'global_embedding_model_id';
+  static const String _keyGlobalEmbeddingModelId = 'global_embedding_model_id';
   static const String _keyDisabledToolIds = 'disabled_tool_ids';
   static const String _keyToolConfigPrefix = 'tool_config_';
   static const String _keyRagEnabled = 'rag_global_enabled';
@@ -153,7 +151,10 @@ class ApiConfigService {
   }) async {
     final providers = getProviders();
     final id = 'custom_${DateTime.now().millisecondsSinceEpoch}';
-    final maxOrder = providers.fold<int>(0, (max, p) => p.sortOrder > max ? p.sortOrder : max);
+    final maxOrder = providers.fold<int>(
+      0,
+      (max, p) => p.sortOrder > max ? p.sortOrder : max,
+    );
     final provider = AiProviderModel(
       id: id,
       name: name,
@@ -173,7 +174,10 @@ class ApiConfigService {
   /// 删除供应商（仅允许删除非系统内置供应商）
   Future<bool> deleteProvider(String id) async {
     final providers = getProviders();
-    final target = providers.firstWhere((p) => p.id == id, orElse: () => throw Exception('not found'));
+    final target = providers.firstWhere(
+      (p) => p.id == id,
+      orElse: () => throw Exception('not found'),
+    );
     if (target.isSystem) return false; // 不允许删除系统供应商
     providers.removeWhere((p) => p.id == id);
     await _saveProviders(providers);
@@ -284,7 +288,6 @@ class ApiConfigService {
     await _prefs.setInt(_keyAgentContextWindowSize, clamped);
   }
 
-
   /// 深度陪伴模式：达到此 token 数时触发压缩（默认 8000）
   int get companionCompressTokens {
     return _prefs.getInt('companion_compress_tokens') ?? 8000;
@@ -305,8 +308,7 @@ class ApiConfigService {
 
   /// Agent 角色人设描述
   String get agentPersona {
-    return _prefs.getString(_keyAgentPersona) ??
-        '你是 AI \u4f19\u4f34，帮助用户回顾日记和生活记录。';
+    return _prefs.getString(_keyAgentPersona) ?? '你是 AI 伙伴，帮助用户回顾日记和生活记录。';
   }
 
   /// 设置 Agent 角色人设
@@ -316,8 +318,7 @@ class ApiConfigService {
 
   /// Agent 行为准则
   String get agentGuidelines {
-    return _prefs.getString(_keyAgentGuidelines) ??
-        '请使用工具查阅日记内容，不要编造。引用时注明日期。';
+    return _prefs.getString(_keyAgentGuidelines) ?? '请使用工具查阅日记内容，不要编造。引用时注明日期。';
   }
 
   /// 设置 Agent 行为准则
@@ -386,7 +387,7 @@ class ApiConfigService {
 
   /// 设置 RAG topK
   Future<void> setRagTopK(int topK) async {
-    await _prefs.setInt(_keyRagTopK, topK.clamp(1, 50));
+    await _prefs.setInt(_keyRagTopK, topK.clamp(1, 100));
   }
 
   /// RAG 相似度阈值（低于此值的结果会被过滤，默认 0.0 不过滤）
@@ -396,7 +397,10 @@ class ApiConfigService {
 
   /// 设置 RAG 相似度阈值
   Future<void> setRagSimilarityThreshold(double threshold) async {
-    await _prefs.setDouble(_keyRagSimilarityThreshold, threshold.clamp(0.0, 1.0));
+    await _prefs.setDouble(
+      _keyRagSimilarityThreshold,
+      threshold.clamp(0.0, 1.0),
+    );
   }
 
   // --- 总结提示词自定义（按类型独立配置） ---
@@ -463,10 +467,7 @@ class ApiConfigService {
   ) async {
     final config = getToolConfig(toolId);
     config[key] = value;
-    await _prefs.setString(
-      '$_keyToolConfigPrefix$toolId',
-      json.encode(config),
-    );
+    await _prefs.setString('$_keyToolConfigPrefix$toolId', json.encode(config));
   }
 
   /// 获取某工具某配置项的当前值（无则返回 null）
@@ -537,4 +538,3 @@ final apiConfigServiceProvider = Provider<ApiConfigService>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
   return ApiConfigService(prefs);
 });
-
