@@ -1,4 +1,4 @@
-﻿/// \u4f19\u4f34编辑页面（创建 / 编辑）
+/// 伙伴编辑页面（创建 / 编辑）
 ///
 /// 独立页面，支持移动端和桌面端
 
@@ -16,7 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
 
 class AssistantEditPage extends ConsumerStatefulWidget {
-  /// 传入 null 表示创建新\u4f19\u4f34，传入已有\u4f19\u4f34表示编辑
+  /// 传入 null 表示创建新伙伴，传入已有伙伴表示编辑
   final AgentAssistant? assistant;
 
   const AssistantEditPage({super.key, this.assistant});
@@ -32,6 +32,7 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
   String _emoji = '⭐';
   double _contextWindow = -1; // -1 = 无限
   double _compressThreshold = 60000; // 0 = 不触发
+  double _compressKeepTurns = 3;
   bool _isDefault = false;
   String? _avatarPath;
   bool _avatarRemoved = false;
@@ -56,6 +57,7 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
     _emoji = a?.emoji ?? '⭐';
     _contextWindow = (a?.contextWindow ?? -1).toDouble();
     _compressThreshold = (a?.compressTokenThreshold ?? 60000).toDouble();
+    _compressKeepTurns = (a?.compressKeepTurns ?? 3).toDouble();
     _isDefault = a?.isDefault ?? false;
     _avatarPath = a?.avatarPath;
     _selectedProviderId = a?.providerId;
@@ -85,9 +87,11 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isEditing
-            ? t.agent.assistant.edit_title
-            : t.agent.assistant.create_title),
+        title: Text(
+          _isEditing
+              ? t.agent.assistant.edit_title
+              : t.agent.assistant.create_title,
+        ),
         actions: [
           if (_isEditing && !_isLastAssistant)
             IconButton(
@@ -117,7 +121,10 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
                           backgroundColor: colorScheme.surfaceContainerHighest,
                           backgroundImage: _getAvatarImage(),
                           child: _getAvatarImage() == null
-                              ? Text(_emoji, style: const TextStyle(fontSize: 36))
+                              ? Text(
+                                  _emoji,
+                                  style: const TextStyle(fontSize: 36),
+                                )
                               : null,
                         ),
                         Positioned(
@@ -126,8 +133,11 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
                           child: CircleAvatar(
                             radius: 16,
                             backgroundColor: colorScheme.primary,
-                            child: Icon(Icons.emoji_emotions,
-                                size: 16, color: colorScheme.onPrimary),
+                            child: Icon(
+                              Icons.emoji_emotions,
+                              size: 16,
+                              color: colorScheme.onPrimary,
+                            ),
                           ),
                         ),
                       ],
@@ -159,8 +169,10 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
                 const SizedBox(height: 24),
 
                 // ── 名称 ──
-                Text(t.agent.assistant.name_label,
-                    style: theme.textTheme.titleSmall),
+                Text(
+                  t.agent.assistant.name_label,
+                  style: theme.textTheme.titleSmall,
+                ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _nameController,
@@ -170,7 +182,9 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                   ),
                 ),
 
@@ -194,8 +208,10 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
                 const SizedBox(height: 24),
 
                 // ── 提示词 ──
-                Text(t.agent.assistant.prompt_label,
-                    style: theme.textTheme.titleSmall),
+                Text(
+                  t.agent.assistant.prompt_label,
+                  style: theme.textTheme.titleSmall,
+                ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _promptController,
@@ -268,18 +284,24 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
       children: [
         Row(
           children: [
-            Text(t.agent.assistant.context_window_label,
-                style: theme.textTheme.titleSmall),
+            Text(
+              t.agent.assistant.context_window_label,
+              style: theme.textTheme.titleSmall,
+            ),
             const Spacer(),
             if (!_isUnlimitedContext)
-              Text('${_contextWindow.round()}',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.primary,
-                  )),
+              Text(
+                '${_contextWindow.round()}',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.primary,
+                ),
+              ),
             const SizedBox(width: 4),
-            Text(_isUnlimitedContext ? '∞ 无限' : '有限',
-                style: theme.textTheme.bodySmall),
+            Text(
+              _isUnlimitedContext ? '∞ 无限' : '有限',
+              style: theme.textTheme.bodySmall,
+            ),
             const SizedBox(width: 4),
             Switch(
               value: _isUnlimitedContext,
@@ -313,7 +335,10 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
   /// 模型绑定区域
   Widget _buildModelSection(ThemeData theme, ColorScheme colorScheme) {
     final apiConfig = ref.read(apiConfigServiceProvider);
-    final providers = apiConfig.getProviders().where((p) => p.isEnabled).toList();
+    final providers = apiConfig
+        .getProviders()
+        .where((p) => p.isEnabled)
+        .toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -350,23 +375,32 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: colorScheme.outline.withValues(alpha: 0.3)),
+                border: Border.all(
+                  color: colorScheme.outline.withValues(alpha: 0.3),
+                ),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.smart_toy_outlined,
-                      color: colorScheme.primary, size: 20),
+                  Icon(
+                    Icons.smart_toy_outlined,
+                    color: colorScheme.primary,
+                    size: 20,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(_selectedProviderId ?? '',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            )),
-                        Text(_selectedModelId ?? '',
-                            style: theme.textTheme.bodyMedium),
+                        Text(
+                          _selectedProviderId ?? '',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        Text(
+                          _selectedModelId ?? '',
+                          style: theme.textTheme.bodyMedium,
+                        ),
                       ],
                     ),
                   ),
@@ -396,11 +430,13 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
             Text('自动压缩', style: theme.textTheme.titleSmall),
             const Spacer(),
             if (!_isCompressDisabled)
-              Text(_formatTokens(_compressThreshold.round()),
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.primary,
-                  )),
+              Text(
+                _formatTokens(_compressThreshold.round()),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.primary,
+                ),
+              ),
             const SizedBox(width: 8),
             Switch(
               value: !_isCompressDisabled,
@@ -411,9 +447,7 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
           ],
         ),
         Text(
-          _isCompressDisabled
-              ? '对话不会自动压缩，所有消息将完整保留'
-              : '对话超过阈值时自动将旧消息压缩为摘要',
+          _isCompressDisabled ? '对话不会自动压缩，所有消息将完整保留' : '对话超过阈值时自动将旧消息压缩为摘要',
           style: theme.textTheme.bodySmall?.copyWith(
             color: colorScheme.onSurfaceVariant,
           ),
@@ -428,6 +462,36 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
             label: _formatTokens(_compressThreshold.round()),
             onChanged: (v) => setState(() {
               _compressThreshold = v;
+            }),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Text('保留互动轮数', style: theme.textTheme.titleSmall),
+              const Spacer(),
+              Text(
+                '${_compressKeepTurns.round()} 轮',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+          Text(
+            '当触发压缩时，对话末尾最近几次互动将会作为原文幸存（一轮包含一问一答），其余则被缩减为摘要',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+          Slider(
+            value: _compressKeepTurns.clamp(1.0, 10.0),
+            min: 1,
+            max: 10,
+            divisions: 9,
+            label: '${_compressKeepTurns.round()}',
+            onChanged: (v) => setState(() {
+              _compressKeepTurns = v;
             }),
           ),
         ],
@@ -458,8 +522,10 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
               children: [
                 Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Text('选择模型',
-                      style: Theme.of(context).textTheme.titleLarge),
+                  child: Text(
+                    '选择模型',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
                 ),
                 Expanded(
                   child: ListView.builder(
@@ -474,13 +540,18 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
                       return ExpansionTile(
                         title: Text(provider.name),
                         children: modelList.map((modelId) {
-                          final isSelected = _selectedProviderId == provider.id &&
+                          final isSelected =
+                              _selectedProviderId == provider.id &&
                               _selectedModelId == modelId;
                           return ListTile(
                             title: Text(modelId),
                             trailing: isSelected
-                                ? Icon(Icons.check_circle,
-                                    color: Theme.of(context).colorScheme.primary)
+                                ? Icon(
+                                    Icons.check_circle,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                  )
                                 : null,
                             onTap: () {
                               setState(() {
@@ -564,7 +635,10 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
           providerId: _selectedProviderId,
           modelId: _selectedModelId,
           clearModel: _selectedProviderId == null,
-          compressTokenThreshold: _isCompressDisabled ? 0 : _compressThreshold.round(),
+          compressTokenThreshold: _isCompressDisabled
+              ? 0
+              : _compressThreshold.round(),
+          compressKeepTurns: _compressKeepTurns.round(),
         );
       } else {
         await service.createAssistant(
@@ -577,7 +651,10 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
           isDefault: _isDefault,
           providerId: _selectedProviderId,
           modelId: _selectedModelId,
-          compressTokenThreshold: _isCompressDisabled ? 0 : _compressThreshold.round(),
+          compressTokenThreshold: _isCompressDisabled
+              ? 0
+              : _compressThreshold.round(),
+          compressKeepTurns: _compressKeepTurns.round(),
         );
       }
 

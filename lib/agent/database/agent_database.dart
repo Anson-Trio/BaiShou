@@ -17,12 +17,12 @@ part 'agent_database.g.dart';
 /// Agent 专属数据库
 /// 独立于主数据库（app_database），存储 Agent 的会话、消息和 Part
 /// 集成 sqlite-vec 原生向量搜索扩展
-@DriftDatabase(tables: [AgentSessions, AgentMessages, AgentParts, AgentAssistants])
+@DriftDatabase(tables: [AgentSessions, AgentMessages, AgentParts, AgentAssistants, CompressionSnapshots])
 class AgentDatabase extends _$AgentDatabase {
   AgentDatabase(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -33,24 +33,18 @@ class AgentDatabase extends _$AgentDatabase {
         },
         onUpgrade: (m, from, to) async {
           if (from < 2) {
-            await m.addColumn(agentSessions, agentSessions.isPinned);
-            await m.addColumn(agentSessions, agentSessions.systemPrompt);
+            // v1 → v2: 创建压缩快照表
+            await m.createTable(compressionSnapshots);
           }
           if (from < 3) {
-            await m.addColumn(agentMessages, agentMessages.askId);
+            // v2 → v3: AgentMessages 新增 token/cost 列
+            await m.addColumn(agentMessages, agentMessages.inputTokens);
+            await m.addColumn(agentMessages, agentMessages.outputTokens);
+            await m.addColumn(agentMessages, agentMessages.costMicros);
           }
           if (from < 4) {
-            await m.createTable(agentAssistants);
-            await m.addColumn(agentSessions, agentSessions.assistantId);
-          }
-          if (from < 5) {
-            // 助手增强：emoji、description、模型绑定、会话压缩
-            await m.addColumn(agentAssistants, agentAssistants.emoji);
-            await m.addColumn(agentAssistants, agentAssistants.description);
-            await m.addColumn(agentAssistants, agentAssistants.providerId);
-            await m.addColumn(agentAssistants, agentAssistants.modelId);
-            await m.addColumn(agentAssistants, agentAssistants.compressTokenThreshold);
-            await m.addColumn(agentAssistants, agentAssistants.truncateTokenThreshold);
+            // v3 → v4: AgentAssistants 新增压缩保留轮数字段
+            await m.addColumn(agentAssistants, agentAssistants.compressKeepTurns);
           }
         },
       );

@@ -1,6 +1,6 @@
-﻿/// \u4f19\u4f34选择底部弹窗
+﻿/// 伙伴选择底部弹窗
 ///
-/// 展示\u4f19\u4f34列表（头像 + 名称 + 提示词预览），支持选择或清除
+/// 展示伙伴列表（头像 + 名称 + 提示词预览），支持选择或清除
 
 import 'dart:io';
 import 'package:baishou/agent/database/agent_database.dart';
@@ -20,7 +20,7 @@ class AssistantPickerSheet extends ConsumerWidget {
   });
 
   /// 静态方法：弹出选择器
-  /// 返回 (是否做出了选择, 选中的\u4f19\u4f34)
+  /// 返回 (是否做出了选择, 选中的伙伴)
   /// didSelect=false 表示用户关闭弹窗未操作
   static Future<(bool, AgentAssistant?)> show(
     BuildContext context, {
@@ -96,8 +96,11 @@ class _SheetContent extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           child: Row(
             children: [
-              Icon(Icons.auto_awesome_rounded,
-                  size: 20, color: colorScheme.primary),
+              Icon(
+                Icons.auto_awesome_rounded,
+                size: 20,
+                color: colorScheme.primary,
+              ),
               const SizedBox(width: 8),
               Text(
                 t.agent.assistant.select_title,
@@ -134,10 +137,13 @@ class _SheetContent extends ConsumerWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.auto_awesome_outlined,
-                          size: 48,
-                          color: colorScheme.onSurfaceVariant
-                              .withValues(alpha: 0.4)),
+                      Icon(
+                        Icons.auto_awesome_outlined,
+                        size: 48,
+                        color: colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.4,
+                        ),
+                      ),
                       const SizedBox(height: 12),
                       Text(
                         t.agent.assistant.empty_hint,
@@ -156,8 +162,7 @@ class _SheetContent extends ConsumerWidget {
                 itemCount: assistants.length,
                 itemBuilder: (context, index) {
                   final a = assistants[index];
-                  final isSelected =
-                      currentAssistantId == a.id.toString();
+                  final isSelected = currentAssistantId == a.id.toString();
 
                   return ListTile(
                     leading: CircleAvatar(
@@ -194,7 +199,9 @@ class _SheetContent extends ConsumerWidget {
                           Container(
                             margin: const EdgeInsets.only(left: 6),
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: colorScheme.tertiaryContainer,
                               borderRadius: BorderRadius.circular(4),
@@ -220,17 +227,23 @@ class _SheetContent extends ConsumerWidget {
                           )
                         : null,
                     trailing: isSelected
-                        ? Icon(Icons.check_circle_rounded,
-                            color: colorScheme.primary, size: 22)
+                        ? Icon(
+                            Icons.check_circle_rounded,
+                            color: colorScheme.primary,
+                            size: 22,
+                          )
                         : null,
                     selected: isSelected,
-                    selectedTileColor:
-                        colorScheme.primaryContainer.withValues(alpha: 0.2),
+                    selectedTileColor: colorScheme.primaryContainer.withValues(
+                      alpha: 0.2,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 4,
+                    ),
                     onTap: () => onSelect(a),
                   );
                 },

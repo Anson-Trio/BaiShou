@@ -1,6 +1,6 @@
-﻿/// \u4f19\u4f34管理页面
+﻿/// 伙伴管理页面
 ///
-/// 展示所有\u4f19\u4f34的列表，支持创建、编辑、删除
+/// 展示所有伙伴的列表，支持创建、编辑、删除
 
 import 'dart:io';
 import 'package:baishou/agent/database/agent_database.dart';
@@ -19,13 +19,14 @@ class AssistantManagementPage extends ConsumerWidget {
     final colorScheme = theme.colorScheme;
     final assistantsAsync = ref.watch(assistantListStreamProvider);
 
-    final isDesktop = Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+    final isDesktop =
+        Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: isDesktop ? null : AppBar(
-        title: Text(t.agent.assistant.management_title),
-      ),
+      appBar: isDesktop
+          ? null
+          : AppBar(title: Text(t.agent.assistant.management_title)),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openEditPage(context, null),
         child: const Icon(Icons.add),

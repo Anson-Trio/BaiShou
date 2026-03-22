@@ -1,6 +1,6 @@
-﻿/// \u4f19\u4f34管理状态
+/// 伙伴管理状态
 ///
-/// 管理 AI \u4f19\u4f34的 CRUD 操作和列表展示
+/// 管理 AI 伙伴的 CRUD 操作和列表展示
 
 import 'dart:io';
 import 'package:baishou/agent/database/agent_database.dart';
@@ -9,38 +9,38 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
-/// 监听\u4f19\u4f34列表（Stream）
+/// 监听伙伴列表（Stream）
 final assistantListStreamProvider = StreamProvider<List<AgentAssistant>>((ref) {
   final repo = ref.watch(assistantRepositoryProvider);
   return repo.watchAll();
 });
 
-/// 获取所有\u4f19\u4f34列表（一次性）
+/// 获取所有伙伴列表（一次性）
 final assistantListProvider = FutureProvider<List<AgentAssistant>>((ref) {
   final repo = ref.watch(assistantRepositoryProvider);
   return repo.getAll();
 });
 
-/// 获取默认\u4f19\u4f34
+/// 获取默认伙伴
 final defaultAssistantProvider = FutureProvider<AgentAssistant?>((ref) {
   final repo = ref.watch(assistantRepositoryProvider);
   return repo.getDefault();
 });
 
-/// \u4f19\u4f34管理服务 Provider
+/// 伙伴管理服务 Provider
 final assistantServiceProvider = Provider<AssistantService>((ref) {
   final repo = ref.watch(assistantRepositoryProvider);
   return AssistantService(repo);
 });
 
-/// \u4f19\u4f34管理服务（无状态，纯操作）
+/// 伙伴管理服务（无状态，纯操作）
 class AssistantService {
   final AssistantRepository _repo;
   static const _uuid = Uuid();
 
   AssistantService(this._repo);
 
-  /// 创建\u4f19\u4f34
+  /// 创建伙伴
   Future<String> createAssistant({
     required String name,
     required String systemPrompt,
@@ -52,6 +52,7 @@ class AssistantService {
     String? providerId,
     String? modelId,
     int compressTokenThreshold = 60000,
+    int compressKeepTurns = 3,
   }) async {
     final id = _uuid.v4();
 
@@ -64,24 +65,27 @@ class AssistantService {
       savedAvatarPath = await _saveAvatar(id, avatarPath);
     }
 
-    await _repo.insert(AgentAssistantsCompanion.insert(
-      id: id,
-      name: name,
-      emoji: Value(emoji),
-      description: Value(description),
-      systemPrompt: Value(systemPrompt),
-      avatarPath: Value(savedAvatarPath),
-      contextWindow: Value(contextWindow),
-      isDefault: Value(isDefault),
-      providerId: Value(providerId),
-      modelId: Value(modelId),
-      compressTokenThreshold: Value(compressTokenThreshold),
-    ));
+    await _repo.insert(
+      AgentAssistantsCompanion.insert(
+        id: id,
+        name: name,
+        emoji: Value(emoji),
+        description: Value(description),
+        systemPrompt: Value(systemPrompt),
+        avatarPath: Value(savedAvatarPath),
+        contextWindow: Value(contextWindow),
+        isDefault: Value(isDefault),
+        providerId: Value(providerId),
+        modelId: Value(modelId),
+        compressTokenThreshold: Value(compressTokenThreshold),
+        compressKeepTurns: Value(compressKeepTurns),
+      ),
+    );
 
     return id;
   }
 
-  /// 更新\u4f19\u4f34
+  /// 更新伙伴
   Future<void> updateAssistant({
     required String id,
     String? name,
@@ -95,6 +99,7 @@ class AssistantService {
     String? providerId,
     String? modelId,
     int? compressTokenThreshold,
+    int? compressKeepTurns,
     bool clearModel = false,
   }) async {
     if (isDefault == true) {
@@ -105,39 +110,62 @@ class AssistantService {
     if (avatarRemoved == true) {
       final existing = await _repo.get(id);
       if (existing?.avatarPath != null) {
-        try { await File(existing!.avatarPath!).delete(); } catch (_) {}
+        try {
+          await File(existing!.avatarPath!).delete();
+        } catch (_) {}
       }
     } else if (avatarPath != null) {
       savedAvatarPath = await _saveAvatar(id, avatarPath);
     }
 
-    await _repo.updateAssistant(AgentAssistantsCompanion(
-      id: Value(id),
-      name: name != null ? Value(name) : const Value.absent(),
-      emoji: emoji != null ? Value(emoji) : const Value.absent(),
-      description: description != null ? Value(description) : const Value.absent(),
-      systemPrompt: systemPrompt != null ? Value(systemPrompt) : const Value.absent(),
-      avatarPath: avatarRemoved == true
-          ? const Value(null)
-          : (savedAvatarPath != null ? Value(savedAvatarPath) : const Value.absent()),
-      contextWindow: contextWindow != null ? Value(contextWindow) : const Value.absent(),
-      isDefault: isDefault != null ? Value(isDefault) : const Value.absent(),
-      providerId: clearModel ? const Value(null) : (providerId != null ? Value(providerId) : const Value.absent()),
-      modelId: clearModel ? const Value(null) : (modelId != null ? Value(modelId) : const Value.absent()),
-      compressTokenThreshold: compressTokenThreshold != null ? Value(compressTokenThreshold) : const Value.absent(),
-      updatedAt: Value(DateTime.now()),
-    ));
+    await _repo.updateAssistant(
+      AgentAssistantsCompanion(
+        id: Value(id),
+        name: name != null ? Value(name) : const Value.absent(),
+        emoji: emoji != null ? Value(emoji) : const Value.absent(),
+        description: description != null
+            ? Value(description)
+            : const Value.absent(),
+        systemPrompt: systemPrompt != null
+            ? Value(systemPrompt)
+            : const Value.absent(),
+        avatarPath: avatarRemoved == true
+            ? const Value(null)
+            : (savedAvatarPath != null
+                  ? Value(savedAvatarPath)
+                  : const Value.absent()),
+        contextWindow: contextWindow != null
+            ? Value(contextWindow)
+            : const Value.absent(),
+        isDefault: isDefault != null ? Value(isDefault) : const Value.absent(),
+        providerId: clearModel
+            ? const Value(null)
+            : (providerId != null ? Value(providerId) : const Value.absent()),
+        modelId: clearModel
+            ? const Value(null)
+            : (modelId != null ? Value(modelId) : const Value.absent()),
+        compressTokenThreshold: compressTokenThreshold != null
+            ? Value(compressTokenThreshold)
+            : const Value.absent(),
+        compressKeepTurns: compressKeepTurns != null
+            ? Value(compressKeepTurns)
+            : const Value.absent(),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
   }
 
-  /// 删除\u4f19\u4f34（不允许删除最后一个）
+  /// 删除伙伴（不允许删除最后一个）
   Future<void> deleteAssistant(String id) async {
     final all = await _repo.getAll();
     if (all.length <= 1) {
-      throw Exception('至少保留一个\u4f19\u4f34');
+      throw Exception('至少保留一个伙伴');
     }
     final existing = await _repo.get(id);
     if (existing?.avatarPath != null) {
-      try { await File(existing!.avatarPath!).delete(); } catch (_) {}
+      try {
+        await File(existing!.avatarPath!).delete();
+      } catch (_) {}
     }
     await _repo.deleteById(id);
     // 如果删的是默认，把第一个设为默认
@@ -149,7 +177,7 @@ class AssistantService {
     }
   }
 
-  /// 确保至少有一个\u4f19\u4f34（首次启动时调用）
+  /// 确保至少有一个伙伴（首次启动时调用）
   Future<AgentAssistant> ensureDefaultAssistant() async {
     final existing = await _repo.getDefault();
     if (existing != null) return existing;
@@ -158,18 +186,18 @@ class AssistantService {
       await _repo.setDefault(all.first.id);
       return all.first;
     }
-    // 创建默认\u4f19\u4f34
+    // 创建默认伙伴
     final id = await createAssistant(
-      name: '默认\u4f19\u4f34',
+      name: '默认伙伴',
       emoji: '⭐',
-      description: '通用 AI \u4f19\u4f34',
+      description: '通用 AI 伙伴',
       systemPrompt: '',
       isDefault: true,
     );
     return (await _repo.get(id))!;
   }
 
-  /// 设置默认\u4f19\u4f34
+  /// 设置默认伙伴
   Future<void> setDefault(String id) async {
     await _repo.setDefault(id);
   }

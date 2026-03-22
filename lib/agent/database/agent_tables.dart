@@ -1,4 +1,4 @@
-﻿import 'package:drift/drift.dart';
+import 'package:drift/drift.dart';
 
 /// Agent 会话表
 class AgentSessions extends Table {
@@ -72,6 +72,15 @@ class AgentMessages extends Table {
   /// 消息顺序号（用于排序）
   IntColumn get orderIndex => integer()();
 
+  /// 本轮 API 输入 token 数（仅 assistant 消息）
+  IntColumn get inputTokens => integer().nullable()();
+
+  /// 本轮 API 输出 token 数（仅 assistant 消息）
+  IntColumn get outputTokens => integer().nullable()();
+
+  /// 本轮费用 micros（美元 × 1,000,000，仅 assistant 消息）
+  IntColumn get costMicros => integer().nullable()();
+
   /// 创建时间
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
@@ -116,7 +125,7 @@ class AgentAssistants extends Table {
   /// 表情符号（用于侧栏展示，null 时使用默认图标）
   TextColumn get emoji => text().nullable()();
 
-  /// \u4f19\u4f34简介
+  /// 伙伴简介
   TextColumn get description => text().withDefault(const Constant(''))();
 
   /// 头像本地路径（null 表示使用默认头像）
@@ -140,6 +149,10 @@ class AgentAssistants extends Table {
   /// 会话压缩阈值：对话达到此 token 数时触发压缩（0=关闭，默认 60000）
   IntColumn get compressTokenThreshold =>
       integer().withDefault(const Constant(60000))();
+
+  /// 压缩保留轮数：用户交互的最后 N 轮保持原文不压缩（默认 3）
+  IntColumn get compressKeepTurns =>
+      integer().withDefault(const Constant(3))();
 
   /// 创建时间
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();

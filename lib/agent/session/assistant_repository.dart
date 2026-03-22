@@ -1,5 +1,5 @@
-﻿/// \u4f19\u4f34数据仓库
-/// 负责 AI \u4f19\u4f34的 CRUD 操作，独立于 AgentDatabase
+﻿/// 伙伴数据仓库
+/// 负责 AI 伙伴的 CRUD 操作，独立于 AgentDatabase
 
 import 'package:baishou/agent/database/agent_database.dart';
 import 'package:drift/drift.dart';
@@ -14,63 +14,65 @@ class AssistantRepository {
 
   // ─── 查询 ──────────────────────────────────────────
 
-  /// 获取所有\u4f19\u4f34（按创建时间降序）
+  /// 获取所有伙伴（按创建时间降序）
   Future<List<AgentAssistant>> getAll() {
-    return (_db.select(_db.agentAssistants)
-          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
-        .get();
+    return (_db.select(
+      _db.agentAssistants,
+    )..orderBy([(t) => OrderingTerm.desc(t.createdAt)])).get();
   }
 
-  /// 获取单个\u4f19\u4f34
+  /// 获取单个伙伴
   Future<AgentAssistant?> get(String id) {
-    return (_db.select(_db.agentAssistants)..where((t) => t.id.equals(id)))
-        .getSingleOrNull();
+    return (_db.select(
+      _db.agentAssistants,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 
-  /// 获取默认\u4f19\u4f34
+  /// 获取默认伙伴
   Future<AgentAssistant?> getDefault() {
-    return (_db.select(_db.agentAssistants)
-          ..where((t) => t.isDefault.equals(true)))
-        .getSingleOrNull();
+    return (_db.select(
+      _db.agentAssistants,
+    )..where((t) => t.isDefault.equals(true))).getSingleOrNull();
   }
 
-  /// 监听\u4f19\u4f34列表变更
+  /// 监听伙伴列表变更
   Stream<List<AgentAssistant>> watchAll() {
-    return (_db.select(_db.agentAssistants)
-          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
-        .watch();
+    return (_db.select(
+      _db.agentAssistants,
+    )..orderBy([(t) => OrderingTerm.desc(t.createdAt)])).watch();
   }
 
   // ─── 写入 ──────────────────────────────────────────
 
-  /// 插入\u4f19\u4f34
+  /// 插入伙伴
   Future<void> insert(AgentAssistantsCompanion entry) {
     return _db.into(_db.agentAssistants).insert(entry);
   }
 
-  /// 更新\u4f19\u4f34
+  /// 更新伙伴
   Future<void> updateAssistant(AgentAssistantsCompanion entry) {
-    return (_db.update(_db.agentAssistants)
-          ..where((t) => t.id.equals(entry.id.value)))
-        .write(entry);
+    return (_db.update(
+      _db.agentAssistants,
+    )..where((t) => t.id.equals(entry.id.value))).write(entry);
   }
 
-  /// 删除\u4f19\u4f34
+  /// 删除伙伴
   Future<void> deleteById(String id) {
-    return (_db.delete(_db.agentAssistants)..where((t) => t.id.equals(id)))
-        .go();
+    return (_db.delete(
+      _db.agentAssistants,
+    )..where((t) => t.id.equals(id))).go();
   }
 
-  // ─── 默认\u4f19\u4f34管理 ──────────────────────────────────
+  // ─── 默认伙伴管理 ──────────────────────────────────
 
-  /// 清除所有\u4f19\u4f34的默认标记
+  /// 清除所有伙伴的默认标记
   Future<void> clearDefault() {
     return (_db.update(_db.agentAssistants)
           ..where((t) => t.isDefault.equals(true)))
         .write(const AgentAssistantsCompanion(isDefault: Value(false)));
   }
 
-  /// 设置指定\u4f19\u4f34为默认
+  /// 设置指定伙伴为默认
   Future<void> setDefault(String id) async {
     await clearDefault();
     await (_db.update(_db.agentAssistants)..where((t) => t.id.equals(id)))
