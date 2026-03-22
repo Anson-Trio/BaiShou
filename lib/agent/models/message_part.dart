@@ -6,12 +6,15 @@
 
 import 'dart:convert';
 
+import 'package:baishou/agent/models/chat_message.dart';
+
 /// Part 类型枚举
 enum PartType {
   text,
   tool,
   stepFinish,
   compaction,
+  contextSnapshot,
 }
 
 /// 消息 Part 基类
@@ -88,6 +91,12 @@ sealed class MessagePart {
           messageId: messageId,
           sessionId: sessionId,
           auto: data['auto'] as bool? ?? true,
+        ),
+      PartType.contextSnapshot => ContextSnapshotPart(
+          id: id,
+          messageId: messageId,
+          sessionId: sessionId,
+          messagesJson: data['messages'] as List<dynamic>? ?? [],
         ),
     };
   }
@@ -241,4 +250,31 @@ class CompactionPart extends MessagePart {
 
   @override
   Map<String, dynamic> toDataMap() => {'auto': auto};
+}
+
+/// 上下文快照 Part — 记录发给 AI 的完整上下文消息列表
+class ContextSnapshotPart extends MessagePart {
+  /// 原始消息列表的 JSON（List<Map>）
+  final List<dynamic> messagesJson;
+
+  const ContextSnapshotPart({
+    required super.id,
+    required super.messageId,
+    required super.sessionId,
+    required this.messagesJson,
+  });
+
+  @override
+  PartType get type => PartType.contextSnapshot;
+
+  @override
+  Map<String, dynamic> toDataMap() => {'messages': messagesJson};
+
+  /// 从 JSON 还原为 ChatMessage 列表
+  List<ChatMessage> toChatMessages() {
+    return messagesJson
+        .whereType<Map<String, dynamic>>()
+        .map((m) => ChatMessage.fromMap(m))
+        .toList();
+  }
 }

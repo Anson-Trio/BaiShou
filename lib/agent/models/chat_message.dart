@@ -47,6 +47,19 @@ class ChatMessage {
   final String? askId;
   final DateTime timestamp;
 
+  // ── 调用链信息（运行时附加，会话级汇总已持久化到 AgentSessions）──
+  /// 本轮 API 调用的输入 token 数
+  final int? inputTokens;
+
+  /// 本轮 API 调用的输出 token 数
+  final int? outputTokens;
+
+  /// 本轮 API 调用费用（美元）
+  final double? cost;
+
+  /// 本轮发给 AI 的上下文消息快照（含摘要、工具消息等）
+  final List<ChatMessage>? contextMessages;
+
   ChatMessage({
     required this.id,
     required this.role,
@@ -55,8 +68,35 @@ class ChatMessage {
     this.toolCallId,
     this.toolName,
     this.askId,
+    this.inputTokens,
+    this.outputTokens,
+    this.cost,
+    this.contextMessages,
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
+
+  /// 创建一个携带 usage 信息的副本
+  ChatMessage withUsage({
+    int? inputTokens,
+    int? outputTokens,
+    double? cost,
+    List<ChatMessage>? contextMessages,
+  }) {
+    return ChatMessage(
+      id: id,
+      role: role,
+      content: content,
+      toolCalls: toolCalls,
+      toolCallId: toolCallId,
+      toolName: toolName,
+      askId: askId,
+      inputTokens: inputTokens ?? this.inputTokens,
+      outputTokens: outputTokens ?? this.outputTokens,
+      cost: cost ?? this.cost,
+      contextMessages: contextMessages ?? this.contextMessages,
+      timestamp: timestamp,
+    );
+  }
 
   /// 创建 system 消息
   factory ChatMessage.system(String content) => ChatMessage(

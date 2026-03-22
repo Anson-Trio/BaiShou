@@ -6,7 +6,7 @@
 class PromptTemplates {
   // ─── 默认模板常量（暴露给 UI 展示和编辑） ─────────────────
 
-  static const defaultWeekly = '''你是一个专业的个人传记作家\u4f19\u4f34。
+  static const defaultWeekly = '''你是一个专业的个人传记作家伙伴。
 **重要指令**：禁止输出任何问候语、开场白或结束语。直接输出纯 Markdown 内容。
 
 ### Markdown Template:
@@ -50,7 +50,7 @@ class PromptTemplates {
 > (一句话概括)
 ```''';
 
-  static const defaultMonthly = '''你是一个专业的个人传记作家\u4f19\u4f34。
+  static const defaultMonthly = '''你是一个专业的个人传记作家伙伴。
 **重要指令**：禁止输出任何问候语、开场白或结束语。直接输出纯 Markdown 内容。
 
 ### Markdown Template:
@@ -90,7 +90,7 @@ class PromptTemplates {
 - **重点方向**:
 ```''';
 
-  static const defaultQuarterly = '''你是一个专业的个人传记作家\u4f19\u4f34。
+  static const defaultQuarterly = '''你是一个专业的个人传记作家伙伴。
 **重要指令**：禁止输出任何问候语、开场白或结束语。直接输出纯 Markdown 内容。
 
 ### Markdown Template:
@@ -124,7 +124,7 @@ class PromptTemplates {
 - **核心方向**:
 ```''';
 
-  static const defaultYearly = '''你是一个专业的个人传记作家\u4f19\u4f34。
+  static const defaultYearly = '''你是一个专业的个人传记作家伙伴。
 **重要指令**：禁止输出任何问候语、开场白或结束语。直接输出纯 Markdown 内容。
 
 ### Markdown Template:

@@ -20,7 +20,7 @@ class SystemPromptBuilder {
   }) {
     final buffer = StringBuffer();
 
-    // 人设（可能为空，\u4f19\u4f34未设置提示词时）
+    // 人设（可能为空，伙伴未设置提示词时）
     if (persona != null && persona.isNotEmpty) {
       buffer.writeln(persona);
       buffer.writeln();
@@ -61,7 +61,7 @@ class SystemPromptBuilder {
       }
     }
 
-    // 行为准则（\u4f19\u4f34模式下可能为 null）
+    // 行为准则（伙伴模式下可能为 null）
     if (guidelines != null && guidelines.isNotEmpty) {
       buffer.writeln(guidelines);
     }
