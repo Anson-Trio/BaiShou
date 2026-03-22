@@ -1,6 +1,6 @@
-/// 助手管理状态
+﻿/// \u4f19\u4f34管理状态
 ///
-/// 管理 AI 助手的 CRUD 操作和列表展示
+/// 管理 AI \u4f19\u4f34的 CRUD 操作和列表展示
 
 import 'dart:io';
 import 'package:baishou/agent/database/agent_database.dart';
@@ -9,38 +9,38 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
-/// 监听助手列表（Stream）
+/// 监听\u4f19\u4f34列表（Stream）
 final assistantListStreamProvider = StreamProvider<List<AgentAssistant>>((ref) {
   final repo = ref.watch(assistantRepositoryProvider);
   return repo.watchAll();
 });
 
-/// 获取所有助手列表（一次性）
+/// 获取所有\u4f19\u4f34列表（一次性）
 final assistantListProvider = FutureProvider<List<AgentAssistant>>((ref) {
   final repo = ref.watch(assistantRepositoryProvider);
   return repo.getAll();
 });
 
-/// 获取默认助手
+/// 获取默认\u4f19\u4f34
 final defaultAssistantProvider = FutureProvider<AgentAssistant?>((ref) {
   final repo = ref.watch(assistantRepositoryProvider);
   return repo.getDefault();
 });
 
-/// 助手管理服务 Provider
+/// \u4f19\u4f34管理服务 Provider
 final assistantServiceProvider = Provider<AssistantService>((ref) {
   final repo = ref.watch(assistantRepositoryProvider);
   return AssistantService(repo);
 });
 
-/// 助手管理服务（无状态，纯操作）
+/// \u4f19\u4f34管理服务（无状态，纯操作）
 class AssistantService {
   final AssistantRepository _repo;
   static const _uuid = Uuid();
 
   AssistantService(this._repo);
 
-  /// 创建助手
+  /// 创建\u4f19\u4f34
   Future<String> createAssistant({
     required String name,
     required String systemPrompt,
@@ -51,8 +51,7 @@ class AssistantService {
     bool isDefault = false,
     String? providerId,
     String? modelId,
-    int compressTokenThreshold = 8000,
-    int truncateTokenThreshold = 4000,
+    int compressTokenThreshold = 60000,
   }) async {
     final id = _uuid.v4();
 
@@ -77,13 +76,12 @@ class AssistantService {
       providerId: Value(providerId),
       modelId: Value(modelId),
       compressTokenThreshold: Value(compressTokenThreshold),
-      truncateTokenThreshold: Value(truncateTokenThreshold),
     ));
 
     return id;
   }
 
-  /// 更新助手
+  /// 更新\u4f19\u4f34
   Future<void> updateAssistant({
     required String id,
     String? name,
@@ -97,7 +95,6 @@ class AssistantService {
     String? providerId,
     String? modelId,
     int? compressTokenThreshold,
-    int? truncateTokenThreshold,
     bool clearModel = false,
   }) async {
     if (isDefault == true) {
@@ -128,16 +125,15 @@ class AssistantService {
       providerId: clearModel ? const Value(null) : (providerId != null ? Value(providerId) : const Value.absent()),
       modelId: clearModel ? const Value(null) : (modelId != null ? Value(modelId) : const Value.absent()),
       compressTokenThreshold: compressTokenThreshold != null ? Value(compressTokenThreshold) : const Value.absent(),
-      truncateTokenThreshold: truncateTokenThreshold != null ? Value(truncateTokenThreshold) : const Value.absent(),
       updatedAt: Value(DateTime.now()),
     ));
   }
 
-  /// 删除助手（不允许删除最后一个）
+  /// 删除\u4f19\u4f34（不允许删除最后一个）
   Future<void> deleteAssistant(String id) async {
     final all = await _repo.getAll();
     if (all.length <= 1) {
-      throw Exception('至少保留一个助手');
+      throw Exception('至少保留一个\u4f19\u4f34');
     }
     final existing = await _repo.get(id);
     if (existing?.avatarPath != null) {
@@ -153,7 +149,7 @@ class AssistantService {
     }
   }
 
-  /// 确保至少有一个助手（首次启动时调用）
+  /// 确保至少有一个\u4f19\u4f34（首次启动时调用）
   Future<AgentAssistant> ensureDefaultAssistant() async {
     final existing = await _repo.getDefault();
     if (existing != null) return existing;
@@ -162,18 +158,18 @@ class AssistantService {
       await _repo.setDefault(all.first.id);
       return all.first;
     }
-    // 创建默认助手
+    // 创建默认\u4f19\u4f34
     final id = await createAssistant(
-      name: '默认助手',
+      name: '默认\u4f19\u4f34',
       emoji: '⭐',
-      description: '通用 AI 助手',
+      description: '通用 AI \u4f19\u4f34',
       systemPrompt: '',
       isDefault: true,
     );
     return (await _repo.get(id))!;
   }
 
-  /// 设置默认助手
+  /// 设置默认\u4f19\u4f34
   Future<void> setDefault(String id) async {
     await _repo.setDefault(id);
   }

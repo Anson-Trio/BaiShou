@@ -1,4 +1,4 @@
-/// 聊天输入框组件
+﻿/// 聊天输入框组件
 import 'dart:io';
 
 import 'package:baishou/features/settings/presentation/pages/views/agent_tools_view.dart';
@@ -9,9 +9,9 @@ import 'package:flutter/services.dart';
 class ChatInputBar extends StatefulWidget {
   final bool isLoading;
   final ValueChanged<String> onSend;
-  /// 当前助手名称（显示在 chip 上）
+  /// 当前\u4f19\u4f34名称（显示在 chip 上）
   final String? assistantName;
-  /// 点击助手 chip 的回调
+  /// 点击\u4f19\u4f34 chip 的回调
   final VoidCallback? onAssistantTap;
 
   const ChatInputBar({
@@ -128,12 +128,6 @@ class _ChatInputBarState extends State<ChatInputBar> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
                   children: [
-                    _QuickActionChip(
-                      icon: Icons.auto_awesome_rounded,
-                      label: widget.assistantName ?? t.agent.assistant.no_assistant,
-                      onTap: widget.onAssistantTap ?? () {},
-                    ),
-                    const SizedBox(width: 8),
                     _QuickActionChip(
                       icon: Icons.extension_outlined,
                       label: t.agent.tools.tool_call,

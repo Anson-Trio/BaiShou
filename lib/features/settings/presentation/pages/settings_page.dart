@@ -80,17 +80,17 @@ class _SettingsPageState extends State<SettingsPage> {
       case 2:
         return const AiGlobalModelsView(key: ValueKey('tab_global'));
       case 3:
-        return const AgentToolsView(key: ValueKey('tab_tools'));
+        return const AssistantManagementPage(key: ValueKey('tab_assistants'));
       case 4:
-        return const DataSyncPage(key: ValueKey('tab_sync'));
+        return const RagMemoryView(key: ValueKey('tab_rag'));
       case 5:
-        return const LanTransferPage(key: ValueKey('tab_lan'));
+        return const AgentToolsView(key: ValueKey('tab_tools'));
       case 6:
         return const SummarySettingsView(key: ValueKey('tab_summary'));
       case 7:
-        return const RagMemoryView(key: ValueKey('tab_rag'));
+        return const LanTransferPage(key: ValueKey('tab_lan'));
       case 8:
-        return const AssistantManagementPage(key: ValueKey('tab_assistants'));
+        return const DataSyncPage(key: ValueKey('tab_sync'));
       default:
         return const SizedBox();
     }
@@ -103,14 +103,15 @@ class _SettingsPageState extends State<SettingsPage> {
       appBar: AppBar(title: Text(t.settings.title), centerTitle: true),
       body: ListView(
         children: [
+          // ─── 通用 ───
           ListTile(
             leading: const Icon(Icons.settings_outlined),
             title: Text(t.settings.general),
             trailing: const Icon(Icons.chevron_right),
-            // 使用 context.push 让子页走根 Navigator，脱离 settingsNavKey 内部栈，
-            // 防止切换到其它 Tab 后，隐藏中的子页被侧滑手势静默消耗
             onTap: () => context.push('/settings/general'),
           ),
+          const Divider(height: 1),
+          // ─── AI 配置 ───
           ListTile(
             leading: const Icon(Icons.cloud_queue_outlined),
             title: Text(t.settings.ai_services),
@@ -124,29 +125,13 @@ class _SettingsPageState extends State<SettingsPage> {
             onTap: () => context.push('/settings/ai-models'),
           ),
           ListTile(
-            leading: const Icon(Icons.extension_outlined),
-            title: Text(t.settings.agent_tools_title),
+            leading: const Icon(Icons.school),
+            title: Text(t.agent.assistant.settings_entry),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push('/settings/agent-tools'),
+            onTap: () => context.push('/settings/assistants'),
           ),
-          ListTile(
-            leading: const Icon(Icons.sync_rounded),
-            title: Text(t.data_sync.title),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push('/settings/data-sync'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.wifi_protected_setup_outlined),
-            title: Text(t.settings.lan_transfer),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push('/settings/lan-transfer'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.auto_awesome_outlined),
-            title: Text(t.settings.summary_settings_title),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push('/settings/summary'),
-          ),
+          const Divider(height: 1),
+          // ─── 功能 ───
           ListTile(
             leading: const Icon(Icons.psychology_outlined),
             title: Text(t.agent.rag.title),
@@ -154,10 +139,30 @@ class _SettingsPageState extends State<SettingsPage> {
             onTap: () => context.push('/settings/rag'),
           ),
           ListTile(
-            leading: const Icon(Icons.smart_toy_outlined),
-            title: Text(t.agent.assistant.settings_entry),
+            leading: const Icon(Icons.extension_outlined),
+            title: Text(t.settings.agent_tools_title),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push('/settings/assistants'),
+            onTap: () => context.push('/settings/agent-tools'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.auto_awesome_outlined),
+            title: Text(t.settings.summary_settings_title),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/settings/summary'),
+          ),
+          const Divider(height: 1),
+          // ─── 数据 ───
+          ListTile(
+            leading: const Icon(Icons.wifi_protected_setup_outlined),
+            title: Text(t.settings.lan_transfer),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/settings/lan-transfer'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.sync_rounded),
+            title: Text(t.data_sync.title),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/settings/data-sync'),
           ),
         ],
       ),
@@ -210,11 +215,14 @@ class _SettingsPageState extends State<SettingsPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        // ─── 通用 ───
                         _buildSidebarTab(
                           t.settings.general,
                           Icons.settings_outlined,
                           0,
                         ),
+                        const Divider(height: 1, indent: 20, endIndent: 20),
+                        // ─── AI 配置 ───
                         _buildSidebarTab(
                           t.settings.ai_services,
                           Icons.cloud_queue_outlined,
@@ -226,14 +234,20 @@ class _SettingsPageState extends State<SettingsPage> {
                           2,
                         ),
                         _buildSidebarTab(
-                          t.settings.agent_tools_title,
-                          Icons.extension_outlined,
+                          t.agent.assistant.settings_entry,
+                          Icons.school,
                           3,
                         ),
-                        _buildSidebarTab(t.data_sync.title, Icons.sync_rounded, 4),
+                        const Divider(height: 1, indent: 20, endIndent: 20),
+                        // ─── 功能 ───
                         _buildSidebarTab(
-                          t.settings.lan_transfer,
-                          Icons.wifi_protected_setup_outlined,
+                          t.agent.rag.title,
+                          Icons.psychology_outlined,
+                          4,
+                        ),
+                        _buildSidebarTab(
+                          t.settings.agent_tools_title,
+                          Icons.extension_outlined,
                           5,
                         ),
                         _buildSidebarTab(
@@ -241,14 +255,16 @@ class _SettingsPageState extends State<SettingsPage> {
                           Icons.auto_awesome_outlined,
                           6,
                         ),
+                        const Divider(height: 1, indent: 20, endIndent: 20),
+                        // ─── 数据 ───
                         _buildSidebarTab(
-                          t.agent.rag.title,
-                          Icons.psychology_outlined,
+                          t.settings.lan_transfer,
+                          Icons.wifi_protected_setup_outlined,
                           7,
                         ),
                         _buildSidebarTab(
-                          t.agent.assistant.settings_entry,
-                          Icons.smart_toy_outlined,
+                          t.data_sync.title,
+                          Icons.sync_rounded,
                           8,
                         ),
                       ],

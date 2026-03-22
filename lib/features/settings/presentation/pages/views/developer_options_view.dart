@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:baishou/agent/database/agent_database.dart';
 import 'package:baishou/core/services/data_refresh_notifier.dart';
 import 'package:path/path.dart' as p;
 import 'package:baishou/features/index/data/shadow_index_database.dart';
@@ -25,6 +26,7 @@ class DeveloperOptionsView extends ConsumerStatefulWidget {
 class _DeveloperOptionsViewState extends ConsumerState<DeveloperOptionsView> {
   bool _isClearing = false;
   bool _isLoadingDemo = false;
+  bool _isClearingAgent = false;
 
   Future<void> _loadDemoData() async {
     setState(() => _isLoadingDemo = true);
@@ -185,6 +187,66 @@ class _DeveloperOptionsViewState extends ConsumerState<DeveloperOptionsView> {
     }
   }
 
+  Future<void> _clearAgentDatabase() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('清理 Agent 数据库'),
+        content: const Text('将删除所有 Agent 会话、伙伴和消息数据。\n重启后数据库会自动重建。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(t.common.cancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.orange.shade700),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('确认清理'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isClearingAgent = true);
+    try {
+      final agentDb = ref.read(agentDatabaseProvider);
+      await agentDb.close();
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      final appDir = await getApplicationDocumentsDirectory();
+      for (final name in ['agent_database.db', 'agent_database.db-wal', 'agent_database.db-shm']) {
+        final file = File(p.join(appDir.path, name));
+        if (file.existsSync()) {
+          file.deleteSync();
+          debugPrint('ClearAgentDB: Deleted $name');
+        }
+      }
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            title: const Text('清理完成'),
+            content: const Text('Agent 数据库已清理，请重启应用。'),
+            actions: [
+              FilledButton(
+                onPressed: () => exit(0),
+                child: Text(t.settings.exit_app),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) AppToast.showError(context, '清理失败: $e');
+    } finally {
+      if (mounted) setState(() => _isClearingAgent = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -248,6 +310,29 @@ class _DeveloperOptionsViewState extends ConsumerState<DeveloperOptionsView> {
                           )
                         : const Icon(Icons.chevron_right),
                     onTap: _isClearing ? null : _clearAllData,
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: Icon(
+                      Icons.storage_rounded,
+                      color: Colors.orange.shade700,
+                    ),
+                    title: Text(
+                      '清理 Agent 数据库',
+                      style: TextStyle(
+                        color: Colors.orange.shade700,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    subtitle: const Text('删除 Agent 会话、伙伴、消息数据（重启后自动重建）'),
+                    trailing: _isClearingAgent
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.chevron_right),
+                    onTap: _isClearingAgent ? null : _clearAgentDatabase,
                   ),
                 ],
               ),

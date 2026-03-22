@@ -1,6 +1,6 @@
-/// 助手选择底部弹窗
+﻿/// \u4f19\u4f34选择底部弹窗
 ///
-/// 展示助手列表（头像 + 名称 + 提示词预览），支持选择或清除
+/// 展示\u4f19\u4f34列表（头像 + 名称 + 提示词预览），支持选择或清除
 
 import 'dart:io';
 import 'package:baishou/agent/database/agent_database.dart';
@@ -20,7 +20,7 @@ class AssistantPickerSheet extends ConsumerWidget {
   });
 
   /// 静态方法：弹出选择器
-  /// 返回 (是否做出了选择, 选中的助手)
+  /// 返回 (是否做出了选择, 选中的\u4f19\u4f34)
   /// didSelect=false 表示用户关闭弹窗未操作
   static Future<(bool, AgentAssistant?)> show(
     BuildContext context, {

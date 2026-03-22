@@ -1,4 +1,4 @@
-/// Agent 主页面
+﻿/// Agent 主页面
 ///
 /// 侧边栏两区布局：功能选项区 + 对话历史区
 
@@ -29,7 +29,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
   bool _isLoading = true;
   String? _selectedSessionId;
 
-  // 当前助手
+  // 当前\u4f19\u4f34
   AgentAssistant? _currentAssistant;
 
   // 批量删除
@@ -154,7 +154,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
   Future<void> _createNewSession() async {
     final notifier = ref.read(agentChatProvider.notifier);
     notifier.clearChat();
-    // 绑定当前助手
+    // 绑定当前\u4f19\u4f34
     if (_currentAssistant != null) {
       // 会话创建时 agentChatProvider 会自动绑定 assistantId
       // 我们在 clearChat 后设定当前 assistantId
@@ -173,7 +173,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
       _isMultiSelect = false;
       _selectedIds.clear();
     });
-    // 清空当前聊天并加载新助手的会话
+    // 清空当前聊天并加载新\u4f19\u4f34的会话
     ref.read(agentChatProvider.notifier).clearChat();
     ref.read(agentChatProvider.notifier).setCurrentAssistantId(assistant.id);
     await _loadSessions();
@@ -199,7 +199,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
                 children: [
                   Row(
                     children: [
-                      Text('选择助手',
+                      Text('选择伙伴',
                           style: Theme.of(ctx).textTheme.titleLarge),
                       const Spacer(),
                       TextButton(
@@ -235,14 +235,14 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
   }
 
   Future<void> _refreshCurrentAssistant() async {
-    // 管理页返回后，刷新当前助手（可能被编辑/删除）
+    // 管理页返回后，刷新当前\u4f19\u4f34（可能被编辑/删除）
     final repo = ref.read(assistantRepositoryProvider);
     if (_currentAssistant != null) {
       final updated = await repo.get(_currentAssistant!.id);
       if (updated != null) {
         setState(() => _currentAssistant = updated);
       } else {
-        // 当前助手被删除，切换到默认
+        // 当前\u4f19\u4f34被删除，切换到默认
         final service = ref.read(assistantServiceProvider);
         final def = await service.ensureDefaultAssistant();
         setState(() => _currentAssistant = def);
@@ -353,7 +353,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
               ),
             ),
 
-            // ─── 当前助手区域 ───
+            // ─── 当前\u4f19\u4f34区域 ───
             if (_currentAssistant != null)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -369,7 +369,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
                     child: Row(
                       children: [
                         Text(
-                          _currentAssistant!.emoji ?? '⭐',
+                          _currentAssistant!.emoji ?? '🍵',
                           style: const TextStyle(fontSize: 20),
                         ),
                         const SizedBox(width: 10),
@@ -843,7 +843,7 @@ class _SidebarMenuItem extends StatelessWidget {
   }
 }
 
-// ─── 助手切换列表（弹窗内） ─────────────────────────────────────
+// ─── \u4f19\u4f34切换列表（弹窗内） ─────────────────────────────────────
 
 class _AssistantSwitcherList extends StatefulWidget {
   final List<AgentAssistant> assistants;
@@ -863,7 +863,7 @@ class _AssistantSwitcherList extends StatefulWidget {
 }
 
 class _AssistantSwitcherListState extends State<_AssistantSwitcherList> {
-  // 每个助手的会话数和最近会话
+  // 每个\u4f19\u4f34的会话数和最近会话
   final Map<String, int> _sessionCounts = {};
   final Map<String, List<AgentSession>> _recentSessions = {};
   String? _expandedId;

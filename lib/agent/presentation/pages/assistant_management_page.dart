@@ -1,6 +1,6 @@
-/// 助手管理页面
+﻿/// \u4f19\u4f34管理页面
 ///
-/// 展示所有助手的列表，支持创建、编辑、删除
+/// 展示所有\u4f19\u4f34的列表，支持创建、编辑、删除
 
 import 'dart:io';
 import 'package:baishou/agent/database/agent_database.dart';
@@ -19,8 +19,11 @@ class AssistantManagementPage extends ConsumerWidget {
     final colorScheme = theme.colorScheme;
     final assistantsAsync = ref.watch(assistantListStreamProvider);
 
+    final isDesktop = Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+
     return Scaffold(
-      appBar: AppBar(
+      backgroundColor: Colors.white,
+      appBar: isDesktop ? null : AppBar(
         title: Text(t.agent.assistant.management_title),
       ),
       floatingActionButton: FloatingActionButton(
@@ -36,8 +39,11 @@ class AssistantManagementPage extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.auto_awesome_outlined,
-                      size: 64, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4)),
+                  Icon(
+                    Icons.auto_awesome_outlined,
+                    size: 64,
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     t.agent.assistant.empty_hint,
@@ -102,8 +108,14 @@ class _AssistantCard extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Card(
+      elevation: 0,
+      color: Colors.white,
       margin: const EdgeInsets.only(bottom: 12),
       clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: colorScheme.outlineVariant.withOpacity(0.5)),
+      ),
       child: InkWell(
         onTap: onTap,
         child: Padding(
@@ -117,7 +129,7 @@ class _AssistantCard extends StatelessWidget {
                 backgroundImage: _getAvatar(),
                 child: _getAvatar() == null
                     ? Text(
-                        assistant.emoji ?? '⭐',
+                        assistant.emoji ?? '🍵',
                         style: const TextStyle(fontSize: 20),
                       )
                     : null,
@@ -142,7 +154,9 @@ class _AssistantCard extends StatelessWidget {
                         if (assistant.isDefault)
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: colorScheme.primaryContainer,
                               borderRadius: BorderRadius.circular(12),
@@ -161,8 +175,8 @@ class _AssistantCard extends StatelessWidget {
                       assistant.description.isNotEmpty
                           ? assistant.description
                           : (assistant.systemPrompt.isEmpty
-                              ? t.agent.assistant.no_prompt
-                              : assistant.systemPrompt),
+                                ? t.agent.assistant.no_prompt
+                                : assistant.systemPrompt),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
@@ -180,7 +194,11 @@ class _AssistantCard extends StatelessWidget {
                         ),
                         if (assistant.modelId != null) ...[
                           const SizedBox(width: 8),
-                          Icon(Icons.smart_toy_outlined, size: 12, color: colorScheme.outline),
+                          Icon(
+                            Icons.smart_toy_outlined,
+                            size: 12,
+                            color: colorScheme.outline,
+                          ),
                           const SizedBox(width: 2),
                           Expanded(
                             child: Text(

@@ -1,4 +1,4 @@
-/// Agent 会话管理器
+﻿/// Agent 会话管理器
 /// 负责会话、消息、Part 的 CRUD 操作（三表架构）
 
 import 'dart:convert';
@@ -50,7 +50,7 @@ class SessionManager {
         .get();
   }
 
-  /// 获取指定助手的会话列表
+  /// 获取指定\u4f19\u4f34的会话列表
   Future<List<AgentSession>> getSessionsByAssistant(String assistantId) async {
     return (_db.select(_db.agentSessions)
           ..where((t) => t.assistantId.equals(assistantId))
@@ -61,7 +61,7 @@ class SessionManager {
         .get();
   }
 
-  /// 获取指定助手的会话数量
+  /// 获取指定\u4f19\u4f34的会话数量
   Future<int> getSessionCountByAssistant(String assistantId) async {
     final count = await (_db.selectOnly(_db.agentSessions)
           ..addColumns([_db.agentSessions.id.count()])
@@ -70,7 +70,7 @@ class SessionManager {
     return count.read(_db.agentSessions.id.count()) ?? 0;
   }
 
-  /// 获取每个助手的会话数量（批量）
+  /// 获取每个\u4f19\u4f34的会话数量（批量）
   Future<Map<String, int>> getSessionCountsByAssistant() async {
     final results = await _db.customSelect(
       'SELECT assistant_id, COUNT(*) AS cnt FROM agent_sessions WHERE assistant_id IS NOT NULL GROUP BY assistant_id',
@@ -81,7 +81,7 @@ class SessionManager {
     };
   }
 
-  /// 获取指定助手最近 N 条会话标题
+  /// 获取指定\u4f19\u4f34最近 N 条会话标题
   Future<List<AgentSession>> getRecentSessionsByAssistant(String assistantId, {int limit = 5}) async {
     return (_db.select(_db.agentSessions)
           ..where((t) => t.assistantId.equals(assistantId))
@@ -158,7 +158,7 @@ class SessionManager {
     }
   }
 
-  /// 更新会话关联的助手
+  /// 更新会话关联的\u4f19\u4f34
   Future<void> updateSessionAssistant(String sessionId, String? assistantId) async {
     await (_db.update(_db.agentSessions)
           ..where((t) => t.id.equals(sessionId)))

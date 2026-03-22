@@ -249,15 +249,9 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
                       spacing: 12,
                       runSpacing: 12,
                       children: [
-                        _buildColorOption(const Color(0xFF5BA8F5)), // 浅蓝
-                        _buildColorOption(const Color(0xFF137FEC)), // Blue
-                        _buildColorOption(Colors.purple),
-                        _buildColorOption(Colors.teal),
-                        _buildColorOption(Colors.orange),
-                        _buildColorOption(Colors.pink),
-                        _buildColorOption(Colors.cyan),
-                        _buildColorOption(Colors.brown),
-                        _buildColorOption(Colors.blueGrey),
+                        _buildColorOption(const Color(0xFF9AD4EA)), // 默认蓝
+                        // 自定义色盘按钮
+                        _buildCustomColorPicker(),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -351,6 +345,148 @@ class _GeneralSettingsViewState extends ConsumerState<GeneralSettingsView> {
         child: isSelected
             ? const Icon(Icons.check, color: Colors.white, size: 20)
             : null,
+      ),
+    );
+  }
+
+  Widget _buildCustomColorPicker() {
+    final themeState = ref.watch(themeProvider);
+    final isCustom = themeState.seedColor.value != const Color(0xFF9AD4EA).value;
+
+    return GestureDetector(
+      onTap: () => _showColorPickerDialog(),
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: isCustom
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.outline,
+            width: isCustom ? 2 : 1,
+          ),
+          gradient: const SweepGradient(
+            colors: [
+              Color(0xFFFF6B6B),
+              Color(0xFFFFD93D),
+              Color(0xFF6BCB77),
+              Color(0xFF4D96FF),
+              Color(0xFFC77DFF),
+              Color(0xFFFF6B6B),
+            ],
+          ),
+        ),
+        child: isCustom
+            ? Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: themeState.seedColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+              )
+            : const Icon(Icons.add, color: Colors.white, size: 18),
+      ),
+    );
+  }
+
+  Future<void> _showColorPickerDialog() async {
+    final themeState = ref.read(themeProvider);
+    double hue = HSLColor.fromColor(themeState.seedColor).hue;
+    double saturation = HSLColor.fromColor(themeState.seedColor).saturation;
+    double lightness = HSLColor.fromColor(themeState.seedColor).lightness;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final previewColor = HSLColor.fromAHSL(1.0, hue, saturation, lightness).toColor();
+          return AlertDialog(
+            title: const Text('自定义颜色'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 预览
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: previewColor,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: previewColor.withOpacity(0.4),
+                        blurRadius: 12,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // 色相
+                Row(
+                  children: [
+                    const Text('色相'),
+                    Expanded(
+                      child: Slider(
+                        value: hue,
+                        min: 0,
+                        max: 360,
+                        activeColor: previewColor,
+                        onChanged: (v) => setDialogState(() => hue = v),
+                      ),
+                    ),
+                  ],
+                ),
+                // 饱和度
+                Row(
+                  children: [
+                    const Text('饱和'),
+                    Expanded(
+                      child: Slider(
+                        value: saturation,
+                        min: 0,
+                        max: 1,
+                        activeColor: previewColor,
+                        onChanged: (v) => setDialogState(() => saturation = v),
+                      ),
+                    ),
+                  ],
+                ),
+                // 明度
+                Row(
+                  children: [
+                    const Text('明度'),
+                    Expanded(
+                      child: Slider(
+                        value: lightness,
+                        min: 0.2,
+                        max: 0.9,
+                        activeColor: previewColor,
+                        onChanged: (v) => setDialogState(() => lightness = v),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(t.common.cancel),
+              ),
+              FilledButton(
+                onPressed: () {
+                  ref.read(themeProvider.notifier).setSeedColor(previewColor);
+                  Navigator.pop(ctx);
+                },
+                child: Text(t.common.save),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

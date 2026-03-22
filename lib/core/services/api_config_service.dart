@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:baishou/agent/models/ai_provider_model.dart';
 import 'package:baishou/agent/rag/embedding_model_utils.dart';
@@ -306,7 +306,7 @@ class ApiConfigService {
   /// Agent 角色人设描述
   String get agentPersona {
     return _prefs.getString(_keyAgentPersona) ??
-        '你是 AI 助手，帮助用户回顾日记和生活记录。';
+        '你是 AI \u4f19\u4f34，帮助用户回顾日记和生活记录。';
   }
 
   /// 设置 Agent 角色人设

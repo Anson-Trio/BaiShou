@@ -1,4 +1,4 @@
-/// Agent 聊天页面
+﻿/// Agent 聊天页面
 ///
 /// 全屏覆盖路由，包含消息列表和输入框
 
@@ -78,7 +78,7 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
     final apiConfig = ref.watch(apiConfigServiceProvider);
     final currentModel = apiConfig.globalDialogueModelId;
 
-    // 解析当前助手名称
+    // 解析当前\u4f19\u4f34名称
     final currentAssistantId = chatState.currentAssistantId;
     final assistantsAsync = ref.watch(assistantListProvider);
     final assistantName = assistantsAsync.whenOrNull(
@@ -114,7 +114,7 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
                 ),
               ],
             ),
-            // 当前模型名称 + 助手名称
+            // 当前模型名称 + \u4f19\u4f34名称
             if (currentModel.isNotEmpty || assistantName != null)
               Padding(
                 padding: const EdgeInsets.only(top: 2),

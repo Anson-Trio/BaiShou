@@ -98,7 +98,8 @@ class _LanTransferPageState extends ConsumerState<LanTransferPage>
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
+        automaticallyImplyLeading: false,
+        leading: (Platform.isWindows || Platform.isLinux || Platform.isMacOS) ? null : IconButton(
           icon: Icon(
             Icons.arrow_back_ios_new,
             color: isDark ? Colors.grey[300] : Colors.grey[800],

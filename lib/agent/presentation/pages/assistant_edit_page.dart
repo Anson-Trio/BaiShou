@@ -1,4 +1,4 @@
-/// 助手编辑页面（创建 / 编辑）
+﻿/// \u4f19\u4f34编辑页面（创建 / 编辑）
 ///
 /// 独立页面，支持移动端和桌面端
 
@@ -16,7 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
 
 class AssistantEditPage extends ConsumerStatefulWidget {
-  /// 传入 null 表示创建新助手，传入已有助手表示编辑
+  /// 传入 null 表示创建新\u4f19\u4f34，传入已有\u4f19\u4f34表示编辑
   final AgentAssistant? assistant;
 
   const AssistantEditPage({super.key, this.assistant});
@@ -31,8 +31,7 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
   late TextEditingController _descriptionController;
   String _emoji = '⭐';
   double _contextWindow = -1; // -1 = 无限
-  double _compressThreshold = 0; // 0 = 不触发
-  double _truncateThreshold = 4000;
+  double _compressThreshold = 60000; // 0 = 不触发
   bool _isDefault = false;
   String? _avatarPath;
   bool _avatarRemoved = false;
@@ -56,8 +55,7 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
     _descriptionController = TextEditingController(text: a?.description ?? '');
     _emoji = a?.emoji ?? '⭐';
     _contextWindow = (a?.contextWindow ?? -1).toDouble();
-    _compressThreshold = (a?.compressTokenThreshold ?? 0).toDouble();
-    _truncateThreshold = (a?.truncateTokenThreshold ?? 4000).toDouble();
+    _compressThreshold = (a?.compressTokenThreshold ?? 60000).toDouble();
     _isDefault = a?.isDefault ?? false;
     _avatarPath = a?.avatarPath;
     _selectedProviderId = a?.providerId;
@@ -185,7 +183,7 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
                   controller: _descriptionController,
                   maxLines: 2,
                   decoration: InputDecoration(
-                    hintText: '简短描述助手的用途...',
+                    hintText: '简短描述伙伴的用途...',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -273,28 +271,27 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
             Text(t.agent.assistant.context_window_label,
                 style: theme.textTheme.titleSmall),
             const Spacer(),
-            // 无限按钮
-            FilterChip(
-              label: const Text('∞ 无限'),
-              selected: _isUnlimitedContext,
-              onSelected: (v) => setState(() {
-                _contextWindow = v ? -1 : 20;
-              }),
-              visualDensity: VisualDensity.compact,
-            ),
-            if (!_isUnlimitedContext) ...[
-              const SizedBox(width: 8),
+            if (!_isUnlimitedContext)
               Text('${_contextWindow.round()}',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: colorScheme.primary,
                   )),
-            ],
+            const SizedBox(width: 4),
+            Text(_isUnlimitedContext ? '∞ 无限' : '有限',
+                style: theme.textTheme.bodySmall),
+            const SizedBox(width: 4),
+            Switch(
+              value: _isUnlimitedContext,
+              onChanged: (v) => setState(() {
+                _contextWindow = v ? -1 : 20;
+              }),
+            ),
           ],
         ),
         if (!_isUnlimitedContext)
           Slider(
-            value: _contextWindow,
+            value: _contextWindow.clamp(2.0, 100.0),
             min: 2,
             max: 100,
             divisions: 49,
@@ -380,7 +377,7 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
           ),
         const SizedBox(height: 4),
         Text(
-          '绑定后，使用此助手的会话将始终使用指定模型',
+          '绑定后，使用此伙伴的会话将始终使用指定模型',
           style: theme.textTheme.bodySmall?.copyWith(
             color: colorScheme.onSurfaceVariant,
           ),
@@ -396,77 +393,42 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
       children: [
         Row(
           children: [
-            Text('会话压缩', style: theme.textTheme.titleSmall),
+            Text('自动压缩', style: theme.textTheme.titleSmall),
             const Spacer(),
-            FilterChip(
-              label: Text(_isCompressDisabled ? '不压缩' : '已启用'),
-              selected: !_isCompressDisabled,
-              onSelected: (v) => setState(() {
-                _compressThreshold = v ? 80000 : 0;
-                if (!v) _truncateThreshold = 4000;
+            if (!_isCompressDisabled)
+              Text(_formatTokens(_compressThreshold.round()),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.primary,
+                  )),
+            const SizedBox(width: 8),
+            Switch(
+              value: !_isCompressDisabled,
+              onChanged: (v) => setState(() {
+                _compressThreshold = v ? 60000 : 0;
               }),
-              visualDensity: VisualDensity.compact,
             ),
           ],
         ),
-        const SizedBox(height: 4),
         Text(
           _isCompressDisabled
               ? '对话不会自动压缩，所有消息将完整保留'
-              : '对话 token 达到阈值时自动压缩旧消息',
+              : '对话超过阈值时自动将旧消息压缩为摘要',
           style: theme.textTheme.bodySmall?.copyWith(
             color: colorScheme.onSurfaceVariant,
           ),
         ),
 
         if (!_isCompressDisabled) ...[
-          const SizedBox(height: 12),
-
-          // 压缩阈值
-          Row(
-            children: [
-              const Text('压缩触发'),
-              const Spacer(),
-              Text(_formatTokens(_compressThreshold.round()),
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.primary,
-                  )),
-            ],
-          ),
           Slider(
-            value: _compressThreshold,
+            value: _compressThreshold.clamp(10000.0, 1000000.0),
             min: 10000,
-            max: 300000,
-            divisions: 29,
+            max: 1000000,
+            divisions: 99,
             label: _formatTokens(_compressThreshold.round()),
             onChanged: (v) => setState(() {
               _compressThreshold = v;
-              if (_truncateThreshold > _compressThreshold * 0.8) {
-                _truncateThreshold = (_compressThreshold * 0.5).roundToDouble();
-              }
             }),
-          ),
-
-          // 截断阈值
-          Row(
-            children: [
-              const Text('截断旧消息'),
-              const Spacer(),
-              Text(_formatTokens(_truncateThreshold.round()),
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.tertiary,
-                  )),
-            ],
-          ),
-          Slider(
-            value: _truncateThreshold.clamp(1000, _compressThreshold * 0.8),
-            min: 1000,
-            max: _compressThreshold * 0.8,
-            divisions: 29,
-            label: _formatTokens(_truncateThreshold.round()),
-            onChanged: (v) => setState(() => _truncateThreshold = v),
           ),
         ],
       ],
@@ -603,7 +565,6 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
           modelId: _selectedModelId,
           clearModel: _selectedProviderId == null,
           compressTokenThreshold: _isCompressDisabled ? 0 : _compressThreshold.round(),
-          truncateTokenThreshold: _isCompressDisabled ? 0 : _truncateThreshold.round(),
         );
       } else {
         await service.createAssistant(
@@ -617,7 +578,6 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
           providerId: _selectedProviderId,
           modelId: _selectedModelId,
           compressTokenThreshold: _isCompressDisabled ? 0 : _compressThreshold.round(),
-          truncateTokenThreshold: _isCompressDisabled ? 0 : _truncateThreshold.round(),
         );
       }
 

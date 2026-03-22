@@ -1,4 +1,4 @@
-/// Agent System Prompt 构建器
+﻿/// Agent System Prompt 构建器
 ///
 /// 根据上下文动态构建 Agent 的系统提示词
 /// 所有文案从外部传入（i18n 或用户设置），不硬编码任何内容
@@ -20,7 +20,7 @@ class SystemPromptBuilder {
   }) {
     final buffer = StringBuffer();
 
-    // 人设（可能为空，助手未设置提示词时）
+    // 人设（可能为空，\u4f19\u4f34未设置提示词时）
     if (persona != null && persona.isNotEmpty) {
       buffer.writeln(persona);
       buffer.writeln();
@@ -61,7 +61,7 @@ class SystemPromptBuilder {
       }
     }
 
-    // 行为准则（助手模式下可能为 null）
+    // 行为准则（\u4f19\u4f34模式下可能为 null）
     if (guidelines != null && guidelines.isNotEmpty) {
       buffer.writeln(guidelines);
     }
