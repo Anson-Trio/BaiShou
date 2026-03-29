@@ -46,6 +46,8 @@ class ChatMessage {
   final String? toolCallId;
   final String? toolName;
   final String? askId;
+  /// 思考/推理内容（Kimi/DeepSeek 等 Thinking 模型返回的 reasoning_content）
+  final String? reasoningContent;
   final DateTime timestamp;
 
   // ── 附件 ──
@@ -73,6 +75,7 @@ class ChatMessage {
     this.toolCallId,
     this.toolName,
     this.askId,
+    this.reasoningContent,
     this.inputTokens,
     this.outputTokens,
     this.cost,
@@ -96,6 +99,7 @@ class ChatMessage {
       toolCallId: toolCallId,
       toolName: toolName,
       askId: askId,
+      reasoningContent: reasoningContent,
       inputTokens: inputTokens ?? this.inputTokens,
       outputTokens: outputTokens ?? this.outputTokens,
       cost: cost ?? this.cost,
@@ -128,12 +132,14 @@ class ChatMessage {
     String? content,
     List<ToolCall>? toolCalls,
     String? askId,
+    String? reasoningContent,
   }) => ChatMessage(
     id: _generateId(),
     role: MessageRole.assistant,
     content: content,
     toolCalls: toolCalls,
     askId: askId,
+    reasoningContent: reasoningContent,
   );
 
   /// 创建 tool 执行结果消息
@@ -162,6 +168,7 @@ class ChatMessage {
     'toolCallId': toolCallId,
     'toolName': toolName,
     'askId': askId,
+    'reasoningContent': reasoningContent,
     'timestamp': timestamp.toIso8601String(),
     if (attachments != null && attachments!.isNotEmpty)
       'attachments': attachments!.map((a) => a.toMap()).toList(),
@@ -177,6 +184,7 @@ class ChatMessage {
     toolCallId: map['toolCallId'] as String?,
     toolName: map['toolName'] as String?,
     askId: map['askId'] as String?,
+    reasoningContent: map['reasoningContent'] as String?,
     timestamp: DateTime.parse(map['timestamp'] as String),
     attachments: (map['attachments'] as List?)
         ?.map((a) => MessageAttachment.fromMap(a as Map<String, dynamic>))

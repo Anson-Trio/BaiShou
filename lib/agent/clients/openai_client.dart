@@ -7,6 +7,7 @@ import 'package:baishou/agent/models/chat_message.dart';
 import 'package:baishou/agent/models/stream_event.dart';
 import 'package:baishou/agent/models/tool_definition.dart';
 import 'package:baishou/i18n/strings.g.dart';
+import 'package:baishou/agent/models/ai_provider_model.dart';
 
 /// OpenAI 兼容协议的 AI 客户端
 /// 覆盖 OpenAI / DeepSeek / Kimi / GLM / Ollama 等所有兼容供应商
@@ -161,12 +162,15 @@ class OpenAiClient extends BaseAiClient {
 
     final body = <String, dynamic>{
       'model': modelId,
-      'messages': messages.map(_messageToOpenAi).toList(),
+      'messages': messages.map((m) => _messageToOpenAi(m, modelId)).toList(),
       'stream': true,
       'stream_options': {'include_usage': true},
     };
 
-    if (tools != null && tools.isNotEmpty) {
+    // DeepSeek 全系模型在 Thinking 模式下不兼容 tool_calls 历史
+    final isDeepseekFamily = provider.type == ProviderType.deepseek || 
+                              modelId.toLowerCase().contains('deepseek');
+    if (tools != null && tools.isNotEmpty && !isDeepseekFamily) {
       body['tools'] = tools
           .map(
             (t) => {
@@ -262,6 +266,11 @@ class OpenAiClient extends BaseAiClient {
       if (content != null && content.isNotEmpty) {
         events.add(TextDelta(content));
       }
+      
+      final reasoning = delta['reasoning_content'] as String?;
+      if (reasoning != null && reasoning.isNotEmpty) {
+        events.add(ReasoningDelta(reasoning));
+      }
 
       final toolCalls = delta['tool_calls'] as List?;
       if (toolCalls != null) {
@@ -319,8 +328,10 @@ class OpenAiClient extends BaseAiClient {
   }
 
   /// 将 ChatMessage 转换为 OpenAI API 格式
-  Map<String, dynamic> _messageToOpenAi(ChatMessage msg) {
+  Map<String, dynamic> _messageToOpenAi(ChatMessage msg, String modelId) {
     final map = <String, dynamic>{'role': msg.role.name};
+    final isDeepseekFamily = provider.type == ProviderType.deepseek || 
+                              modelId.toLowerCase().contains('deepseek');
 
     switch (msg.role) {
       case MessageRole.system:
@@ -387,7 +398,35 @@ class OpenAiClient extends BaseAiClient {
 
       case MessageRole.assistant:
         if (msg.content != null) map['content'] = msg.content;
+        
         if (msg.toolCalls != null && msg.toolCalls!.isNotEmpty) {
+          // DeepSeek 全系：剥离 tool_calls，将工具信息降级为文本
+          if (isDeepseekFamily) {
+            map['content'] = (msg.content ?? '') + 
+              '\n[Called Tool: ${msg.toolCalls?.map((e) => e.name).join(', ')}]';
+            if (msg.reasoningContent != null) {
+              map['reasoning_content'] = msg.reasoningContent;
+            }
+            break; // Skip appending tool_calls
+          }
+
+          // 针对 Kimi (Moonshot) 或 DeepSeek，如果有 tool_calls，注入 reasoning_content
+          final isKimi = provider.type == ProviderType.kimi || 
+                         modelId.toLowerCase().contains('moonshot') || 
+                         modelId.toLowerCase().contains('kimi');
+          final isDeepseek = provider.type == ProviderType.deepseek || 
+                             modelId.toLowerCase().contains('deepseek');
+          
+          if (isKimi || isDeepseek) {
+            // 优先使用 ChatMessage 中持久化的真实思考内容，兜底用空占位
+            map['reasoning_content'] = msg.reasoningContent ?? "";
+          }
+          
+          // OpenAI 规范建议携带 content，如果为空也要填空字符串
+          if (!map.containsKey('content')) {
+            map['content'] = "";
+          }
+
           map['tool_calls'] = msg.toolCalls!
               .map(
                 (tc) => {
@@ -395,7 +434,9 @@ class OpenAiClient extends BaseAiClient {
                   'type': 'function',
                   'function': {
                     'name': tc.name,
-                    'arguments': jsonEncode(tc.arguments),
+                    'arguments': tc.arguments.isNotEmpty 
+                        ? jsonEncode(tc.arguments) 
+                        : "{}",
                   },
                 },
               )
@@ -404,9 +445,16 @@ class OpenAiClient extends BaseAiClient {
         break;
 
       case MessageRole.tool:
-        map['role'] = 'tool';
-        map['content'] = msg.content ?? '';
-        map['tool_call_id'] = msg.toolCallId ?? '';
+        // DeepSeek 全系：由于上方 Assistant 消息已丢弃 tool_calls，
+        // 将 Tool 消息转为 User 角色，避免 "Messages with role 'tool' must be a response to a preceding message with 'tool_calls'"
+        if (isDeepseekFamily) {
+          map['role'] = 'user';
+          map['content'] = '[Tool Result: ${msg.toolName}]\n${msg.content}';
+        } else {
+          map['role'] = 'tool';
+          map['content'] = msg.content ?? '';
+          map['tool_call_id'] = msg.toolCallId ?? '';
+        }
         break;
     }
 

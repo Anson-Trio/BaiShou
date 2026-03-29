@@ -45,6 +45,12 @@ class TextDelta extends StreamEvent {
   const TextDelta(this.text);
 }
 
+/// 思考/推理内容增量（Kimi/DeepSeek reasoning_content）
+class ReasoningDelta extends StreamEvent {
+  final String text;
+  const ReasoningDelta(this.text);
+}
+
 /// 工具调用开始
 class ToolCallStart extends StreamEvent {
   final String callId;

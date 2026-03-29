@@ -100,6 +100,7 @@ class AgentRunner {
       ];
 
       String textBuffer = '';
+      String reasoningBuffer = '';
       final pendingToolCalls = <ToolCall>[];
       TokenUsage? stepUsage;
 
@@ -113,6 +114,9 @@ class AgentRunner {
           case TextDelta(:final text):
             textBuffer += text;
             yield AgentTextDelta(text);
+
+          case ReasoningDelta(:final text):
+            reasoningBuffer += text;
 
           case ToolCallComplete(:final toolCall):
             pendingToolCalls.add(toolCall);
@@ -143,6 +147,7 @@ class AgentRunner {
         content: textBuffer.isNotEmpty ? textBuffer : null,
         toolCalls: pendingToolCalls.isNotEmpty ? pendingToolCalls : null,
         askId: askId,
+        reasoningContent: reasoningBuffer.isNotEmpty ? reasoningBuffer : null,
       );
       messageHistory.add(assistantMsg);
       newMessages.add(assistantMsg);

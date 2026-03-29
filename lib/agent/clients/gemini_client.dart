@@ -384,10 +384,28 @@ class GeminiClient extends BaseAiClient {
           role = 'user';
           // 优先使用 toolName 属性，降级正则解析 callId
           final toolName = msg.toolName ?? _extractToolName(msg.toolCallId);
+          // 尝试解析为 JSON，如果成功且是 Map 则直接作为 response，否则包裹一层对象
+          dynamic responseObj;
+          final contentStr = msg.content ?? '';
+          if (contentStr.isNotEmpty) {
+            try {
+              responseObj = jsonDecode(contentStr);
+              if (responseObj is! Map) {
+                // 如果解析出来是 List 或者基本类型，也要包裹一层，因为 Gemini要求的是 Object(Struct)
+                responseObj = {'result': responseObj};
+              }
+            } catch (_) {
+              // 不是 JSON，用 text fallback 包裹
+              responseObj = {'result': contentStr};
+            }
+          } else {
+            responseObj = {'result': ''};
+          }
+
           parts.add({
             'functionResponse': {
               'name': toolName,
-              'response': {'result': msg.content ?? ''},
+              'response': responseObj,
             },
           });
           break;
