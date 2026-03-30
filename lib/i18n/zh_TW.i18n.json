@@ -799,6 +799,8 @@
       "chat_count": "$count 個對話",
       "new_chat_label": "新對話",
       "collapse_sidebar": "收起側邊欄",
+      "expand_sidebar": "展開側邊欄",
+      "assistant_init_failed": "夥伴初始化失敗: $e",
       "search_recent": "搜尋近期對話...",
       "no_search_results": "無符合的搜尋結果",
       "load_more": "載入更多",

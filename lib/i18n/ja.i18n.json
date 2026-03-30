@@ -799,6 +799,8 @@
       "chat_count": "$count 件の会話",
       "new_chat_label": "新しい会話",
       "collapse_sidebar": "サイドバーを折りたたむ",
+      "expand_sidebar": "サイドバーを展開",
+      "assistant_init_failed": "パートナーの初期化に失敗しました: $e",
       "search_recent": "最近の会話を検索...",
       "no_search_results": "一致する結果はありません",
       "load_more": "さらに読み込む",

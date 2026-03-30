@@ -799,6 +799,8 @@
       "chat_count": "$count 个对话",
       "new_chat_label": "新对话",
       "collapse_sidebar": "收起侧边栏",
+      "expand_sidebar": "展开侧边栏",
+      "assistant_init_failed": "伙伴初始化失败: $e",
       "search_recent": "搜索近期对话...",
       "no_search_results": "无匹配的搜索结果",
       "load_more": "加载更多",

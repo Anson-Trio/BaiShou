@@ -13,6 +13,7 @@ import 'package:baishou/agent/presentation/pages/agent_chat_page.dart';
 import 'package:baishou/agent/presentation/widgets/agent_sidebar.dart';
 import 'package:baishou/core/storage/vault_service.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
+import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -57,7 +58,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
       debugPrint('[AgentMainPage] _initAssistantAndSessions failed: $e');
       if (mounted) {
         setState(() => _isLoading = false);
-        AppToast.showError(context, '伙伴初始化失败: $e');
+        AppToast.showError(context, t.agent.chat.assistant_init_failed(e: e.toString()));
       }
     }
   }
@@ -272,7 +273,7 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
           const SizedBox(height: 20),
           IconButton(
             icon: const Icon(Icons.menu_rounded, size: 20),
-            tooltip: '展开侧边栏',
+            tooltip: t.agent.chat.expand_sidebar,
             onPressed: () => setState(() => _isSidebarCollapsed = false),
           ),
         ],

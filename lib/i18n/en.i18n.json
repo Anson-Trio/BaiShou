@@ -799,6 +799,8 @@
       "chat_count": "$count conversations",
       "new_chat_label": "New Chat",
       "collapse_sidebar": "Collapse Sidebar",
+      "expand_sidebar": "Expand Sidebar",
+      "assistant_init_failed": "Assistant initialization failed: $e",
       "search_recent": "Search recent chats...",
       "no_search_results": "No matching results",
       "load_more": "Load more",
