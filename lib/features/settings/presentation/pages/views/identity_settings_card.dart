@@ -60,7 +60,45 @@ class _IdentitySettingsCardState extends ConsumerState<IdentitySettingsCard> {
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
+            // --- 多身份卡选项卡区 ---
+            SizedBox(
+              height: 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  ...userProfile.personas.keys.map((personaId) {
+                    final isActive = personaId == userProfile.activePersonaId;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: InputChip(
+                        label: Text(personaId),
+                        selected: isActive,
+                        showCheckmark: false,
+                        onSelected: (val) {
+                          if (val && !isActive) {
+                            ref.read(userProfileProvider.notifier).setActivePersona(personaId);
+                          } else if (isActive) {
+                            // 点击当前的重命名
+                            _showRenamePersonaDialog(personaId);
+                          }
+                        },
+                        deleteIcon: const Icon(Icons.close, size: 16),
+                        onDeleted: userProfile.personas.length > 1
+                            ? () => _confirmDeletePersona(personaId)
+                            : null, // 至少保留一张
+                      ),
+                    );
+                  }),
+                  ActionChip(
+                    label: const Text('新建身份'), // 借用通用或硬编码，原 i18n 无此翻译
+                    avatar: const Icon(Icons.add, size: 16),
+                    onPressed: _showAddPersonaDialog,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
             if (facts.isEmpty)
               Container(
                 width: double.infinity,
@@ -128,6 +166,96 @@ class _IdentitySettingsCardState extends ConsumerState<IdentitySettingsCard> {
         ),
       ),
     );
+  }
+
+  Future<void> _showAddPersonaDialog() async {
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('新建身份卡'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(hintText: '例如: 工作, 旅行, 运动'),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(t.common.cancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) {
+                Navigator.pop(ctx, controller.text.trim());
+              }
+            },
+            child: Text(t.common.save),
+          ),
+        ],
+      ),
+    );
+    if (name != null && name.isNotEmpty) {
+      await ref.read(userProfileProvider.notifier).addPersona(name);
+    }
+  }
+
+  Future<void> _showRenamePersonaDialog(String oldName) async {
+    final controller = TextEditingController(text: oldName);
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('重命名身份卡'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(hintText: '输入新的身份名称'),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(t.common.cancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) {
+                Navigator.pop(ctx, controller.text.trim());
+              }
+            },
+            child: Text(t.common.save),
+          ),
+        ],
+      ),
+    );
+    if (newName != null && newName.isNotEmpty && newName != oldName) {
+      await ref.read(userProfileProvider.notifier).renamePersona(oldName, newName);
+    }
+  }
+
+  Future<void> _confirmDeletePersona(String personaId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('删除身份卡: $personaId'),
+        content: const Text('确定要删除这个身份卡吗？此操作无法撤销。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(t.common.cancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(t.common.delete),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await ref.read(userProfileProvider.notifier).removePersona(personaId);
+    }
   }
 
   Future<void> _showIdentityEntryDialog({

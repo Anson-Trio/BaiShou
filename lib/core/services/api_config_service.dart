@@ -34,6 +34,7 @@ class ApiConfigService extends ChangeNotifier {
   static const String _keyDisabledToolIds = 'disabled_tool_ids';
   static const String _keyToolConfigPrefix = 'tool_config_';
   static const String _keyRagEnabled = 'rag_global_enabled';
+  static const String _keyPinnedAssistants = 'agent_pinned_assistants';
 
   static const String _keySummaryInstructions = 'summary_prompt_instructions';
   static const String _keyRagTopK = 'rag_top_k';
@@ -442,6 +443,37 @@ class ApiConfigService extends ChangeNotifier {
   Future<void> setMonthlySummarySource(String source) async {
     await _prefs.setString(_keyMonthlySummarySource, source);
   }
+
+  // --- 侧边栏置顶助手配置 ---
+
+  /// 获取在侧边栏置顶（固定）显示的助手 ID 列表
+  List<String> get pinnedAssistantIds {
+    return _prefs.getStringList(_keyPinnedAssistants) ?? [];
+  }
+
+  /// 批量覆盖置顶助手列表
+  Future<void> setPinnedAssistantIds(List<String> ids) async {
+    // 简单去重
+    final uniqueIds = ids.toSet().toList();
+    await _prefs.setStringList(_keyPinnedAssistants, uniqueIds);
+    notifyListeners();
+  }
+
+  /// 切换某助手的置顶状态
+  Future<void> togglePinnedAssistant(String assistantId) async {
+    final ids = List<String>.from(pinnedAssistantIds);
+    if (ids.contains(assistantId)) {
+      ids.remove(assistantId);
+    } else {
+      if (ids.length >= 3) {
+        ids.removeAt(0); // 挤掉最早固定的一个
+      }
+      ids.add(assistantId);
+    }
+    await setPinnedAssistantIds(ids);
+  }
+
+  // --- Agent 行为参数 ---
 
   /// Agent 上下文窗口大小（最近 N 条消息，默认 20）
   int get agentContextWindowSize {

@@ -12,7 +12,8 @@ void main() {
       test('单条 KV 格式化为 Markdown', () {
         const profile = UserProfile(
           nickname: 'Test',
-          identityFacts: {'生日': '1998-05-20'},
+          personas: {'默认身份': {'生日': '1998-05-20'}},
+          activePersonaId: '默认身份',
         );
         final block = profile.toMarkdownBlock();
         expect(block, contains('### User Profile'));
@@ -22,12 +23,15 @@ void main() {
       test('多条 KV 全部输出', () {
         const profile = UserProfile(
           nickname: '小明',
-          identityFacts: {
-            '生日': '1998-05-20',
-            '性别': '男',
-            '职业': '前端开发',
-            '禁忌': '海鲜过敏',
+          personas: {
+            '默认身份': {
+              '生日': '1998-05-20',
+              '性别': '男',
+              '职业': '前端开发',
+              '禁忌': '海鲜过敏',
+            },
           },
+          activePersonaId: '默认身份',
         );
         final block = profile.toMarkdownBlock();
         expect(block, contains('### User Profile'));
@@ -39,24 +43,26 @@ void main() {
     });
 
     group('copyWith', () {
-      test('只改 nickname，identityFacts 不变', () {
+      test('只改 nickname，personas 不变', () {
         const profile = UserProfile(
           nickname: 'Old',
-          identityFacts: {'key': 'value'},
+          personas: {'默认身份': {'key': 'value'}},
+          activePersonaId: '默认身份',
         );
         final updated = profile.copyWith(nickname: 'New');
         expect(updated.nickname, 'New');
-        expect(updated.identityFacts, {'key': 'value'});
+        expect(updated.personas, {'默认身份': {'key': 'value'}});
       });
 
-      test('只改 identityFacts，nickname 不变', () {
+      test('只改 personas，nickname 不变', () {
         const profile = UserProfile(
           nickname: 'Test',
-          identityFacts: {'old': 'data'},
+          personas: {'默认身份': {'old': 'data'}},
+          activePersonaId: '默认身份',
         );
-        final updated = profile.copyWith(identityFacts: {'new': 'data'});
+        final updated = profile.copyWith(personas: {'默认身份': {'new': 'data'}});
         expect(updated.nickname, 'Test');
-        expect(updated.identityFacts, {'new': 'data'});
+        expect(updated.personas, {'默认身份': {'new': 'data'}});
       });
 
       test('改 avatarPath', () {

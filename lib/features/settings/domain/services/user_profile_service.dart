@@ -13,32 +13,39 @@ import 'package:baishou/i18n/strings.g.dart';
 class UserProfile {
   final String nickname;
   final String? avatarPath;
-  final Map<String, String> identityFacts;
+  final String activePersonaId;
+  final Map<String, Map<String, String>> personas;
 
   const UserProfile({
     required this.nickname,
     this.avatarPath,
-    this.identityFacts = const {},
+    this.activePersonaId = '默认身份',
+    this.personas = const {},
   });
+
+  Map<String, String> get identityFacts => personas[activePersonaId] ?? {};
 
   UserProfile copyWith({
     String? nickname,
     String? avatarPath,
-    Map<String, String>? identityFacts,
+    String? activePersonaId,
+    Map<String, Map<String, String>>? personas,
   }) {
     return UserProfile(
       nickname: nickname ?? this.nickname,
       avatarPath: avatarPath ?? this.avatarPath,
-      identityFacts: identityFacts ?? this.identityFacts,
+      activePersonaId: activePersonaId ?? this.activePersonaId,
+      personas: personas ?? this.personas,
     );
   }
 
-  /// 将身份卡序列化为 Markdown 格式，用于注入 System Prompt
+  /// 将当前身份卡序列化为 Markdown 格式，用于注入 System Prompt
   String toMarkdownBlock() {
-    if (identityFacts.isEmpty) return '';
+    final facts = identityFacts;
+    if (facts.isEmpty) return '';
     final buffer = StringBuffer();
     buffer.writeln('### User Profile');
-    for (final entry in identityFacts.entries) {
+    for (final entry in facts.entries) {
       buffer.writeln('- **${entry.key}**: ${entry.value}');
     }
     return buffer.toString();
@@ -48,20 +55,37 @@ class UserProfile {
 class UserProfileNotifier extends Notifier<UserProfile> {
   static const String _keyNickname = 'user_nickname';
   static const String _keyAvatarPath = 'user_avatar_path';
-  static const String _keyIdentityFacts = 'user_identity_facts';
+  static const String _keyIdentityFacts = 'user_identity_facts'; // 旧版单卡口
+  static const String _keyPersonas = 'user_personas';
+  static const String _keyActivePersonaId = 'user_active_persona_id';
   late SharedPreferences _prefs;
 
   @override
   UserProfile build() {
     _prefs = ref.watch(sharedPreferencesProvider);
+    
+    // 加载并向下兼容旧数据
+    Map<String, Map<String, String>> loadedPersonas = _loadPersonas();
+    if (loadedPersonas.isEmpty) {
+       final legacyFacts = _loadLegacyFacts();
+       loadedPersonas = {'默认身份': legacyFacts};
+       _savePersonas(loadedPersonas);
+    }
+    
+    String activeId = _prefs.getString(_keyActivePersonaId) ?? '默认身份';
+    if (!loadedPersonas.containsKey(activeId)) {
+        activeId = loadedPersonas.keys.first;
+    }
+
     return UserProfile(
       nickname: _prefs.getString(_keyNickname) ?? t.settings.default_nickname,
       avatarPath: _prefs.getString(_keyAvatarPath),
-      identityFacts: _loadFacts(),
+      activePersonaId: activeId,
+      personas: loadedPersonas,
     );
   }
 
-  Map<String, String> _loadFacts() {
+  Map<String, String> _loadLegacyFacts() {
     final jsonStr = _prefs.getString(_keyIdentityFacts);
     if (jsonStr == null || jsonStr.isEmpty) return {};
     try {
@@ -72,8 +96,25 @@ class UserProfileNotifier extends Notifier<UserProfile> {
     }
   }
 
-  Future<void> _saveFacts(Map<String, String> facts) async {
-    await _prefs.setString(_keyIdentityFacts, jsonEncode(facts));
+  Map<String, Map<String, String>> _loadPersonas() {
+    final jsonStr = _prefs.getString(_keyPersonas);
+    if (jsonStr == null || jsonStr.isEmpty) return {};
+    try {
+      final decoded = jsonDecode(jsonStr) as Map<String, dynamic>;
+      final result = <String, Map<String, String>>{};
+      decoded.forEach((key, value) {
+        if (value is Map) {
+          result[key] = value.map((k, v) => MapEntry(k.toString(), v.toString()));
+        }
+      });
+      return result;
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> _savePersonas(Map<String, Map<String, String>> personas) async {
+    await _prefs.setString(_keyPersonas, jsonEncode(personas));
   }
 
   Future<void> updateNickname(String nickname) async {
@@ -81,26 +122,90 @@ class UserProfileNotifier extends Notifier<UserProfile> {
     state = state.copyWith(nickname: nickname);
   }
 
-  /// 添加或更新一条身份卡事实
+  // --- 多身份卡管理逻辑 ---
+
+  Future<void> setActivePersona(String personaId) async {
+    if (!state.personas.containsKey(personaId)) return;
+    await _prefs.setString(_keyActivePersonaId, personaId);
+    state = state.copyWith(activePersonaId: personaId);
+  }
+
+  Future<void> addPersona(String personaId) async {
+    if (state.personas.containsKey(personaId)) return;
+    final updated = Map<String, Map<String, String>>.from(state.personas);
+    updated[personaId] = {};
+    await _savePersonas(updated);
+    state = state.copyWith(personas: updated);
+    await setActivePersona(personaId);
+  }
+
+  Future<void> removePersona(String personaId) async {
+    if (state.personas.length <= 1) return; // 至少保留一张
+    final updated = Map<String, Map<String, String>>.from(state.personas);
+    updated.remove(personaId);
+    await _savePersonas(updated);
+    
+    String activeId = state.activePersonaId;
+    if (activeId == personaId) {
+      activeId = updated.keys.first;
+      await _prefs.setString(_keyActivePersonaId, activeId);
+    }
+    state = state.copyWith(personas: updated, activePersonaId: activeId);
+  }
+
+  Future<void> renamePersona(String oldId, String newId) async {
+    if (oldId == newId || state.personas.containsKey(newId)) return;
+    final updated = Map<String, Map<String, String>>.from(state.personas);
+    final facts = updated.remove(oldId)!;
+    updated[newId] = facts;
+    await _savePersonas(updated);
+    
+    String activeId = state.activePersonaId;
+    if (activeId == oldId) {
+      activeId = newId;
+      await _prefs.setString(_keyActivePersonaId, activeId);
+    }
+    state = state.copyWith(personas: updated, activePersonaId: activeId);
+  }
+
+  /// 复制身份卡
+  Future<void> duplicatePersona(String sourceId, String newId) async {
+    if (state.personas.containsKey(newId) || !state.personas.containsKey(sourceId)) return;
+    final updated = Map<String, Map<String, String>>.from(state.personas);
+    updated[newId] = Map<String, String>.from(updated[sourceId]!);
+    await _savePersonas(updated);
+    state = state.copyWith(personas: updated);
+    await setActivePersona(newId);
+  }
+
+  // --- 当前活动身份卡的增删查改 ---
+
+  /// 添加或更新当前活动身份卡的一条事实
   Future<void> addFact(String key, String value) async {
-    final updated = Map<String, String>.from(state.identityFacts);
-    updated[key] = value;
-    await _saveFacts(updated);
-    state = state.copyWith(identityFacts: updated);
+    final updatedPersonas = Map<String, Map<String, String>>.from(state.personas);
+    final facts = Map<String, String>.from(updatedPersonas[state.activePersonaId] ?? {});
+    facts[key] = value;
+    updatedPersonas[state.activePersonaId] = facts;
+    await _savePersonas(updatedPersonas);
+    state = state.copyWith(personas: updatedPersonas);
   }
 
-  /// 删除一条身份卡事实
+  /// 删除当前活动身份卡的一条事实
   Future<void> removeFact(String key) async {
-    final updated = Map<String, String>.from(state.identityFacts);
-    updated.remove(key);
-    await _saveFacts(updated);
-    state = state.copyWith(identityFacts: updated);
+    final updatedPersonas = Map<String, Map<String, String>>.from(state.personas);
+    final facts = Map<String, String>.from(updatedPersonas[state.activePersonaId] ?? {});
+    facts.remove(key);
+    updatedPersonas[state.activePersonaId] = facts;
+    await _savePersonas(updatedPersonas);
+    state = state.copyWith(personas: updatedPersonas);
   }
 
-  /// 批量更新所有身份卡事实
+  /// 批量更新当前活动身份卡的所有事实
   Future<void> updateAllFacts(Map<String, String> facts) async {
-    await _saveFacts(facts);
-    state = state.copyWith(identityFacts: facts);
+    final updatedPersonas = Map<String, Map<String, String>>.from(state.personas);
+    updatedPersonas[state.activePersonaId] = facts;
+    await _savePersonas(updatedPersonas);
+    state = state.copyWith(personas: updatedPersonas);
   }
 
   Future<void> updateAvatar(File newAvatar) async {
