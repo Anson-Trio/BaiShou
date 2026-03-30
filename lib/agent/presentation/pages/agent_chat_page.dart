@@ -59,14 +59,6 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
     if (atBottom != _isAtBottom) {
       setState(() => _isAtBottom = atBottom);
     }
-
-    // 滑动接近顶部（历史最前）触发加载更多
-    if (pos.pixels >= pos.maxScrollExtent - 300) {
-      final chatState = ref.read(agentChatProvider);
-      if (chatState.hasMore && !chatState.isLoadingMore) {
-        ref.read(agentChatProvider.notifier).loadMore();
-      }
-    }
   }
 
   @override
@@ -167,8 +159,7 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
                           ListView.builder(
                             controller: _scrollController,
                             reverse: true, // 核心改动：倒排列表
-                            cacheExtent:
-                                999999, // 极大 cacheExtent 解决超长消息 Scrollbar 预估跳动问题
+                            cacheExtent: 2500, // 适度缓存，避免缓存所有渲染节点导致对话过多时滑动卡顿
                             padding: const EdgeInsets.only(top: 20, bottom: 20),
                             itemCount:
                                 AgentChatMessageGrouper.buildDisplayItems(
@@ -242,20 +233,32 @@ class _AgentChatPageState extends ConsumerState<AgentChatPage> {
                                       : null,
                                 );
                               } else {
-                                // 3. 达到最顶部（历史最前），显示加载指示器
-                                // loadMore 触发现已移动到 _onScroll 中，避免因 cacheExtent 过大导致瞬间穿透加载
-
-                                return Container(
-                                  padding: const EdgeInsets.all(20),
-                                  alignment: Alignment.center,
-                                  child: const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
+                                // 3. 达到最顶部（历史最前），显示加载指示器或加载按钮
+                                if (chatState.isLoadingMore) {
+                                  return Container(
+                                    padding: const EdgeInsets.all(20),
+                                    alignment: Alignment.center,
+                                    child: const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
                                     ),
-                                  ),
-                                );
+                                  );
+                                } else {
+                                  return Container(
+                                    padding: const EdgeInsets.all(20),
+                                    alignment: Alignment.center,
+                                    child: TextButton.icon(
+                                      onPressed: () => ref
+                                          .read(agentChatProvider.notifier)
+                                          .loadMore(),
+                                      icon: const Icon(Icons.history, size: 18),
+                                      label: Text(t.common.confirm == 'Confirm' ? 'Load earlier history' : '加载更早的历史记录'),
+                                    ),
+                                  );
+                                }
                               }
                             },
                           ),

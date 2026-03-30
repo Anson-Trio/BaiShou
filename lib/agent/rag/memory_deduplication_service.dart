@@ -223,15 +223,20 @@ class MemoryDeduplicationService {
           final removedIds = <String>[];
           for (final targetId in llmResult.mergeTargetIds) {
             // 找到对应的 sourceType 和 sourceId 进行删除
-            final target = candidates.firstWhere(
-              (c) => c.embeddingId == targetId || c.sourceId == targetId,
-              orElse: () => candidates.first,
-            );
-            await _db.deleteEmbeddingsBySource(
-              target.sourceType,
-              target.sourceId,
-            );
-            removedIds.add(target.sourceId);
+            // 使用 firstOrNull 防止 LLM 幻觉伪造 ID 导致误删其他数据
+            final target = candidates.where(
+              (c) => c.embeddingId == targetId || c.sourceId == targetId
+            ).firstOrNull;
+            
+            if (target != null) {
+              await _db.deleteEmbeddingsBySource(
+                target.sourceType,
+                target.sourceId,
+              );
+              removedIds.add(target.sourceId);
+            } else {
+              debugPrint('MemoryDedup: LLM 提供了无效的合并目标 ID: $targetId');
+            }
           }
 
           // 存入合并后的新记忆（embedding_service 会重新 embedding）

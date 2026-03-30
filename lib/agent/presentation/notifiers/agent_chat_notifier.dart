@@ -74,7 +74,7 @@ class AgentChatNotifier extends _$AgentChatNotifier {
     final manager = ref.read(sessionManagerProvider);
     final messages = await manager.getMessages(
       sessionId,
-      limit: 20,
+      limit: 10,
       descending: true,
     );
     final session = await manager.getSession(sessionId);
@@ -94,7 +94,7 @@ class AgentChatNotifier extends _$AgentChatNotifier {
       currentAssistantId: () => session?.assistantId,
       currentProviderId: () => session?.providerId,
       currentModelId: () => session?.modelId,
-      hasMore: messages.length == 20,
+      hasMore: messages.length == 10,
       isLoadingMore: false,
     );
   }
@@ -108,14 +108,14 @@ class AgentChatNotifier extends _$AgentChatNotifier {
     final manager = ref.read(sessionManagerProvider);
     final moreMessages = await manager.getMessages(
       sessionId,
-      limit: 20,
+      limit: 10,
       offset: state.messages.length,
       descending: true,
     );
 
     state = state.copyWith(
       messages: [...state.messages, ...moreMessages],
-      hasMore: moreMessages.length == 20,
+      hasMore: moreMessages.length == 10,
       isLoadingMore: false,
     );
   }
@@ -247,8 +247,31 @@ class AgentChatNotifier extends _$AgentChatNotifier {
 
     // 添加用户消息到 UI
     final userMsg = ChatMessage.user(text, attachments: persistedAttachments);
-    final updatedMessages = [userMsg, ...state.messages];
-    state = state.copyWith(messages: updatedMessages);
+    List<ChatMessage> updatedMessages = [userMsg, ...state.messages];
+    
+    // 滑动窗口截断：按完整的对话轮次（User 消息）进行截断，保证 5 轮会话
+    // 并且绝不会切断中间的 Tool / RAG 链条导致数据丢失
+    bool hasMore = state.hasMore;
+    int userMsgCount = 0;
+    int cutoffIndex = -1;
+    for (int i = 0; i < updatedMessages.length; i++) {
+      if (updatedMessages[i].role == MessageRole.user) {
+        userMsgCount++;
+      }
+      if (userMsgCount == 5) {
+        // 当数到第 5 个 User 消息时，它就是第 5 轮的最早起点。
+        // 其后的所有消息（i+1）都是更早一轮的 AI 回复，应被直接舍弃。
+        cutoffIndex = i + 1;
+        break;
+      }
+    }
+    
+    if (cutoffIndex != -1 && cutoffIndex < updatedMessages.length) {
+      updatedMessages = updatedMessages.sublist(0, cutoffIndex);
+      hasMore = true;
+    }
+
+    state = state.copyWith(messages: updatedMessages, hasMore: hasMore);
     _sessionStateCache[sessionId] = state;
 
     await manager.addMessage(sessionId, userMsg);
