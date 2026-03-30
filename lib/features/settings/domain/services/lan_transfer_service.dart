@@ -72,6 +72,12 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
 
   bool _isDisposed = false;
 
+  // 新增防抖和资源管理变量
+  StreamSubscription<BonsoirDiscoveryEvent>? _discoverySubscription;
+  Timer? _teardownTimer;
+  int _activeClients = 0;
+  bool _isRestarting = false;
+
   @override
   LanTransferState build() {
     ref.onDispose(() {
@@ -85,6 +91,7 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
   /// 启动广播服务
   /// 仅启动 HTTP 服务器和 mDNS 广播，不自动导出文件
   Future<void> startBroadcasting() async {
+    if (_broadcast != null) return;
     try {
       state = state.copyWith(error: null);
 
@@ -293,34 +300,73 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
   /// 同时启动广播和发现服务
   /// 进入局域网传输页面时调用
   Future<void> startDualMode() async {
+    _activeClients++;
+    if (_teardownTimer != null && _teardownTimer!.isActive) {
+      _teardownTimer!.cancel();
+      _teardownTimer = null;
+    }
+
+    if (state.isBroadcasting && state.isDiscovering) {
+      return;
+    }
+
     await _executeWithLock(() async {
-      // 串行启动，避免 Windows mDNS 多线程并发抢注底层 5353 UDP 端口导致的内核崩溃
-      await startBroadcasting();
-      await startDiscovery();
+      if (_isDisposed) return;
+      // 串行启动，避免 Windows mDNS 多线程并发抢注底层 UDP 端口导致的内核崩溃
+      if (!state.isBroadcasting) await startBroadcasting();
+      if (!state.isDiscovering) await startDiscovery();
     });
   }
 
   Future<void> stopDualMode() async {
-    await _executeWithLock(() async {
-      // 同样改为串行停止，保证资源完全释放顺序
-      await stopBroadcasting();
-      await stopDiscovery();
+    _activeClients--;
+    if (_activeClients > 0) return;
+
+    // 延迟 2 秒真正销毁服务，避免用户快速进出页面时的底层插件并发死锁
+    _teardownTimer?.cancel();
+    _teardownTimer = Timer(const Duration(seconds: 2), () async {
+      if (_activeClients <= 0) {
+        await _executeWithLock(() async {
+          // 串行停止，保证资源完全释放顺序
+          await stopBroadcasting();
+          await stopDiscovery();
+        });
+      }
     });
   }
 
   /// 安全重启双向模式（带防崩延迟）
   /// 在用户点击刷新时调用。立即的 stop+start 极易引发 Windows 上的 bonsoir c++ 插件发生指针异常或 Socket 抢占崩溃。
   Future<void> restartDualMode() async {
-    await stopDualMode();
-    // 强制休眠 1 秒，等待底层完全释放端口和句柄
-    await Future.delayed(const Duration(milliseconds: 1000));
-    if (_isDisposed) return;
-    await startDualMode();
+    if (_isRestarting) return;
+    _isRestarting = true;
+    try {
+      _teardownTimer?.cancel();
+
+      await _executeWithLock(() async {
+        await stopBroadcasting();
+        await stopDiscovery();
+      });
+      
+      // 强制休眠 2 秒，等待底层完全释放端口和句柄，彻底解决重入空指针
+      await Future.delayed(const Duration(milliseconds: 2000));
+      if (_isDisposed) return;
+
+      await _executeWithLock(() async {
+        if (_activeClients > 0) {
+          if (!state.isBroadcasting) await startBroadcasting();
+          if (!state.isDiscovering) await startDiscovery();
+        }
+      });
+    } finally {
+      _isRestarting = false;
+    }
   }
 
   // --- 接收端逻辑 (发现) ---
 
   Future<void> startDiscovery() async {
+    if (_discovery != null) return;
     try {
       state = state.copyWith(error: null, discoveredServices: []);
 
@@ -329,7 +375,7 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
 
       final Set<String> _resolvingServices = {};
 
-      _discovery!.eventStream!.listen((event) async {
+      _discoverySubscription = _discovery!.eventStream!.listen((event) async {
         if (event is BonsoirDiscoveryServiceFoundEvent) {
           // 发现服务，尝试解析。
           final serviceName = event.service.name;
@@ -393,6 +439,8 @@ class LanTransferNotifier extends Notifier<LanTransferState> {
   }
 
   Future<void> stopDiscovery() async {
+    await _discoverySubscription?.cancel();
+    _discoverySubscription = null;
     await _discovery?.stop();
     _discovery = null;
     state = state.copyWith(isDiscovering: false, discoveredServices: []);
