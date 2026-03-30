@@ -902,7 +902,7 @@
       "create_first": "Create First Companion",
       "remove_avatar": "Remove Avatar",
       "delete_confirm_title": "Delete Companion",
-      "delete_confirm_content": "Are you sure you want to delete this companion? Associated conversations will not be deleted.",
+      "delete_confirm_content": "Are you sure you want to delete this companion? Associated conversations and attachments will also be deleted.",
       "settings_entry": "Companion Management",
       "select_title": "Select Companion",
       "clear_selection": "Clear",

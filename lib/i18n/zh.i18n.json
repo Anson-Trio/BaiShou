@@ -902,7 +902,7 @@
       "create_first": "创建第一个伙伴",
       "remove_avatar": "移除头像",
       "delete_confirm_title": "删除伙伴",
-      "delete_confirm_content": "确定要删除此伙伴吗？关联的对话不会被删除。",
+      "delete_confirm_content": "确定要删除此伙伴吗？关联的对话及附件将会被一并删除。",
       "settings_entry": "伙伴管理",
       "select_title": "选择伙伴",
       "clear_selection": "清除",

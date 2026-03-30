@@ -902,7 +902,7 @@
       "create_first": "最初のパートナーを作成",
       "remove_avatar": "アバターを削除",
       "delete_confirm_title": "パートナーを削除",
-      "delete_confirm_content": "このパートナーを削除しますか？関連する会話は削除されません。",
+      "delete_confirm_content": "このパートナーを削除しますか？関連する会話と添付ファイルも削除されます。",
       "settings_entry": "パートナー管理",
       "select_title": "パートナーを選択",
       "clear_selection": "クリア",

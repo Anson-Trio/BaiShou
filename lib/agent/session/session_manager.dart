@@ -71,15 +71,31 @@ class SessionManager {
         .get();
   }
 
-  /// 监听指定伙伴的会话列表变化
-  Stream<List<AgentSession>> watchSessionsByAssistant(String assistantId, String vaultName) {
-    return (_db.select(_db.agentSessions)
-          ..where((t) => t.assistantId.equals(assistantId) & t.vaultName.equals(vaultName))
-          ..orderBy([
-            (t) => OrderingTerm.desc(t.isPinned),
-            (t) => OrderingTerm.desc(t.updatedAt),
-          ]))
-        .watch();
+  /// 监听指定伙伴的会话列表变化（支持分页 limit 和标题搜索）
+  Stream<List<AgentSession>> watchSessionsByAssistant(
+    String assistantId,
+    String vaultName, {
+    int? limit,
+    String? searchQuery,
+  }) {
+    var query = _db.select(_db.agentSessions)
+      ..where(
+          (t) => t.assistantId.equals(assistantId) & t.vaultName.equals(vaultName));
+
+    if (searchQuery != null && searchQuery.isNotEmpty) {
+      query.where((t) => t.title.like('%$searchQuery%'));
+    }
+
+    query.orderBy([
+      (t) => OrderingTerm.desc(t.isPinned),
+      (t) => OrderingTerm.desc(t.updatedAt),
+    ]);
+
+    if (limit != null) {
+      query.limit(limit);
+    }
+
+    return query.watch();
   }
 
   /// 获取指定伙伴的会话数量
@@ -197,6 +213,17 @@ class SessionManager {
       _db.agentMessages,
     )..where((t) => t.sessionId.equals(id))).go();
     await (_db.delete(_db.agentSessions)..where((t) => t.id.equals(id))).go();
+  }
+
+  /// 按伙伴 ID 批量删除所关联的全部会话及其附件
+  Future<void> deleteSessionsByAssistant(String assistantId) async {
+    final sessionIds = await (_db.select(_db.agentSessions)
+          ..where((t) => t.assistantId.equals(assistantId)))
+        .map((row) => row.id)
+        .get();
+    for (final id in sessionIds) {
+      await deleteSession(id);
+    }
   }
 
   /// 批量删除会话

@@ -902,7 +902,7 @@
       "create_first": "建立第一個夥伴",
       "remove_avatar": "移除大頭貼",
       "delete_confirm_title": "刪除夥伴",
-      "delete_confirm_content": "確定要刪除此夥伴嗎？關聯的對話不會被刪除。",
+      "delete_confirm_content": "確定要刪除此夥伴嗎？關聯的對話及附件將會被一併刪除。",
       "settings_entry": "夥伴管理",
       "select_title": "選擇夥伴",
       "clear_selection": "清除",
