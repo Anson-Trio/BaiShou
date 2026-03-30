@@ -331,7 +331,9 @@ class _AssistantCard extends StatelessWidget {
                   size: 20,
                   color: isPinned ? colorScheme.primary : colorScheme.outline,
                 ),
-                tooltip: isPinned ? '取消侧边栏固定' : '固定到侧边栏',
+                tooltip: isPinned
+                    ? t.agent.assistant.unpin_from_sidebar
+                    : t.agent.assistant.pin_to_sidebar,
                 onPressed: onTogglePin,
               ),
 

@@ -66,7 +66,10 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
 
   Future<void> _loadSessions() async {
     if (_currentAssistant == null) return;
-    setState(() => _isLoading = true);
+    
+    if (_sessions == null) {
+      setState(() => _isLoading = true);
+    }
     try {
       final manager = ref.read(sessionManagerProvider);
       final vaultInfo = await ref.read(vaultServiceProvider.future);

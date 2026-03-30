@@ -91,7 +91,7 @@ class _IdentitySettingsCardState extends ConsumerState<IdentitySettingsCard> {
                     );
                   }),
                   ActionChip(
-                    label: const Text('新建身份'), // 借用通用或硬编码，原 i18n 无此翻译
+                    label: Text(t.settings.new_identity),
                     avatar: const Icon(Icons.add, size: 16),
                     onPressed: _showAddPersonaDialog,
                   ),
@@ -173,10 +173,10 @@ class _IdentitySettingsCardState extends ConsumerState<IdentitySettingsCard> {
     final name = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('新建身份卡'),
+        title: Text(t.settings.new_identity_card),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(hintText: '例如: 工作, 旅行, 运动'),
+          decoration: InputDecoration(hintText: t.settings.identity_hint_example),
           autofocus: true,
         ),
         actions: [
@@ -205,10 +205,10 @@ class _IdentitySettingsCardState extends ConsumerState<IdentitySettingsCard> {
     final newName = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('重命名身份卡'),
+        title: Text(t.settings.rename_identity_card),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(hintText: '输入新的身份名称'),
+          decoration: InputDecoration(hintText: t.settings.input_new_identity_name),
           autofocus: true,
         ),
         actions: [
@@ -236,8 +236,8 @@ class _IdentitySettingsCardState extends ConsumerState<IdentitySettingsCard> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('删除身份卡: $personaId'),
-        content: const Text('确定要删除这个身份卡吗？此操作无法撤销。'),
+        title: Text(t.settings.delete_identity_card(personaId: personaId)),
+        content: Text(t.settings.delete_identity_card_confirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),

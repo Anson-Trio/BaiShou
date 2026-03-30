@@ -16,12 +16,12 @@ class UserProfile {
   final String activePersonaId;
   final Map<String, Map<String, String>> personas;
 
-  const UserProfile({
+  UserProfile({
     required this.nickname,
     this.avatarPath,
-    this.activePersonaId = '默认身份',
+    String? activePersonaId,
     this.personas = const {},
-  });
+  }) : activePersonaId = activePersonaId ?? t.settings.default_identity;
 
   Map<String, String> get identityFacts => personas[activePersonaId] ?? {};
 
@@ -68,11 +68,11 @@ class UserProfileNotifier extends Notifier<UserProfile> {
     Map<String, Map<String, String>> loadedPersonas = _loadPersonas();
     if (loadedPersonas.isEmpty) {
        final legacyFacts = _loadLegacyFacts();
-       loadedPersonas = {'默认身份': legacyFacts};
+       loadedPersonas = {t.settings.default_identity: legacyFacts};
        _savePersonas(loadedPersonas);
     }
     
-    String activeId = _prefs.getString(_keyActivePersonaId) ?? '默认身份';
+    String activeId = _prefs.getString(_keyActivePersonaId) ?? t.settings.default_identity;
     if (!loadedPersonas.containsKey(activeId)) {
         activeId = loadedPersonas.keys.first;
     }

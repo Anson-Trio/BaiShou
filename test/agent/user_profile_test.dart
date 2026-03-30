@@ -5,12 +5,12 @@ void main() {
   group('UserProfile', () {
     group('toMarkdownBlock', () {
       test('空 identityFacts 返回空字符串', () {
-        const profile = UserProfile(nickname: 'Test');
+        final profile = UserProfile(nickname: 'Test');
         expect(profile.toMarkdownBlock(), '');
       });
 
       test('单条 KV 格式化为 Markdown', () {
-        const profile = UserProfile(
+        final profile = UserProfile(
           nickname: 'Test',
           personas: {'默认身份': {'生日': '1998-05-20'}},
           activePersonaId: '默认身份',
@@ -21,7 +21,7 @@ void main() {
       });
 
       test('多条 KV 全部输出', () {
-        const profile = UserProfile(
+        final profile = UserProfile(
           nickname: '小明',
           personas: {
             '默认身份': {
@@ -44,7 +44,7 @@ void main() {
 
     group('copyWith', () {
       test('只改 nickname，personas 不变', () {
-        const profile = UserProfile(
+        final profile = UserProfile(
           nickname: 'Old',
           personas: {'默认身份': {'key': 'value'}},
           activePersonaId: '默认身份',
@@ -55,7 +55,7 @@ void main() {
       });
 
       test('只改 personas，nickname 不变', () {
-        const profile = UserProfile(
+        final profile = UserProfile(
           nickname: 'Test',
           personas: {'默认身份': {'old': 'data'}},
           activePersonaId: '默认身份',
@@ -66,7 +66,7 @@ void main() {
       });
 
       test('改 avatarPath', () {
-        const profile = UserProfile(nickname: 'Test');
+        final profile = UserProfile(nickname: 'Test');
         final updated = profile.copyWith(avatarPath: '/path/to/avatar.png');
         expect(updated.avatarPath, '/path/to/avatar.png');
         expect(updated.nickname, 'Test');
@@ -75,7 +75,7 @@ void main() {
 
     group('default values', () {
       test('默认 identityFacts 为空 Map', () {
-        const profile = UserProfile(nickname: 'Test');
+        final profile = UserProfile(nickname: 'Test');
         expect(profile.identityFacts, isEmpty);
         expect(profile.avatarPath, isNull);
       });

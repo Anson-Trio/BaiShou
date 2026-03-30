@@ -135,7 +135,7 @@ class _AgentSidebarState extends ConsumerState<AgentSidebar> {
                         if (isDesktop && widget.onCollapse != null)
                           IconButton(
                             icon: const Icon(Icons.menu_open_rounded, size: 20),
-                            tooltip: '收起侧边栏',
+                            tooltip: t.agent.chat.collapse_sidebar,
                             visualDensity: VisualDensity.compact,
                             onPressed: widget.onCollapse,
                           ),
@@ -290,7 +290,7 @@ class _AgentSidebarState extends ConsumerState<AgentSidebar> {
                     child: TextField(
                       controller: _searchController,
                       decoration: InputDecoration(
-                        hintText: '搜索近期对话...',
+                        hintText: t.agent.chat.search_recent,
                         prefixIcon: const Icon(Icons.search, size: 18),
                         suffixIcon: widget.searchQuery.isNotEmpty
                           ? IconButton(
@@ -355,7 +355,7 @@ class _AgentSidebarState extends ConsumerState<AgentSidebar> {
                       child: Padding(
                         padding: const EdgeInsets.all(32.0),
                         child: Text(
-                          '无匹配的搜索结果',
+                          t.agent.chat.no_search_results,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.outline,
                           ),
@@ -373,7 +373,7 @@ class _AgentSidebarState extends ConsumerState<AgentSidebar> {
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         child: TextButton(
                           onPressed: widget.onLoadMore,
-                          child: const Text('加载更多'),
+                          child: Text(t.agent.chat.load_more),
                         ),
                       );
                     }
@@ -668,7 +668,7 @@ class _AgentSidebarState extends ConsumerState<AgentSidebar> {
             if (index == pinnedAssistants.length) {
               if (isDesktop) return const SizedBox.shrink();
               return Tooltip(
-                message: '管理固定伙伴',
+                message: t.agent.chat.manage_pinned,
                 child: InkWell(
                   onTap: () => context.push('/settings/assistants'),
                   borderRadius: BorderRadius.circular(22),
