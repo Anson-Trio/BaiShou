@@ -521,7 +521,8 @@ class AgentChatNotifier extends _$AgentChatNotifier {
   Future<void> _initDefaultAssistant() async {
     try {
       final assistantRepo = ref.read(assistantRepositoryProvider);
-      final defaultAssistant = await assistantRepo.getDefault();
+      final allAssistants = await assistantRepo.getAll();
+      final defaultAssistant = allAssistants.firstOrNull;
       if (defaultAssistant != null) {
         state = state.copyWith(
           currentAssistantId: () => defaultAssistant.id.toString(),

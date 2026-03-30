@@ -30,13 +30,6 @@ class AssistantRepository {
     )..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 
-  /// 获取默认伙伴
-  Future<AgentAssistant?> getDefault() {
-    return (_db.select(
-      _db.agentAssistants,
-    )..where((t) => t.isDefault.equals(true))).getSingleOrNull();
-  }
-
   /// 监听伙伴列表变更
   Stream<List<AgentAssistant>> watchAll() {
     return (_db.select(_db.agentAssistants)..orderBy([
@@ -65,22 +58,6 @@ class AssistantRepository {
     return (_db.delete(
       _db.agentAssistants,
     )..where((t) => t.id.equals(id))).go();
-  }
-
-  // ─── 默认伙伴管理 ──────────────────────────────────
-
-  /// 清除所有伙伴的默认标记
-  Future<void> clearDefault() {
-    return (_db.update(_db.agentAssistants)
-          ..where((t) => t.isDefault.equals(true)))
-        .write(const AgentAssistantsCompanion(isDefault: Value(false)));
-  }
-
-  /// 设置指定伙伴为默认
-  Future<void> setDefault(String id) async {
-    await clearDefault();
-    await (_db.update(_db.agentAssistants)..where((t) => t.id.equals(id)))
-        .write(const AgentAssistantsCompanion(isDefault: Value(true)));
   }
 
   /// 批量更新排序权重（拖动排序后调用）

@@ -12,6 +12,7 @@ import 'package:baishou/agent/presentation/widgets/picker_mobile.dart';
 import 'package:baishou/agent/presentation/widgets/picker_sidebar_item.dart';
 import 'package:baishou/agent/session/assistant_repository.dart';
 import 'package:baishou/i18n/strings.g.dart';
+import 'package:baishou/core/services/api_config_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -141,6 +142,7 @@ class _DesktopPickerState extends ConsumerState<_DesktopPicker>
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final assistantsAsync = ref.watch(assistantListProvider);
+    final apiConfig = ref.watch(apiConfigServiceProvider);
 
     return Row(
       children: [
@@ -286,13 +288,22 @@ class _DesktopPickerState extends ConsumerState<_DesktopPicker>
                         itemCount: filtered.length,
                         itemBuilder: (context, index) {
                           final a = filtered[index];
-                          return PickerSidebarItem(
+                          return ListenableBuilder(
                             key: ValueKey(a.id),
-                            assistant: a,
-                            isSelected: _selectedAssistant?.id == a.id,
-                            isCurrent:
-                                a.id.toString() == widget.currentAssistantId,
-                            onTap: () => setState(() => _selectedAssistant = a),
+                            listenable: apiConfig,
+                            builder: (context, _) {
+                              return PickerSidebarItem(
+                                assistant: a,
+                                isSelected: _selectedAssistant?.id == a.id,
+                                isCurrent:
+                                    a.id.toString() == widget.currentAssistantId,
+                                isPinned: apiConfig.pinnedAssistantIds.contains(a.id),
+                                onTogglePin: () {
+                                  ref.read(apiConfigServiceProvider).togglePinnedAssistant(a.id);
+                                },
+                                onTap: () => setState(() => _selectedAssistant = a),
+                              );
+                            },
                           );
                         },
                       );
@@ -328,14 +339,23 @@ class _DesktopPickerState extends ConsumerState<_DesktopPicker>
                       },
                       itemBuilder: (context, index) {
                         final a = filtered[index];
-                        return PickerSidebarItem(
+                        return ListenableBuilder(
                           key: ValueKey(a.id),
-                          assistant: a,
-                          isSelected: _selectedAssistant?.id == a.id,
-                          isCurrent:
-                              a.id.toString() == widget.currentAssistantId,
-                          dragIndex: index,
-                          onTap: () => setState(() => _selectedAssistant = a),
+                          listenable: apiConfig,
+                          builder: (context, _) {
+                            return PickerSidebarItem(
+                              assistant: a,
+                              isSelected: _selectedAssistant?.id == a.id,
+                              isCurrent:
+                                  a.id.toString() == widget.currentAssistantId,
+                              dragIndex: index,
+                              isPinned: apiConfig.pinnedAssistantIds.contains(a.id),
+                              onTogglePin: () {
+                                ref.read(apiConfigServiceProvider).togglePinnedAssistant(a.id);
+                              },
+                              onTap: () => setState(() => _selectedAssistant = a),
+                            );
+                          },
                         );
                       },
                     );

@@ -8,6 +8,8 @@ import 'package:baishou/agent/presentation/widgets/picker_shared_widgets.dart';
 import 'package:baishou/i18n/strings.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:baishou/core/services/api_config_service.dart';
 
 class PickerMobileView extends ConsumerStatefulWidget {
   final String? currentAssistantId;
@@ -51,6 +53,16 @@ class _PickerMobileViewState extends ConsumerState<PickerMobileView> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.settings_outlined, size: 22),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () {
+                  Navigator.pop(context);
+                  GoRouter.of(context).push('/settings/assistants');
+                },
+              ),
             ],
           ),
         ),
@@ -79,11 +91,22 @@ class _PickerMobileViewState extends ConsumerState<PickerMobileView> {
                   final a = assistants[index];
                   final isSelected =
                       widget.currentAssistantId == a.id.toString();
+                  return ListenableBuilder(
+                    listenable: ref.read(apiConfigServiceProvider),
+                    builder: (context, _) {
+                      final isPinned =
+                          ref.read(apiConfigServiceProvider).pinnedAssistantIds.contains(a.id);
 
-                  return _MobileCard(
-                    assistant: a,
-                    isSelected: isSelected,
-                    onTap: () => widget.onSelect(a),
+                      return _MobileCard(
+                        assistant: a,
+                        isSelected: isSelected,
+                        isPinned: isPinned,
+                        onTogglePin: () {
+                          ref.read(apiConfigServiceProvider).togglePinnedAssistant(a.id);
+                        },
+                        onTap: () => widget.onSelect(a),
+                      );
+                    },
                   );
                 },
               );
@@ -98,11 +121,15 @@ class _PickerMobileViewState extends ConsumerState<PickerMobileView> {
 class _MobileCard extends StatelessWidget {
   final AgentAssistant assistant;
   final bool isSelected;
+  final bool isPinned;
+  final VoidCallback onTogglePin;
   final VoidCallback onTap;
 
   const _MobileCard({
     required this.assistant,
     required this.isSelected,
+    required this.isPinned,
+    required this.onTogglePin,
     required this.onTap,
   });
 
@@ -160,12 +187,24 @@ class _MobileCard extends StatelessWidget {
                 ],
               ),
             ),
-            if (isSelected)
+            if (isSelected) ...[
               Icon(
                 Icons.check_circle_rounded,
                 color: colorScheme.primary,
                 size: 22,
               ),
+              const SizedBox(width: 8),
+            ],
+            IconButton(
+              icon: Icon(
+                isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
+                size: 22,
+                color: isPinned ? colorScheme.primary : colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+              ),
+              onPressed: onTogglePin,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
           ],
         ),
       ),

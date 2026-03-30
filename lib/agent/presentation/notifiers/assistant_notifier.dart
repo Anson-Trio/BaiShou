@@ -23,12 +23,6 @@ final assistantListProvider = FutureProvider<List<AgentAssistant>>((ref) {
   return repo.getAll();
 });
 
-/// 获取默认伙伴
-final defaultAssistantProvider = FutureProvider<AgentAssistant?>((ref) {
-  final repo = ref.watch(assistantRepositoryProvider);
-  return repo.getDefault();
-});
-
 /// 伙伴管理服务 Provider
 final assistantServiceProvider = Provider<AssistantService>((ref) {
   final repo = ref.watch(assistantRepositoryProvider);
@@ -50,17 +44,12 @@ class AssistantService {
     String? emoji,
     String description = '',
     int contextWindow = 20,
-    bool isDefault = false,
     String? providerId,
     String? modelId,
     int compressTokenThreshold = 60000,
     int compressKeepTurns = 3,
   }) async {
     final id = _uuid.v4();
-
-    if (isDefault) {
-      await _repo.clearDefault();
-    }
 
     String? savedAvatarPath;
     if (avatarPath != null) {
@@ -76,7 +65,6 @@ class AssistantService {
         systemPrompt: Value(systemPrompt),
         avatarPath: Value(savedAvatarPath),
         contextWindow: Value(contextWindow),
-        isDefault: Value(isDefault),
         providerId: Value(providerId),
         modelId: Value(modelId),
         compressTokenThreshold: Value(compressTokenThreshold),
@@ -97,16 +85,12 @@ class AssistantService {
     String? emoji,
     String? description,
     int? contextWindow,
-    bool? isDefault,
     String? providerId,
     String? modelId,
     int? compressTokenThreshold,
     int? compressKeepTurns,
     bool clearModel = false,
   }) async {
-    if (isDefault == true) {
-      await _repo.clearDefault();
-    }
 
     String? savedAvatarPath;
     if (avatarRemoved == true) {
@@ -139,7 +123,6 @@ class AssistantService {
         contextWindow: contextWindow != null
             ? Value(contextWindow)
             : const Value.absent(),
-        isDefault: isDefault != null ? Value(isDefault) : const Value.absent(),
         providerId: clearModel
             ? const Value(null)
             : (providerId != null ? Value(providerId) : const Value.absent()),
@@ -170,38 +153,22 @@ class AssistantService {
       } catch (_) {}
     }
     await _repo.deleteById(id);
-    // 如果删的是默认，把第一个设为默认
-    if (existing?.isDefault == true) {
-      final remaining = await _repo.getAll();
-      if (remaining.isNotEmpty) {
-        await _repo.setDefault(remaining.first.id);
-      }
-    }
   }
 
   /// 确保至少有一个伙伴（首次启动时调用）
-  Future<AgentAssistant> ensureDefaultAssistant() async {
-    final existing = await _repo.getDefault();
-    if (existing != null) return existing;
+  Future<AgentAssistant> ensureAtLeastOneAssistant() async {
     final all = await _repo.getAll();
     if (all.isNotEmpty) {
-      await _repo.setDefault(all.first.id);
       return all.first;
     }
-    // 创建默认伙伴
+    // 创建初始伙伴
     final id = await createAssistant(
       name: t.agent.assistant.default_assistant_name,
       emoji: '🍵',
       description: t.agent.assistant.default_assistant_desc,
       systemPrompt: '',
-      isDefault: true,
     );
     return (await _repo.get(id))!;
-  }
-
-  /// 设置默认伙伴
-  Future<void> setDefault(String id) async {
-    await _repo.setDefault(id);
   }
 
   /// 保存头像到应用数据目录

@@ -13,6 +13,7 @@ import 'package:baishou/i18n/strings.g.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:baishou/agent/session/session_manager.dart';
 import 'package:baishou/core/widgets/app_toast.dart';
 
 class AssistantEditPage extends ConsumerStatefulWidget {
@@ -33,7 +34,6 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
   double _contextWindow = -1; // -1 = 无限
   double _compressThreshold = 60000; // 0 = 不触发
   double _compressKeepTurns = 3;
-  bool _isDefault = false;
   String? _avatarPath;
   bool _avatarRemoved = false;
   bool _saving = false;
@@ -58,7 +58,6 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
     _contextWindow = (a?.contextWindow ?? -1).toDouble();
     _compressThreshold = (a?.compressTokenThreshold ?? 60000).toDouble();
     _compressKeepTurns = (a?.compressKeepTurns ?? 3).toDouble();
-    _isDefault = a?.isDefault ?? false;
     _avatarPath = a?.avatarPath;
     _selectedProviderId = a?.providerId;
     _selectedModelId = a?.modelId;
@@ -245,17 +244,6 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
                 _buildCompressionSection(theme, colorScheme),
 
                 const SizedBox(height: 16),
-
-                // ── 设为默认 ──
-                SwitchListTile(
-                  title: Text(t.agent.assistant.set_default),
-                  subtitle: Text(t.agent.assistant.set_default_desc),
-                  value: _isDefault,
-                  onChanged: (v) => setState(() => _isDefault = v),
-                  contentPadding: EdgeInsets.zero,
-                ),
-
-                const SizedBox(height: 32),
 
                 // ── 保存按钮 ──
                 SizedBox(
@@ -643,7 +631,6 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
               : null,
           avatarRemoved: _avatarRemoved,
           contextWindow: _isUnlimitedContext ? -1 : _contextWindow.round(),
-          isDefault: _isDefault,
           providerId: _selectedProviderId,
           modelId: _selectedModelId,
           clearModel: _selectedProviderId == null,
@@ -660,7 +647,6 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
           systemPrompt: _promptController.text.trim(),
           avatarPath: _avatarPath,
           contextWindow: _isUnlimitedContext ? -1 : _contextWindow.round(),
-          isDefault: _isDefault,
           providerId: _selectedProviderId,
           modelId: _selectedModelId,
           compressTokenThreshold: _isCompressDisabled
@@ -673,7 +659,6 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
       // 刷新列表
       ref.invalidate(assistantListStreamProvider);
       ref.invalidate(assistantListProvider);
-      ref.invalidate(defaultAssistantProvider);
 
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
@@ -700,11 +685,12 @@ class _AssistantEditPageState extends ConsumerState<AssistantEditPage> {
             onPressed: () async {
               Navigator.pop(ctx);
               try {
+                await ref.read(sessionManagerProvider).deleteSessionsByAssistant(widget.assistant!.id);
+
                 final service = ref.read(assistantServiceProvider);
                 await service.deleteAssistant(widget.assistant!.id);
                 ref.invalidate(assistantListStreamProvider);
                 ref.invalidate(assistantListProvider);
-                ref.invalidate(defaultAssistantProvider);
                 if (mounted) Navigator.of(context).pop(true);
               } catch (e) {
                 if (mounted) {

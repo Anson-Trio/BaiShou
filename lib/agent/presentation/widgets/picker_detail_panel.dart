@@ -8,7 +8,7 @@ import 'package:baishou/agent/presentation/widgets/picker_memory_tab.dart';
 import 'package:baishou/agent/presentation/widgets/picker_prompt_tab.dart';
 import 'package:baishou/agent/presentation/widgets/picker_shared_widgets.dart';
 import 'package:baishou/agent/session/assistant_repository.dart';
-import 'package:baishou/i18n/strings.g.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -132,14 +132,7 @@ class _PickerDetailPanelState extends ConsumerState<PickerDetailPanel> {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              if (widget.assistant.isDefault) ...[
-                                const SizedBox(width: 8),
-                                PickerTag(
-                                  text: t.agent.assistant.default_tag,
-                                  color: colorScheme.tertiaryContainer,
-                                  textColor: colorScheme.onTertiaryContainer,
-                                ),
-                              ],
+
                               if (widget.isCurrent) ...[
                                 const SizedBox(width: 8),
                                 PickerTag(

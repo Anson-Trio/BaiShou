@@ -10,6 +10,8 @@ class PickerSidebarItem extends StatefulWidget {
   final AgentAssistant assistant;
   final bool isSelected;
   final bool isCurrent;
+  final bool isPinned;
+  final VoidCallback onTogglePin;
   final int? dragIndex;
   final VoidCallback onTap;
 
@@ -18,6 +20,8 @@ class PickerSidebarItem extends StatefulWidget {
     required this.assistant,
     required this.isSelected,
     required this.isCurrent,
+    required this.isPinned,
+    required this.onTogglePin,
     this.dragIndex,
     required this.onTap,
   });
@@ -126,6 +130,18 @@ class _PickerSidebarItemState extends State<PickerSidebarItem> {
                         ),
                     ],
                   ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(
+                    widget.isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
+                    size: 16,
+                    color: widget.isPinned ? colorScheme.primary : colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                  ),
+                  onPressed: widget.onTogglePin,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  visualDensity: VisualDensity.compact,
                 ),
               ],
             ),

@@ -29,6 +29,9 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
   String? _selectedSessionId;
   AgentAssistant? _currentAssistant;
   bool _isSidebarCollapsed = false;
+  
+  int _sessionLimit = 8;
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -39,13 +42,11 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
   Future<void> _initAssistantAndSessions() async {
     try {
       final service = ref.read(assistantServiceProvider);
-      final assistant = await service.ensureDefaultAssistant()
-          .timeout(const Duration(seconds: 15));
+      final assistant = await service.ensureAtLeastOneAssistant();
       
       // 强制刷新相关 Provider 以通知整个应用状态已更新（解决首次创建或旧版升级空状态下，即使有了助手但列表由于之前的 Future 数据缓存还是为空的问题）
       ref.invalidate(assistantListProvider);
       ref.invalidate(assistantListStreamProvider);
-      ref.invalidate(defaultAssistantProvider);
 
       if (mounted) {
         setState(() => _currentAssistant = assistant);
@@ -73,7 +74,12 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
 
       await _sessionsSubscription?.cancel();
       _sessionsSubscription = manager
-          .watchSessionsByAssistant(_currentAssistant!.id, vaultName)
+          .watchSessionsByAssistant(
+            _currentAssistant!.id, 
+            vaultName,
+            limit: _searchQuery.isNotEmpty ? null : _sessionLimit,
+            searchQuery: _searchQuery,
+          )
           .listen((sessions) {
             if (!mounted) return;
 
@@ -101,17 +107,18 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
     }
   }
 
-  Future<void> _refreshSessionList() async {
-    // 采用 Stream 后无需手动刷新
-  }
-
   void _createNewSession() {
     final notifier = ref.read(agentChatProvider.notifier);
     notifier.clearChat();
     if (_currentAssistant != null) {
       notifier.setCurrentAssistantId(_currentAssistant!.id);
     }
-    setState(() => _selectedSessionId = null);
+    setState(() {
+      _selectedSessionId = null;
+    });
+    if (Scaffold.maybeOf(context)?.isDrawerOpen == true) {
+      Navigator.pop(context);
+    }
   }
 
   void _switchAssistant(AgentAssistant assistant) {
@@ -119,9 +126,28 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
       _currentAssistant = assistant;
       _selectedSessionId = null;
       _sessions = null;
+      _sessionLimit = 8;
+      _searchQuery = '';
     });
     ref.read(agentChatProvider.notifier).clearChat();
     ref.read(agentChatProvider.notifier).setCurrentAssistantId(assistant.id);
+    _loadSessions();
+  }
+
+  void _onSearchQueryChanged(String query) {
+    if (_searchQuery != query) {
+      setState(() {
+        _searchQuery = query;
+        _sessionLimit = 8; // 搜索时重置分页
+      });
+      _loadSessions();
+    }
+  }
+
+  void _onLoadMore() {
+    setState(() {
+      _sessionLimit += 8;
+    });
     _loadSessions();
   }
 
@@ -147,8 +173,11 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
             setState(() => _selectedSessionId = null);
           }
         } else if (_selectedSessionId == null) {
-          setState(() => _selectedSessionId = next.sessionId);
-          _refreshSessionList();
+          setState(() {
+            _selectedSessionId = next.sessionId;
+            _sessionLimit = 8;
+          });
+          _loadSessions();
         }
       }
     });
@@ -165,6 +194,10 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
       sessions: _sessions,
       isLoading: _isLoading,
       selectedSessionId: _selectedSessionId,
+      searchQuery: _searchQuery,
+      hasMore: _searchQuery.isEmpty && (_sessions?.length ?? 0) >= _sessionLimit,
+      onSearchQueryChanged: _onSearchQueryChanged,
+      onLoadMore: _onLoadMore,
       onSessionSelected: (id) {
         setState(() => _selectedSessionId = id);
         ref.read(agentChatProvider.notifier).loadSession(id);
@@ -179,7 +212,10 @@ class _AgentMainPageState extends ConsumerState<AgentMainPage> {
       return Scaffold(
         body: const AgentChatPage(),
         drawerEdgeDragWidth: 120,
-        drawer: Drawer(child: sidebar),
+        drawer: Drawer(
+          width: 280,
+          child: sidebar,
+        ),
         onDrawerChanged: (isOpened) {
           if (!isOpened) {
             // 侧边栏关闭时彻底取消焦点树，防止传递给文本框

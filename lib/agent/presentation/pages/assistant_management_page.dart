@@ -8,6 +8,9 @@ import 'package:baishou/agent/presentation/notifiers/assistant_notifier.dart';
 import 'package:baishou/agent/presentation/pages/assistant_edit_page.dart';
 import 'package:baishou/agent/session/assistant_repository.dart';
 import 'package:baishou/i18n/strings.g.dart';
+import 'package:baishou/core/services/api_config_service.dart';
+import 'package:baishou/core/widgets/app_toast.dart';
+import 'package:baishou/agent/session/session_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -18,16 +21,16 @@ class AssistantManagementPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final apiConfig = ref.watch(apiConfigServiceProvider);
     final assistantsAsync = ref.watch(assistantListStreamProvider);
-
-    final isDesktop =
-        Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: isDesktop
-          ? null
-          : AppBar(title: Text(t.agent.assistant.management_title)),
+      appBar: AppBar(
+        title: Text(t.agent.assistant.management_title),
+        elevation: 0,
+        centerTitle: false,
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openEditPage(context, null),
         child: const Icon(Icons.add),
@@ -63,27 +66,32 @@ class AssistantManagementPage extends ConsumerWidget {
             );
           }
 
-          return _ReorderableAssistantList(
-            assistants: assistants,
-            onTap: (a) => _openEditPage(context, a),
-            onSetDefault: (a) {
-              ref.read(assistantServiceProvider).setDefault(a.id);
-              ref.invalidate(assistantListStreamProvider);
-              ref.invalidate(defaultAssistantProvider);
-            },
-            onReorder: (oldIndex, newIndex) {
-              if (oldIndex < newIndex) newIndex -= 1;
-              final reordered = List<AgentAssistant>.from(assistants);
-              final item = reordered.removeAt(oldIndex);
-              reordered.insert(newIndex, item);
+          return ListenableBuilder(
+            listenable: apiConfig,
+            builder: (context, _) {
+              return _ReorderableAssistantList(
+                assistants: assistants,
+                pinnedIds: apiConfig.pinnedAssistantIds.toSet(),
+                onTap: (a) => _openEditPage(context, a),
+                onTogglePin: (a) {
+                  apiConfig.togglePinnedAssistant(a.id);
+                },
+                onReorder: (oldIndex, newIndex) {
+                  if (oldIndex < newIndex) newIndex -= 1;
+                  final reordered = List<AgentAssistant>.from(assistants);
+                  final item = reordered.removeAt(oldIndex);
+                  reordered.insert(newIndex, item);
 
-              // 批量更新排序
-              final orders = <(String, int)>[];
-              for (int i = 0; i < reordered.length; i++) {
-                orders.add((reordered[i].id, i));
-              }
-              ref.read(assistantRepositoryProvider).updateSortOrders(orders);
-              ref.invalidate(assistantListStreamProvider);
+                  // 批量更新排序
+                  final orders = <(String, int)>[];
+                  for (int i = 0; i < reordered.length; i++) {
+                    orders.add((reordered[i].id, i));
+                  }
+                  ref.read(assistantRepositoryProvider).updateSortOrders(orders);
+                  ref.invalidate(assistantListStreamProvider);
+                },
+                onDelete: (a) => _confirmDelete(context, a, ref),
+              );
             },
           );
         },
@@ -98,19 +106,58 @@ class AssistantManagementPage extends ConsumerWidget {
       ),
     );
   }
+
+  void _confirmDelete(BuildContext context, AgentAssistant assistant, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(t.agent.assistant.delete_confirm_title),
+        content: Text(t.agent.assistant.delete_confirm_content),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(t.common.cancel),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await ref.read(sessionManagerProvider).deleteSessionsByAssistant(assistant.id);
+                
+                final service = ref.read(assistantServiceProvider);
+                await service.deleteAssistant(assistant.id);
+                
+                ref.invalidate(assistantListStreamProvider);
+                ref.invalidate(assistantListProvider);
+              } catch (e) {
+                if (context.mounted) {
+                  AppToast.showError(context, '$e');
+                }
+              }
+            },
+            child: Text(t.common.delete),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ReorderableAssistantList extends StatelessWidget {
   final List<AgentAssistant> assistants;
+  final Set<String> pinnedIds;
   final ValueChanged<AgentAssistant> onTap;
-  final ValueChanged<AgentAssistant> onSetDefault;
+  final ValueChanged<AgentAssistant> onTogglePin;
   final void Function(int oldIndex, int newIndex) onReorder;
+  final ValueChanged<AgentAssistant> onDelete;
 
   const _ReorderableAssistantList({
     required this.assistants,
+    required this.pinnedIds,
     required this.onTap,
-    required this.onSetDefault,
+    required this.onTogglePin,
     required this.onReorder,
+    required this.onDelete,
   });
 
   @override
@@ -118,6 +165,7 @@ class _ReorderableAssistantList extends StatelessWidget {
     return ReorderableListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: assistants.length,
+      buildDefaultDragHandles: false,
       proxyDecorator: (child, index, animation) {
         return Material(
           elevation: 4,
@@ -133,8 +181,10 @@ class _ReorderableAssistantList extends StatelessWidget {
           key: ValueKey(assistant.id),
           assistant: assistant,
           index: index,
+          isPinned: pinnedIds.contains(assistant.id),
           onTap: () => onTap(assistant),
-          onSetDefault: () => onSetDefault(assistant),
+          onTogglePin: () => onTogglePin(assistant),
+          onDelete: () => onDelete(assistant),
         );
       },
     );
@@ -144,15 +194,19 @@ class _ReorderableAssistantList extends StatelessWidget {
 class _AssistantCard extends StatelessWidget {
   final AgentAssistant assistant;
   final int index;
+  final bool isPinned;
   final VoidCallback onTap;
-  final VoidCallback onSetDefault;
+  final VoidCallback onTogglePin;
+  final VoidCallback onDelete;
 
   const _AssistantCard({
     super.key,
     required this.assistant,
     required this.index,
+    required this.isPinned,
     required this.onTap,
-    required this.onSetDefault,
+    required this.onTogglePin,
+    required this.onDelete,
   });
 
   @override
@@ -220,23 +274,7 @@ class _AssistantCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        if (assistant.isDefault)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: colorScheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              t.agent.assistant.default_label,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: colorScheme.onPrimaryContainer,
-                              ),
-                            ),
-                          ),
+
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -287,18 +325,30 @@ class _AssistantCard extends StatelessWidget {
               ),
 
               // 操作按钮
-              if (!assistant.isDefault)
-                PopupMenuButton<String>(
-                  itemBuilder: (_) => [
-                    PopupMenuItem(
-                      value: 'default',
-                      child: Text(t.agent.assistant.set_default),
-                    ),
-                  ],
-                  onSelected: (value) {
-                    if (value == 'default') onSetDefault();
-                  },
+              IconButton(
+                icon: Icon(
+                  isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
+                  size: 20,
+                  color: isPinned ? colorScheme.primary : colorScheme.outline,
                 ),
+                tooltip: isPinned ? '取消侧边栏固定' : '固定到侧边栏',
+                onPressed: onTogglePin,
+              ),
+
+              PopupMenuButton<String>(
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Text(
+                      t.common.delete,
+                      style: TextStyle(color: theme.colorScheme.error),
+                    ),
+                  ),
+                ],
+                onSelected: (value) {
+                  if (value == 'delete') onDelete();
+                },
+              ),
             ],
           ),
         ),
