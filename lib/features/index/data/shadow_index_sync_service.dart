@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:baishou/features/diary/domain/entities/diary_meta.dart';
+import 'package:baishou/features/diary/domain/entities/diary.dart';
+import 'package:yaml/yaml.dart';
 import 'package:baishou/features/index/data/shadow_index_database.dart';
 import 'package:baishou/features/storage/domain/services/journal_file_service.dart';
 import 'package:flutter/foundation.dart';
@@ -34,6 +36,14 @@ class JournalSyncEvent {
   JournalSyncEvent(this.path, this.result);
 }
 
+/// 全局 RAG 队列任务实体
+class _RagTask {
+  final Diary diary;
+  final DateTime queuedAt;
+  _RagTask(this.diary) : queuedAt = DateTime.now();
+}
+
+
 /// 影子同步器 (Shadow Index Sync Service)
 /// 负责将外部清洗过的路径变动，同步到 SQLite 数据库中，并通知给 VaultIndex
 @Riverpod(keepAlive: true)
@@ -47,6 +57,10 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
 
   /// 用于追踪当前正在进行的扫描任务，供外部等待
   Completer<void>? _currentScanCompleter;
+
+  // 异步 RAG 嵌入队列管理
+  final List<_RagTask> _ragQueue = [];
+  bool _isProcessingRag = false;
 
   /// 等待当前正在进行的全量扫描完成
   Future<void> waitForScan() async {
@@ -104,7 +118,9 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
       debugPrint(
         'ShadowIndexSyncService: Dir delete detected, triggering fullScanVault.',
       );
-      await fullScanVault();
+      // skipRag: true — 目录拓扑变更时的全扫仅用于清理孤立索引/补录新文件元数据，
+      // 不重新触发 Embedding，避免在删除/移动文件夹时引发 RAG 请求风暴。
+      await fullScanVault(skipRag: true);
       // 扫描完成后，强制刷新 VaultIndex 内存让 UI 同步
       final vaultIndex = ref.read(vaultIndexProvider.notifier);
       await vaultIndex.forceReload();
@@ -132,7 +148,11 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
 
   /// 触发单条目标日记的强同步 (通常在 UI 执行 Save 操作后被调用)
   /// 返回同步结果，供增量更新内存索引使用
-  Future<JournalSyncResult> syncJournal(DateTime date, {bool skipRag = false}) async {
+  Future<JournalSyncResult> syncJournal(
+    DateTime date, {
+    bool skipRag = false,
+    File? actualFile,
+  }) async {
     if (_isSyncDisabled) {
       debugPrint(
         'ShadowIndexSyncService: Skipped syncJournal because sync is disabled.',
@@ -144,9 +164,13 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
     final dbService = ref.read(shadowIndexDatabaseProvider.notifier);
 
     // 1. 获取物理文件对象
-    final file = await journalService
-        .getExactFilePath(date)
-        .then((p) => File(p));
+    final File file;
+    if (actualFile != null) {
+      file = actualFile;
+    } else {
+      final p = await journalService.getExactFilePath(date);
+      file = File(p);
+    }
 
     final db = dbService.database;
     final dateStr = date.toIso8601String();
@@ -165,11 +189,14 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
         for (final row in existingRows) {
           final idToRemove = row['id'] as int;
           await dbService.deleteJournalIndex(idToRemove);
-          
+
           try {
             // 同步清理 RAG 记忆中这篇日记留下的碎片
             final agentDb = ref.read(agentDatabaseProvider);
-            await agentDb.deleteEmbeddingsBySource('diary', idToRemove.toString());
+            await agentDb.deleteEmbeddingsBySource(
+              'diary',
+              idToRemove.toString(),
+            );
           } catch (e) {
             debugPrint('ShadowIndexSyncService: Failed removing vectors: $e');
           }
@@ -202,7 +229,22 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
     );
 
     // 4. 有变动（新增或修改），执行完整解析
-    final diary = await journalService.readJournal(date);
+    // 注意：这里需要通过实际的文件路径去读取（journalService.readJournal 原本也是用 getExactFilePath）
+    // 因此我们需要扩展或者手动复用 readJournal 的逻辑。如果使用 actualFile，确保传入其内容。
+    Diary? diary;
+    if (actualFile != null) {
+      // 这里的 file 就是 actualFile，且已经通过上面转为非空
+      final content = await file.readAsString();
+      // 这里可以复用从内容中解析的逻辑，因为 readJournal 主要是针对确定的 date 和 content 日期处理
+      // 我们可以临时借助 journalService.readJournal (由于 readJournal 用的是 getExactFilePath)
+      // 为保证一致，如果它是非标准路径，可以直接构造（降级处理）或者复用 parse 逻辑。我们这里不改变原先架构：
+      // 由于 _resolveDateTargetFile 可能读取不到非标准路径的内容，最好是在本服务内或扩展 journalService
+      // 为了安全，如果文件路径不同，这里使用临时拦截解析
+      diary = await _parseDiaryFromFile(file, date);
+    } else {
+      diary = await journalService.readJournal(date);
+    }
+
     if (diary == null) return JournalSyncResult(isChanged: false);
 
     final mockHash = currentHash;
@@ -254,39 +296,64 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
     );
   }
 
-  /// 异步触发日记内容的 RAG 向量嵌入
+  /// 异步触发日记内容的 RAG 向量嵌入（加入队列串行处理防爆破）
   ///
   /// 这是整个系统中日记 Embedding 的**唯一触发源**。
   /// 无论日记是通过 UI 编辑器、Agent diary_edit 工具、局域网同步、
   /// 还是用户用外部编辑器手动修改 .md 文件，都会经过此方法。
   void _triggerEmbeddingAsync(dynamic diary) {
-    () async {
-      try {
-        final apiConfig = ref.read(apiConfigServiceProvider);
-        final embeddingService = ref.read(embeddingServiceProvider);
-        if (!apiConfig.ragEnabled || !embeddingService.isConfigured) return;
+    _ragQueue.add(_RagTask(diary as Diary));
+    _processRagQueue();
+  }
+
+  Future<void> _processRagQueue() async {
+    if (_isProcessingRag) return;
+    _isProcessingRag = true;
+
+    try {
+      final apiConfig = ref.read(apiConfigServiceProvider);
+      final embeddingService = ref.read(embeddingServiceProvider);
+      
+      while (_ragQueue.isNotEmpty) {
+        if (!apiConfig.ragEnabled || !embeddingService.isConfigured) {
+          _ragQueue.clear();
+          break;
+        }
+
+        final task = _ragQueue.removeAt(0);
+        final diary = task.diary;
 
         final dateLabel =
             '${diary.date.year}-${diary.date.month.toString().padLeft(2, '0')}-${diary.date.day.toString().padLeft(2, '0')}';
-        // 拼接标签前缀：[标签: 美食, 生活] [2026-03-26 日记]
         final tagList = (diary.tags as List?)?.cast<String>() ?? [];
         final tagPrefix = tagList.isNotEmpty
             ? '[标签: ${tagList.join(', ')}] '
             : '';
-        await embeddingService.reEmbedText(
-          text: diary.content,
-          sourceType: 'diary',
-          sourceId: diary.id.toString(),
-          groupId: 'diary_auto',
-          sourceCreatedAt: diary.date.millisecondsSinceEpoch,
-          chunkPrefix: '$tagPrefix[$dateLabel 日记] ',
-          metadataJson: '{"updated_at":${diary.updatedAt.millisecondsSinceEpoch}}',
-        );
-        debugPrint('ShadowIndexSyncService: RAG embedded for $dateLabel');
-      } catch (e) {
-        debugPrint('ShadowIndexSyncService: RAG embedding failed: $e');
+            
+        try {
+          await embeddingService.reEmbedText(
+            text: diary.content,
+            sourceType: 'diary',
+            sourceId: diary.id.toString(),
+            groupId: 'diary_auto',
+            sourceCreatedAt: diary.date.millisecondsSinceEpoch,
+            chunkPrefix: '$tagPrefix[$dateLabel 日记] ',
+            metadataJson:
+                '{"updated_at":${diary.updatedAt.millisecondsSinceEpoch}}',
+          );
+          debugPrint('ShadowIndexSyncService: RAG embedded for $dateLabel');
+        } catch (e) {
+          debugPrint('ShadowIndexSyncService: RAG embedding failed: $e');
+        }
+
+        // 处理完每一条主动休眠延迟，避免批量拉入时打爆大模型并发限制（特别是 Gemini 有严苛的单分钟额度）
+        if (_ragQueue.isNotEmpty) {
+          await Future.delayed(const Duration(milliseconds: 1500));
+        }
       }
-    }();
+    } finally {
+      _isProcessingRag = false;
+    }
   }
 
   /// 全量空间扫描
@@ -349,7 +416,7 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
           if (dateStr != null) {
             scannedDates.add(dateStr);
             final date = DateTime.parse(dateStr);
-            await syncJournal(date, skipRag: skipRag);
+            await syncJournal(date, skipRag: skipRag, actualFile: file);
           }
         } catch (e) {
           continue;
@@ -374,9 +441,12 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
             .first; // 提取 yyyy-MM-dd
 
         // 实时检查物理文件是否存在（而非依赖启动时的快照）
-        final filePath = await journalService.getExactFilePath(
-          DateTime.parse(dateStr),
-        );
+        // 关键修复：使用 getExpectedFilePath（只读，不创建目录）而非 getExactFilePath。
+        // getExactFilePath 内部会创建不存在的月份目录，这将触发 FileWatcher 产生新的目录变更事件，
+        // 进而引发又一轮 fullScanVault，形成无限扫描循环！
+        final logicalDate = DateTime.parse(row['date'] as String);
+        final filePath = await journalService.getExpectedFilePath(logicalDate);
+
         if (!File(filePath).existsSync()) {
           // 物理文件确实不存在，安全执行影子清理
           await dbService.deleteJournalIndex(id);
@@ -386,7 +456,9 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
             final agentDb = ref.read(agentDatabaseProvider);
             await agentDb.deleteEmbeddingsBySource('diary', id.toString());
           } catch (e) {
-            debugPrint('ShadowIndexSyncService: Failed removing vectors for orphan $id: $e');
+            debugPrint(
+              'ShadowIndexSyncService: Failed removing vectors for orphan $id: $e',
+            );
           }
 
           debugPrint(
@@ -400,6 +472,60 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
           !_currentScanCompleter!.isCompleted) {
         _currentScanCompleter!.complete();
       }
+    }
+  }
+
+  /// 内部解析任意物理路径的文件为 Diary 实体，复用 YAML 解析逻辑
+  Future<Diary?> _parseDiaryFromFile(File file, DateTime date) async {
+    if (!file.existsSync()) return null;
+    final content = await file.readAsString();
+
+    final regex = RegExp(r'^---\r?\n(.*?)\r?\n---\r?\n(.*)$', dotAll: true);
+    final match = regex.firstMatch(content);
+
+    if (match == null) {
+      return Diary(
+        id: date.millisecondsSinceEpoch,
+        date: date,
+        createdAt: date,
+        updatedAt: date,
+        content: content,
+      );
+    }
+
+    final yamlStr = match.group(1) ?? '';
+    final bodyStr = match.group(2) ?? '';
+    try {
+      final doc = loadYaml(yamlStr);
+      final meta = Map<String, dynamic>.from(doc as Map);
+      return Diary(
+        id: meta['id'] as int? ?? date.millisecondsSinceEpoch,
+        createdAt:
+            DateTime.tryParse(meta['createdAt'] as String? ?? '') ?? date,
+        updatedAt:
+            DateTime.tryParse(meta['updatedAt'] as String? ?? '') ?? date,
+        content: bodyStr.trim(),
+        weather: meta['weather'] as String?,
+        mood: meta['mood'] as String?,
+        location: meta['location'] as String?,
+        locationDetail: meta['locationDetail'] as String?,
+        isFavorite: meta['isFavorite'] as bool? ?? false,
+        tags: meta['tags'] != null
+            ? List<String>.from(meta['tags'] as Iterable)
+            : const [],
+        mediaPaths: meta['mediaPaths'] != null
+            ? List<String>.from(meta['mediaPaths'] as Iterable)
+            : const [],
+        date: date,
+      );
+    } catch (_) {
+      return Diary(
+        id: date.millisecondsSinceEpoch,
+        date: date,
+        createdAt: date,
+        updatedAt: date,
+        content: content,
+      );
     }
   }
 }

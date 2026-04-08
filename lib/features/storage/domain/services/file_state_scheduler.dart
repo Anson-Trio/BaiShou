@@ -160,8 +160,10 @@ class FileStateScheduler extends _$FileStateScheduler {
                 _rawEventSubject.add(sourcePath);
               } else if (!sourcePath.endsWith('.md') &&
                   (event.type == FileSystemEvent.delete ||
-                      event.type == FileSystemEvent.create ||
                       event.type == FileSystemEvent.move)) {
+                // 注意：CREATE 类型的目录事件（如新建空文件夹）不触发全量扫描。
+                // 新增的 .md 文件会由 cleanFileEvents 自动捕获，无需全量。
+                // 只有 delete/move（可能导致孤立索引）才需要执行全量清理。
                 debugPrint(
                   'FileStateScheduler: Directory topology change detected at $sourcePath (type: ${event.type}), requesting full scan.',
                 );

@@ -122,7 +122,7 @@ class DiaryEditorAppBarTitle extends StatelessWidget {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: selectedDate,
-      firstDate: DateTime(2000),
+      firstDate: DateTime(1900),
       lastDate: DateTime(2100),
     );
     if (picked != null && picked != selectedDate) {
@@ -138,8 +138,8 @@ class DiaryEditorAppBarTitle extends StatelessWidget {
       case SummaryType.weekly:
         final result = await showDateRangePicker(
           context: context,
-          firstDate: DateTime(2020),
-          lastDate: DateTime(2030),
+          firstDate: DateTime(1900),
+          lastDate: DateTime(2100),
           initialDateRange: (summaryStartDate != null && summaryEndDate != null)
               ? DateTimeRange(start: summaryStartDate!, end: summaryEndDate!)
               : null,
@@ -152,8 +152,8 @@ class DiaryEditorAppBarTitle extends StatelessWidget {
       case SummaryType.monthly:
         final date = await showDatePicker(
           context: context,
-          firstDate: DateTime(2020),
-          lastDate: DateTime(2030),
+          firstDate: DateTime(1900),
+          lastDate: DateTime(2100),
           initialDate: summaryStartDate ?? now,
           initialDatePickerMode: DatePickerMode.year,
           helpText: t.diary.select_month,
@@ -182,7 +182,7 @@ class DiaryEditorAppBarTitle extends StatelessWidget {
                   children: [
                     DropdownButton<int>(
                       value: year,
-                      items: List.generate(10, (i) => 2020 + i)
+                      items: List.generate(201, (i) => 1900 + i)
                           .map(
                             (y) => DropdownMenuItem(
                               value: y,
@@ -240,8 +240,8 @@ class DiaryEditorAppBarTitle extends StatelessWidget {
                 width: 300,
                 height: 300,
                 child: YearPicker(
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime(2030),
+                  firstDate: DateTime(1900),
+                  lastDate: DateTime(2100),
                   selectedDate: summaryStartDate ?? now,
                   onChanged: (DateTime dateTime) {
                     final start = DateTime(dateTime.year, 1, 1);

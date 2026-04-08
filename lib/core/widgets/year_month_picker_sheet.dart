@@ -12,7 +12,7 @@ class YearMonthPickerSheet extends StatefulWidget {
   const YearMonthPickerSheet({
     super.key,
     this.initialDate,
-    this.minYear = 2000,
+    this.minYear = 1900,
     this.maxYear = 2200,
   });
 

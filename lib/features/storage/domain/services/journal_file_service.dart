@@ -55,9 +55,20 @@ class JournalFileService extends _$JournalFileService {
   }
 
   /// 获取特定日期日志文件的绝对物理路径（通常供上层记录 watcher suppress 时使用）
+  /// ⚠️ 此方法会创建中间目录（适用于写入流程）
   Future<String> getExactFilePath(DateTime date) async {
     final file = await _resolveDateTargetFile(date);
     return file.path;
+  }
+
+  /// 获取特定日期日志文件的预期路径，但【不创建任何目录】（只读查询专用）
+  /// 用于孤儿索引检查、路径比对等纯读取场景，不会产生任何文件系统副作用。
+  Future<String> getExpectedFilePath(DateTime date) async {
+    final baseDir = await _getSecureJournalsBaseDir();
+    final year = date.year.toString();
+    final month = date.month.toString().padLeft(2, '0');
+    final fileName = '${DateFormat('yyyy-MM-dd').format(date)}.md';
+    return p.join(baseDir.path, year, month, fileName);
   }
 
   /// 获取某个月份的附件目录 (`Year/Month/Assets`)
@@ -149,7 +160,7 @@ class JournalFileService extends _$JournalFileService {
     if (match == null) {
       // 降级处理：不包含标准 Front Matter 的散落 md
       return Diary(
-        id: DateTime.now().millisecondsSinceEpoch,
+        id: date.millisecondsSinceEpoch,
         date: date,
         createdAt: date,
         updatedAt: date,
@@ -165,7 +176,7 @@ class JournalFileService extends _$JournalFileService {
       final meta = Map<String, dynamic>.from(doc as Map);
 
       return Diary(
-        id: meta['id'] as int? ?? DateTime.now().millisecondsSinceEpoch,
+        id: meta['id'] as int? ?? date.millisecondsSinceEpoch,
         createdAt: DateTime.parse(
           meta['createdAt'] as String? ?? date.toIso8601String(),
         ),
@@ -189,7 +200,7 @@ class JournalFileService extends _$JournalFileService {
     } catch (e) {
       // Yaml 抛出异常的防崩退逻辑
       return Diary(
-        id: DateTime.now().millisecondsSinceEpoch,
+        id: date.millisecondsSinceEpoch,
         date: date,
         createdAt: date,
         updatedAt: date,

@@ -666,8 +666,7 @@ class _AiModelServicesViewState extends ConsumerState<AiModelServicesView> {
                   },
           ),
         ),
-        if (!isMobile)
-          Container(
+        Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               border: Border(
