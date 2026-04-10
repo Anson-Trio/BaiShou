@@ -363,12 +363,30 @@ class GeminiClient extends BaseAiClient {
 
         case MessageRole.assistant:
           role = 'model';
-          if (msg.content != null && msg.content!.isNotEmpty) {
-            parts.add({'text': msg.content!});
-          }
-          if (msg.toolCalls != null) {
+          // 关键修复：Gemini 2.5 Pro 要求包含 functionCall 的 model turn
+          // 不能混入 text part，否则后续的 functionResponse 会触发 400 错误。
+          // 当同时存在 text 和 functionCall 时，先将 text 作为独立的 model turn 输出，
+          // 然后再开启新的 model turn 放 functionCall。
+          final hasText = msg.content != null && msg.content!.isNotEmpty;
+          final hasFunctionCalls = msg.toolCalls != null && msg.toolCalls!.isNotEmpty;
+
+          if (hasText && hasFunctionCalls) {
+            // 关键拆分：Gemini 2.5 Pro 不允许同一个 model turn 中混合 text 和 functionCall。
+            // 策略：先输出纯 text 的 model turn，再输出纯 functionCall 的 model turn。
+            // 两个 turn 都直接写入 contents，parts 留空让后续合并逻辑跳过当前消息。
+
+            // Step 1: text → 独立 model turn（可与前面的 model turn 合并）
+            final textParts = <Map<String, dynamic>>[{'text': msg.content!}];
+            if (contents.isNotEmpty && contents.last['role'] == 'model') {
+              (contents.last['parts'] as List).addAll(textParts);
+            } else {
+              contents.add({'role': 'model', 'parts': textParts});
+            }
+
+            // Step 2: functionCall → 强制新建独立 model turn（绝对不与 text turn 合并）
+            final fcParts = <Map<String, dynamic>>[];
             for (final tc in msg.toolCalls!) {
-              parts.add({
+              fcParts.add({
                 'functionCall': {
                   'name': tc.name,
                   'args': tc.arguments.isNotEmpty
@@ -376,6 +394,26 @@ class GeminiClient extends BaseAiClient {
                       : <String, dynamic>{},
                 },
               });
+            }
+            contents.add({'role': 'model', 'parts': fcParts});
+
+            // parts 保持为空 + 跳过后续合并逻辑（直接 continue）
+            continue;
+          } else {
+            if (hasText) {
+              parts.add({'text': msg.content!});
+            }
+            if (hasFunctionCalls) {
+              for (final tc in msg.toolCalls!) {
+                parts.add({
+                  'functionCall': {
+                    'name': tc.name,
+                    'args': tc.arguments.isNotEmpty
+                        ? tc.arguments
+                        : <String, dynamic>{},
+                  },
+                });
+              }
             }
           }
           break;
