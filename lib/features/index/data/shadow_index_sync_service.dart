@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:baishou/features/diary/domain/entities/diary_meta.dart';
@@ -406,59 +407,108 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
         }
       }
 
-      // 2. 串行执行同步（逐条处理，单条失败 continue 跳过，不影响整体）
-      // 注意：扫描期间强制 skipRag: true，待全部文件同步完毕后再统一批量触发 RAG，
-      // 避免几万篇文件边扫边调大模型，打爆 API 并发限额。
+      // 2. 预读取 DB 所有现存内容 Hash，实现内存瞬间比对
       final dbService = ref.read(shadowIndexDatabaseProvider.notifier);
       final journalService = ref.read(journalFileServiceProvider.notifier);
       final db = dbService.database;
 
-      // 收集全量扫描期间成功同步且有变动的日记，供扫描结束后统一触发 RAG
-      final List<Diary> syncedDiaries = [];
+      final existingHashes = <String, String>{};
+      final existingRows = db.select('SELECT date, content_hash FROM journals_index');
+      for (final row in existingRows) {
+        final dateIso = (row['date'] as String).split('T').first;
+        final hash = row['content_hash'] as String;
+        existingHashes[dateIso] = hash;
+      }
 
-      for (final file in targetFiles) {
-        try {
-          final fileName = p.basename(file.path);
-          final dateStr = dateFileRegex.firstMatch(fileName)?.group(1);
-          if (dateStr != null) {
+      // 3. 高并发并行处理：每次并发处理 32 个文件，将单线程阻塞时间大大缩短
+      final List<_UpsertTask> diariesToUpsert = [];
+      final List<Diary> syncedDiaries = [];
+      const int chunkSize = 32;
+
+      for (int i = 0; i < targetFiles.length; i += chunkSize) {
+        final chunk = targetFiles.sublist(
+            i, i + chunkSize > targetFiles.length ? targetFiles.length : i + chunkSize);
+
+        await Future.wait(chunk.map((file) async {
+          try {
+            final fileName = p.basename(file.path);
+            final dateStr = dateFileRegex.firstMatch(fileName)?.group(1);
+            if (dateStr == null) return;
             final date = DateTime.parse(dateStr);
 
-            // 关键修复：如果文件不在标准的 YYYY/MM/ 下（例如被用户直接批量扔到 Journals 根目录或 channel 里），
-            // 则物理收纳移动到标准路径；否则后续的孤立索引清理会因在标准路径下找不到文件而把索引误删！
+            // 物理收纳逻辑
             final expectedPath = await journalService.getExpectedFilePath(date);
             File finalFile = file;
 
             if (p.normalize(file.absolute.path) != p.normalize(File(expectedPath).absolute.path)) {
               final expectedDir = Directory(p.dirname(expectedPath));
-              if (!expectedDir.existsSync()) {
-                await expectedDir.create(recursive: true);
-              }
+              try {
+                if (!expectedDir.existsSync()) await expectedDir.create(recursive: true);
+              } catch (_) {}
               if (!File(expectedPath).existsSync()) {
                 try {
                   finalFile = await file.rename(expectedPath);
                 } catch (_) {
-                  // 若跨盘 rename 失败降级为 copy+delete
                   finalFile = await file.copy(expectedPath);
                   try { await file.delete(); } catch (_) {}
                 }
               }
             }
 
-            // 强制跳过单条 RAG，收集有内容变更的日记供后续统一批量入队
-            final result = await syncJournal(date, skipRag: true, actualFile: finalFile);
-            if (!skipRag && result.isChanged) {
-              final diary = await journalService.readJournal(date);
-              if (diary != null) syncedDiaries.add(diary);
+            if (!finalFile.existsSync()) return;
+
+            final content = await finalFile.readAsString();
+            final bytes = utf8.encode(content);
+            final currentHash = md5.convert(bytes).toString();
+
+            // Hash 拦截：如果已有并未变更，跳过
+            if (existingHashes[dateStr] == currentHash) return;
+
+            // 内容变更了，快速解析
+            final diary = await _parseDiaryFromContent(content, date);
+            
+            // 加入批量写队列（在 Dart 单线程内同步操作是线程安全的）
+            diariesToUpsert.add(_UpsertTask(diary, currentHash, expectedPath));
+            
+            if (!skipRag) {
+               syncedDiaries.add(diary);
             }
+          } catch (e) {
+            debugPrint('ShadowIndexSyncService: Failed to process chunk file $file: $e');
           }
+        }));
+      }
+
+      // 4. 重火力入库：开启大事务一次性批量存储，将数万条 I/O 压缩为一秒。
+      if (diariesToUpsert.isNotEmpty) {
+        try {
+          db.execute('BEGIN TRANSACTION;');
+          for (final task in diariesToUpsert) {
+            await dbService.upsertJournalIndex(
+              id: task.diary.id ?? task.diary.date.millisecondsSinceEpoch,
+              filePath: task.diary.date.toIso8601String(), // 历史遗留规范代理
+              date: task.diary.date.toIso8601String(),
+              createdAt: task.diary.createdAt.toIso8601String(),
+              updatedAt: task.diary.updatedAt.toIso8601String(),
+              contentHash: task.hash,
+              rawContent: task.diary.content,
+              tags: task.diary.tags.join(','),
+              weather: task.diary.weather,
+              mood: task.diary.mood,
+              location: task.diary.location,
+              locationDetail: task.diary.locationDetail,
+              isFavorite: task.diary.isFavorite,
+              hasMedia: task.diary.mediaPaths.isNotEmpty,
+            );
+          }
+          db.execute('COMMIT;');
         } catch (e) {
-          continue;
+          try { db.execute('ROLLBACK;'); } catch (_) {}
+          debugPrint('ShadowIndexSyncService: Mass upsert transaction failed: $e');
         }
       }
 
-      // 3. 【关键修复】：清理孤立索引 (Orphaned Index)
-      // 使用事务包裹批量删除操作以提升性能；注意：必须在 syncJournal 全部完成后再做清理，
-      // 避免误把刚刚新建的日记当作孤立项删除。
+      // 5. 【关键修复】：清理孤立索引 (Orphaned Index)
       final rows = db.select('SELECT id, date FROM journals_index');
       final List<_OrphanEntry> orphans = [];
 
@@ -495,7 +545,7 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
         }
       }
 
-      // 4. 全量扫描完毕后统一批量触发 RAG 嵌入
+      // 6. 全量扫描完毕后统一批量触发 RAG 嵌入
       // 串行入队，由 _processRagQueue 内部控制 1500ms 间隔，不会打爆大模型限额。
       if (!skipRag && syncedDiaries.isNotEmpty) {
         debugPrint(
@@ -520,11 +570,8 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
     }
   }
 
-  /// 内部解析任意物理路径的文件为 Diary 实体，复用 YAML 解析逻辑
-  Future<Diary?> _parseDiaryFromFile(File file, DateTime date) async {
-    if (!file.existsSync()) return null;
-    final content = await file.readAsString();
-
+  /// 快速从字符串直接解析为 Diary 实体（省去二次文件读取）
+  Future<Diary> _parseDiaryFromContent(String content, DateTime date) async {
     final regex = RegExp(r'^---\r?\n(.*?)\r?\n---\r?\n(.*)$', dotAll: true);
     final match = regex.firstMatch(content);
 
@@ -573,6 +620,14 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
       );
     }
   }
+
+  /// 内部解析任意物理路径的文件为 Diary 实体，复用上述逻辑
+  Future<Diary?> _parseDiaryFromFile(File file, DateTime date) async {
+    if (!file.existsSync()) return null;
+    final content = await file.readAsString();
+    return _parseDiaryFromContent(content, date);
+  }
+
 }
 
 /// 孤立索引条目，用于两阶段清理（事务删 DB + 独立删 RAG 向量）
