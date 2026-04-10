@@ -69,8 +69,16 @@ class DiaryDeleteTool extends AgentTool {
 
     try {
       final start = DateTime.parse(date);
-      final end = DateTime(start.year, start.month, start.day, 23, 59, 59);
-      final diaries = await _repo.getDiariesByDateRange(start, end);
+      // 扩大前后一天的搜索范围，防止跨时区或特殊情况导致的漏删
+      final startOfDay = DateTime(start.year, start.month, start.day).subtract(const Duration(days: 1));
+      final endOfDay = DateTime(start.year, start.month, start.day, 23, 59, 59).add(const Duration(days: 1));
+      final allDiaries = await _repo.getDiariesByDateRange(startOfDay, endOfDay);
+
+      // 在内存中精准过滤出本地日期对应的那一天
+      final diaries = allDiaries.where((d) {
+        final localD = d.date.toLocal();
+        return localD.year == start.year && localD.month == start.month && localD.day == start.day;
+      }).toList();
 
       if (diaries.isEmpty) {
         return ToolResult(

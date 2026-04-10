@@ -105,10 +105,20 @@ class DiaryEditTool extends AgentTool {
     final month = int.parse(parts[1]);
     final day = int.parse(parts[2]);
     final logicalDate = DateTime(year, month, day);
-    final diaryId = year * 10000 + month * 100 + day;
 
     try {
-      final existingDiary = await repository.getDiaryById(diaryId);
+      // 扩大前后一天的搜索范围，防止跨时区或特殊情况下导致的数据库截断偏差
+      final startOfDay = DateTime(year, month, day).subtract(const Duration(days: 1));
+      final endOfDay = DateTime(year, month, day, 23, 59, 59, 999).add(const Duration(days: 1));
+      final allDiaries = await repository.getDiariesByDateRange(startOfDay, endOfDay);
+      
+      // 在内存中精准过滤出本地日期对应的那一天
+      final diaries = allDiaries.where((d) {
+        final localD = d.date.toLocal();
+        return localD.year == year && localD.month == month && localD.day == day;
+      }).toList();
+      
+      final existingDiary = diaries.isNotEmpty ? diaries.first : null;
       final existed = existingDiary != null;
       
       List<String> finalTags = [];
@@ -140,7 +150,7 @@ class DiaryEditTool extends AgentTool {
       }
 
       await repository.saveDiary(
-        id: existed ? diaryId : null,
+        id: existed ? existingDiary!.id : null,
         date: logicalDate,
         content: finalContent,
         tags: finalTags,
