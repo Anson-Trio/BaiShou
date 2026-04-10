@@ -406,17 +406,50 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
         }
       }
 
-      // 2. 串行执行同步，并记录所有扫描到的日期
-      final Set<String> scannedDates = {};
+      // 2. 串行执行同步（逐条处理，单条失败 continue 跳过，不影响整体）
+      // 注意：扫描期间强制 skipRag: true，待全部文件同步完毕后再统一批量触发 RAG，
+      // 避免几万篇文件边扫边调大模型，打爆 API 并发限额。
+      final dbService = ref.read(shadowIndexDatabaseProvider.notifier);
+      final journalService = ref.read(journalFileServiceProvider.notifier);
+      final db = dbService.database;
+
+      // 收集全量扫描期间成功同步且有变动的日记，供扫描结束后统一触发 RAG
+      final List<Diary> syncedDiaries = [];
 
       for (final file in targetFiles) {
         try {
           final fileName = p.basename(file.path);
           final dateStr = dateFileRegex.firstMatch(fileName)?.group(1);
           if (dateStr != null) {
-            scannedDates.add(dateStr);
             final date = DateTime.parse(dateStr);
-            await syncJournal(date, skipRag: skipRag, actualFile: file);
+
+            // 关键修复：如果文件不在标准的 YYYY/MM/ 下（例如被用户直接批量扔到 Journals 根目录或 channel 里），
+            // 则物理收纳移动到标准路径；否则后续的孤立索引清理会因在标准路径下找不到文件而把索引误删！
+            final expectedPath = await journalService.getExpectedFilePath(date);
+            File finalFile = file;
+
+            if (p.normalize(file.absolute.path) != p.normalize(File(expectedPath).absolute.path)) {
+              final expectedDir = Directory(p.dirname(expectedPath));
+              if (!expectedDir.existsSync()) {
+                await expectedDir.create(recursive: true);
+              }
+              if (!File(expectedPath).existsSync()) {
+                try {
+                  finalFile = await file.rename(expectedPath);
+                } catch (_) {
+                  // 若跨盘 rename 失败降级为 copy+delete
+                  finalFile = await file.copy(expectedPath);
+                  try { await file.delete(); } catch (_) {}
+                }
+              }
+            }
+
+            // 强制跳过单条 RAG，收集有内容变更的日记供后续统一批量入队
+            final result = await syncJournal(date, skipRag: true, actualFile: finalFile);
+            if (!skipRag && result.isChanged) {
+              final diary = await journalService.readJournal(date);
+              if (diary != null) syncedDiaries.add(diary);
+            }
           }
         } catch (e) {
           continue;
@@ -424,46 +457,52 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
       }
 
       // 3. 【关键修复】：清理孤立索引 (Orphaned Index)
-      // 找出那些数据库里有，但物理磁盘上已经消失的日期条目
-      // ⚠️ 不能使用 scannedDates 集合来判断——因为 fullScanVault 是异步执行的，
-      //    在文件列举期间 saveDiary 可能创建了新文件，scannedDates 不包含它，
-      //    会导致刚保存的日记被误判为孤立索引而删除！
-      //    修复方案：在清理前实时检查物理文件是否存在。
-      final dbService = ref.read(shadowIndexDatabaseProvider.notifier);
-      final journalService = ref.read(journalFileServiceProvider.notifier);
-      final db = dbService.database;
+      // 使用事务包裹批量删除操作以提升性能；注意：必须在 syncJournal 全部完成后再做清理，
+      // 避免误把刚刚新建的日记当作孤立项删除。
       final rows = db.select('SELECT id, date FROM journals_index');
+      final List<_OrphanEntry> orphans = [];
 
       for (final row in rows) {
         final id = row['id'] as int;
-        final dateStr = (row['date'] as String)
-            .split('T')
-            .first; // 提取 yyyy-MM-dd
-
-        // 实时检查物理文件是否存在（而非依赖启动时的快照）
-        // 关键修复：使用 getExpectedFilePath（只读，不创建目录）而非 getExactFilePath。
-        // getExactFilePath 内部会创建不存在的月份目录，这将触发 FileWatcher 产生新的目录变更事件，
-        // 进而引发又一轮 fullScanVault，形成无限扫描循环！
         final logicalDate = DateTime.parse(row['date'] as String);
         final filePath = await journalService.getExpectedFilePath(logicalDate);
-
         if (!File(filePath).existsSync()) {
-          // 物理文件确实不存在，安全执行影子清理
-          await dbService.deleteJournalIndex(id);
+          orphans.add(_OrphanEntry(id, (row['date'] as String).split('T').first));
+        }
+      }
 
-          // 同步清理 RAG 记忆中这篇日记留下的碎片（与 syncJournal 的删除分支保持一致）
-          try {
-            final agentDb = ref.read(agentDatabaseProvider);
-            await agentDb.deleteEmbeddingsBySource('diary', id.toString());
-          } catch (e) {
+      if (orphans.isNotEmpty) {
+        try {
+          db.execute('BEGIN TRANSACTION;');
+          for (final orphan in orphans) {
+            await dbService.deleteJournalIndex(orphan.id);
             debugPrint(
-              'ShadowIndexSyncService: Failed removing vectors for orphan $id: $e',
+              'ShadowIndexSyncService: Cleaned orphaned index for date ${orphan.dateStr} (ID: ${orphan.id})',
             );
           }
+          db.execute('COMMIT;');
+        } catch (e) {
+          try { db.execute('ROLLBACK;'); } catch (_) {}
+          debugPrint('ShadowIndexSyncService: Orphan cleanup transaction failed: $e');
+        }
 
-          debugPrint(
-            'ShadowIndexSyncService: Cleaned orphaned index for date $dateStr (ID: $id)',
-          );
+        // 事务外再清理 RAG 向量（agentDatabase 是独立库，不在同一事务内）
+        for (final orphan in orphans) {
+          try {
+            final agentDb = ref.read(agentDatabaseProvider);
+            await agentDb.deleteEmbeddingsBySource('diary', orphan.id.toString());
+          } catch (_) {}
+        }
+      }
+
+      // 4. 全量扫描完毕后统一批量触发 RAG 嵌入
+      // 串行入队，由 _processRagQueue 内部控制 1500ms 间隔，不会打爆大模型限额。
+      if (!skipRag && syncedDiaries.isNotEmpty) {
+        debugPrint(
+          'ShadowIndexSyncService: Batch triggering RAG for ${syncedDiaries.length} changed diaries after full scan.',
+        );
+        for (final diary in syncedDiaries) {
+          _triggerEmbeddingAsync(diary);
         }
       }
     } finally {
@@ -472,6 +511,12 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
           !_currentScanCompleter!.isCompleted) {
         _currentScanCompleter!.complete();
       }
+
+      // 确保启动扫描或挂载完成时，UI 内存能同步刷新显示新收纳的海量文件
+      try {
+        final vaultIndex = ref.read(vaultIndexProvider.notifier);
+        await vaultIndex.forceReload();
+      } catch (_) {}
     }
   }
 
@@ -528,4 +573,11 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
       );
     }
   }
+}
+
+/// 孤立索引条目，用于两阶段清理（事务删 DB + 独立删 RAG 向量）
+class _OrphanEntry {
+  final int id;
+  final String dateStr;
+  _OrphanEntry(this.id, this.dateStr);
 }
