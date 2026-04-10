@@ -68,6 +68,28 @@ class EmbeddingService {
     }
   }
 
+  /// 发送极简心跳探针，不缓存，直接测活
+  Future<bool> testConnection() async {
+    if (!isConfigured) return false;
+
+    try {
+      final embeddingModelId = _apiConfig.globalEmbeddingModelId;
+      final embeddingProviderId = _apiConfig.globalEmbeddingProviderId;
+      final provider = _apiConfig.getProvider(embeddingProviderId);
+      if (provider == null) return false;
+
+      final client = AiClientFactory.createClient(provider);
+      await client.generateEmbedding(
+        input: 'hi',
+        modelId: embeddingModelId,
+      );
+      return true;
+    } catch (e) {
+      debugPrint('EmbeddingService: 网络探针连接失败: $e');
+      return false;
+    }
+  }
+
   /// 嵌入一条消息并存入数据库
   Future<void> embedMessage({
     required String messageId,
@@ -552,6 +574,7 @@ class EmbeddingService {
           await Future.delayed(delay);
         } else {
           debugPrint('$label 失败 (已耗尽重试): $e');
+          throw Exception('Failed to generate embedding: $e');
         }
       }
     }

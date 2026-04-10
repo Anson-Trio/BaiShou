@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:baishou/features/settings/presentation/pages/views/rag_memory_dialogs.dart';
 import 'package:baishou/features/settings/presentation/pages/views/rag_memory_widgets.dart';
+import 'package:baishou/core/widgets/app_toast.dart';
 
 class RagMemoryView extends ConsumerStatefulWidget {
   const RagMemoryView({super.key});
@@ -170,12 +171,19 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
                       ),
                       // 全局记忆开关
                       Switch(
-                        value: ref.read(apiConfigServiceProvider).ragEnabled,
+                        value: ref.watch(apiConfigServiceProvider).ragEnabled,
                         onChanged: (v) async {
                           await ref
                               .read(apiConfigServiceProvider)
                               .setRagEnabled(v);
                           setState(() {});
+                          
+                          if (v) {
+                            final isOk = await ref.read(embeddingServiceProvider).testConnection();
+                            if (!isOk && mounted) {
+                              AppToast.showError(context, t.agent.rag.probe_failed);
+                            }
+                          }
                         },
                       ),
                       if (totalCount > 0)
@@ -196,7 +204,7 @@ class _RagMemoryViewState extends ConsumerState<RagMemoryView> {
                 ),
 
                 // RAG 关闭提示
-                if (!ref.read(apiConfigServiceProvider).ragEnabled)
+                if (!ref.watch(apiConfigServiceProvider).ragEnabled)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 32),
                     child: Container(

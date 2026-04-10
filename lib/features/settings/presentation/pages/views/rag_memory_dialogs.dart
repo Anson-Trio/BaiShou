@@ -389,17 +389,24 @@ class RagMemoryDialogs {
         return false;
       }
 
-      await embeddingService.embedText(
-        text: result.trim(),
-        sourceType: 'chat',
-        sourceId: 'mem_${DateTime.now().millisecondsSinceEpoch}',
-        groupId: 'manual_memory',
-      );
+      try {
+        await embeddingService.embedText(
+          text: result.trim(),
+          sourceType: 'chat',
+          sourceId: 'mem_${DateTime.now().millisecondsSinceEpoch}',
+          groupId: 'manual_memory',
+        );
 
-      if (context.mounted) {
-        AppToast.showSuccess(context, t.agent.rag.add_memory_success);
+        if (context.mounted) {
+          AppToast.showSuccess(context, t.agent.rag.add_memory_success);
+        }
+        return true;
+      } catch (e) {
+        if (context.mounted) {
+          AppToast.showError(context, '${t.common.errors.save_failed}: $e');
+        }
+        return false;
       }
-      return true;
     }
     return false;
   }
@@ -456,15 +463,22 @@ class RagMemoryDialogs {
         return false;
       }
 
-      await embeddingService.updateMemoryChunk(
-        entry: entry,
-        newText: result.trim(),
-      );
+      try {
+        await embeddingService.updateMemoryChunk(
+          entry: entry,
+          newText: result.trim(),
+        );
 
-      if (context.mounted) {
-        AppToast.showSuccess(context, t.agent.rag.edit_memory_success);
+        if (context.mounted) {
+          AppToast.showSuccess(context, t.agent.rag.edit_memory_success);
+        }
+        return true;
+      } catch (e) {
+        if (context.mounted) {
+          AppToast.showError(context, '${t.common.errors.save_failed}: $e');
+        }
+        return false;
       }
-      return true;
     }
     return false;
   }

@@ -8,6 +8,7 @@ import 'package:yaml/yaml.dart';
 import 'package:baishou/features/index/data/shadow_index_database.dart';
 import 'package:baishou/features/storage/domain/services/journal_file_service.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:baishou/core/storage/vault_service.dart';
 import 'package:baishou/core/services/api_config_service.dart';
 import 'package:baishou/agent/rag/embedding_service.dart';
@@ -18,6 +19,9 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'package:baishou/features/storage/domain/services/file_state_scheduler.dart';
 import 'package:baishou/features/diary/data/vault_index_notifier.dart';
+import 'package:baishou/core/router/app_router.dart';
+import 'package:baishou/core/widgets/app_toast.dart';
+import 'package:baishou/i18n/strings.g.dart';
 
 part 'shadow_index_sync_service.g.dart';
 
@@ -62,6 +66,7 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
   // 异步 RAG 嵌入队列管理
   final List<_RagTask> _ragQueue = [];
   bool _isProcessingRag = false;
+  int _consecutiveFailures = 0;
 
   /// 等待当前正在进行的全量扫描完成
   Future<void> waitForScan() async {
@@ -342,9 +347,46 @@ class ShadowIndexSyncService extends _$ShadowIndexSyncService {
             metadataJson:
                 '{"updated_at":${diary.updatedAt.millisecondsSinceEpoch}}',
           );
+          _consecutiveFailures = 0;
           debugPrint('ShadowIndexSyncService: RAG embedded for $dateLabel');
         } catch (e) {
+          _consecutiveFailures++;
           debugPrint('ShadowIndexSyncService: RAG embedding failed: $e');
+
+          if (_consecutiveFailures >= 1) {
+            await apiConfig.setRagEnabled(false);
+            _ragQueue.clear();
+            
+            try {
+              final context = ref.read(goRouterProvider).routerDelegate.navigatorKey.currentContext;
+              if (context != null && context.mounted) {
+                showDialog(
+                  context: context,
+                  builder: (ctx) {
+                    final colorScheme = Theme.of(ctx).colorScheme;
+                    return AlertDialog(
+                      title: Row(
+                        children: [
+                          Icon(Icons.warning_amber_rounded, color: colorScheme.error),
+                          const SizedBox(width: 8),
+                          Text(t.agent.rag.circuit_breaker_title, style: TextStyle(color: colorScheme.error)),
+                        ],
+                      ),
+                      content: Text(t.agent.rag.circuit_breaker_content),
+                      actions: [
+                        FilledButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: Text(t.common.ok),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              }
+            } catch (_) {}
+            
+            break;
+          }
         }
 
         // 处理完每一条主动休眠延迟，避免批量拉入时打爆大模型并发限制（特别是 Gemini 有严苛的单分钟额度）
