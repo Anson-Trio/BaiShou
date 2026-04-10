@@ -76,10 +76,13 @@ class ContextWindow {
       return [effectiveMessages[0], ...effectiveMessages.sublist(startIndex)];
     }
 
-    // 往前修正：不要在 tool result 开头截断（保持 assistant+tool 的完整性）
-    while (startIndex > 0 &&
-        startIndex < effectiveMessages.length &&
-        effectiveMessages[startIndex].role == MessageRole.tool) {
+    // 往前修正：寻找最近的完整对话边界（以 User 消息或 System 消息作为原子周期的起点）
+    // 确保绝对不会在 User->Assistant->Tool 的中间截断，将它们视为一个“整体”
+    while (startIndex > 0 && startIndex < effectiveMessages.length) {
+      final role = effectiveMessages[startIndex].role;
+      if (role == MessageRole.user || role == MessageRole.system) {
+        break;
+      }
       startIndex--;
     }
 
@@ -125,10 +128,12 @@ class ContextWindow {
       return [effectiveMessages[0], ...effectiveMessages.sublist(startIndex)];
     }
 
-    // 同上：不在 tool result 中间截断
-    while (startIndex > 0 &&
-        startIndex < effectiveMessages.length &&
-        effectiveMessages[startIndex].role == MessageRole.tool) {
+    // 同上：往前修正寻找合适的对话边界以保持业务逻辑作为整体不被分割
+    while (startIndex > 0 && startIndex < effectiveMessages.length) {
+      final role = effectiveMessages[startIndex].role;
+      if (role == MessageRole.user || role == MessageRole.system) {
+        break;
+      }
       startIndex--;
     }
 

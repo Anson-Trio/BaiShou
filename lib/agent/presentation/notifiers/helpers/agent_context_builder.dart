@@ -77,7 +77,6 @@ class AgentContextBuilder {
         assistantContextWindow ?? apiConfig.agentContextWindowSize;
     final dbMessages = await manager.getMessages(
       sessionId,
-      limit: windowSize,
       descending: true,
     );
 
