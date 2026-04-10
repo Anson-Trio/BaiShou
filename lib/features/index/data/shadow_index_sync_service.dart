@@ -636,3 +636,11 @@ class _OrphanEntry {
   final String dateStr;
   _OrphanEntry(this.id, this.dateStr);
 }
+
+/// 批量 Upsert 任务实体
+class _UpsertTask {
+  final Diary diary;
+  final String hash;
+  final String expectedPath;
+  _UpsertTask(this.diary, this.hash, this.expectedPath);
+}
