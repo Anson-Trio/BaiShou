@@ -278,8 +278,9 @@ void main() {
       await globalDb.initVectorIndex(3);
       await globalDb.insertEmbedding(
         id: 'vec_1',
-        messageId: 'msg_1',
-        sessionId: 'sess_1',
+        sourceType: 'message',
+        sourceId: 'msg_1',
+        groupId: 'sess_1',
         chunkIndex: 0,
         chunkText: 'Hello World Vector Migration',
         embedding: [0.1, 0.2, 0.3],
@@ -329,7 +330,7 @@ void main() {
         1,
         reason: 'sqlite-vec KNN search should work after physical file move',
       );
-      expect(vectorResults.first['message_id'], 'msg_1');
+      expect(vectorResults.first['source_id'], 'msg_1');
 
       // FTS full text search
       final newFtsResults = await newAgentDb.searchFts('Migration');
@@ -343,4 +344,39 @@ void main() {
       await newAgentDb.close();
     },
   );
+
+  test('AgentDatabase provider handles LRU cache eviction and connection closure', () async {
+    final vaultService = container.read(vaultServiceProvider.notifier);
+    await container.read(vaultServiceProvider.future); // Initialize first
+    
+    final dbs = <String, AgentDatabase>{};
+    
+    // 1. 触发默认 Personal
+    dbs['Personal'] = container.read(agentDatabaseProvider);
+    
+    // 2. 依次切换并触发 V1, V2, V3, V4, V5
+    for (int i = 1; i <= 5; i++) {
+      await vaultService.switchVault('V$i');
+      dbs['V$i'] = container.read(agentDatabaseProvider);
+    }
+    
+    // 现在 _dbCache 累计了 6 个不同空间 (Personal + V1~V5)。
+    // 因为 maxCacheSize = 5，最初访问的 'Personal' 应该已经被移出并调用了 oldestDb.close()。
+    // 尝试在已关闭的 Personal DB 上进行查询，应当由于连接关闭而抛出 StateError 错误。
+    expect(
+      () => dbs['Personal']!.customSelect('SELECT 1').get(),
+      throwsA(isA<StateError>()),
+    );
+
+    // 确保 V5（最新访问过的）依然处于开启且工作状态
+    final result = await dbs['V5']!.customSelect('SELECT 1').get();
+    expect(result.isNotEmpty, isTrue);
+
+    // 清理剩下的连接
+    for (final db in dbs.values) {
+      try {
+        await db.close();
+      } catch (_) {}
+    }
+  });
 }

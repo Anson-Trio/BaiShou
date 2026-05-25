@@ -831,7 +831,21 @@ AgentDatabase agentDatabase(Ref ref) {
   // vault 切换意味着多库共存，这是明确的设计需求，因此安全抑制警告。
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
-  if (!_dbCache.containsKey(vaultName)) {
+  if (_dbCache.containsKey(vaultName)) {
+    // LRU: 重新放入以将其移至 LinkedHashMap 迭代顺序的末尾
+    final db = _dbCache.remove(vaultName)!;
+    _dbCache[vaultName] = db;
+  } else {
+    // 限制最大缓存容量，防止 200+ 工作空间打开过多连接导致句柄耗尽崩溃
+    const maxCacheSize = 5;
+    if (_dbCache.length >= maxCacheSize) {
+      final oldestVault = _dbCache.keys.first;
+      final oldestDb = _dbCache.remove(oldestVault);
+      oldestDb?.close();
+      // ignore: avoid_print
+      print('[AgentDB] LRU cache evicted and closed database connection for: $oldestVault');
+    }
+
     final db = AgentDatabase(_openAgentConnection(pathService, vaultName));
     _dbCache[vaultName] = db;
   }
